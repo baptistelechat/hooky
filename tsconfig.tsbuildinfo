@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/main.tsx","./src/vite-env.d.ts","./src/avatar/cubee.tsx","./src/avatar/avatar-runtime.ts","./src/avatar/cubee.avatar.ts","./src/avatar/cubee.index.ts","./src/components/petavatar.tsx","./src/hooks/usehookystate.ts"],"version":"5.8.3"}
