@@ -4,6 +4,7 @@ register: blockers
 
 ## Index
 
-| ID                             | Date       | Friction                                                    | Tags                                                         | Statut |
-| ------------------------------ | ---------- | ----------------------------------------------------------- | ------------------------------------------------------------ | ------ |
-| [BLK-001](blockers/BLK-001.md) | 2026-08-24 | Fusion hooks dans settings.json bloquée — attribut ReadOnly | #windows #readonly #settings-json #claude-code #misdiagnosis | résolu |
+| ID                             | Date       | Friction                                                  | Tags                                                         | Statut |
+| ------------------------------ | ---------- | --------------------------------------------------------- | ------------------------------------------------------------ | ------ |
+| [BLK-003](blockers/BLK-003.md) | 2026-08-24 | Install shadcn/Tailwind bloqué 3x par la quarantaine pnpm | #shadcn #pnpm #minimum-release-age #tailwind #install #npmrc | résolu |
+| [BLK-004](blockers/BLK-004.md) | 2026-08-24 | Bouton Exporter silencieux (settings JSON)                | #tauri #export #blob #download #plugin-dialog #webview2      | résolu |

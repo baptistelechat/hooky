@@ -1,11 +1,11 @@
 ---
-id: BLK-001
+id: ZBLK-001
 type: blocker
 date: 2026-08-24
 tags: [windows, readonly, settings-json, claude-code, misdiagnosis]
 ---
 
-# BLK-001 — Fusion hooks dans settings.json bloquée — attribut ReadOnly
+# ZBLK-001 — Fusion hooks dans settings.json bloquée — attribut ReadOnly
 
 | Friction                                                                                               | Cause réelle                                                                                                                                                                                                    | Solution                                                                                                                                                                                                                         | Statut |
 | ------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
@@ -15,4 +15,4 @@ Vérification post-fusion : JSON syntaxiquement correct, aucun hook existant mod
 
 ## Références
 
-- [BDR-002](../decisions/BDR-002.md) — décision d'architecture (port 4242) qui motive la config hooks fusionnée ici
+- [BDR-002](../../decisions/BDR-002.md) — décision d'architecture (port 4242) qui motive la config hooks fusionnée ici
