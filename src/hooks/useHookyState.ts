@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
-import type { AnimationName } from "../avatar/cubee.index";
+import type { AnimationName } from "../components/Avatar";
 
 // Contrat fixe avec le backend Rust : event "hooky-state", payload { state: <nom> }.
 interface HookyStatePayload {

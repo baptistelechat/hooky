@@ -29,6 +29,7 @@ initial du brief :
 - [x] Étape 7c — Découpage frontend en `hooks/` + `components/` pour réutilisabilité
 - [x] Étape 7d — Tooling `package.json` : ESLint installé et configuré (le script existait, rien derrière), `typecheck` ajouté
 - [x] Étape 8 — Documenter les events `clawd-on-desk` non repris (table plus bas) — **décision "lesquels intégrer" volontairement différée**, pas un TODO oublié : pas de signal Claude Code exploitable identifié pour l'instant, à rouvrir si besoin réel constaté à l'usage
+- [x] Étape 9 — Migration du moteur copié vers le package npm `@bible-strong/avatar-react` (licence AGPL-3.0-only inchangée)
 - [x] En-têtes `NOTICE` (licence AGPL) ajoutés dans `src/avatar/*`, `LICENSE` (AGPL-3.0 complète) créée à la racine
 - [x] **Fusionner `hooks/claude-settings-snippet.json` dans le `settings.json` global**
       — fait. La cause du blocage initial n'était pas un verrou de process (mauvais
@@ -184,3 +185,24 @@ prévue**, à évaluer un par un selon la valeur perçue avant d'ajouter du mapp
 | `StopFailure`                    | ❌ non exploré                 | pendant échec de `Stop`                                                                                                                                                                   |
 
 Pas d'action de code pour cette étape — décision à prendre au cas par cas plus tard.
+
+## Étape 9 — Migration vers le package npm `@bible-strong/avatar-react` ✅
+
+Le Studio `smontlouis/bible-strong-avatar-lab` a publié un vrai package npm après le
+développement initial de Hooky. Le code copié à la main (`avatar-runtime.ts`, `Cubee.tsx`,
+`cubee.avatar.ts`) est remplacé par `@bible-strong/avatar-react@0.1.0` + `createAvatar()`,
+piloté par `cubee.avatar.json` (nouvel export du Studio, clés sémantiques). Décision
+détaillée : [BDR-004](../.claude/memory/decisions/BDR-004.md).
+
+- Licence inchangée : le package est aussi `AGPL-3.0-only` — pas d'impact sur la décision
+  de repo AGPL-3.0.
+- Les 9 animations utilisées par le backend Rust (`sleeping, waking, idle, listening,
+thinking, searching, working, bored, confused`) sont toutes présentes dans le nouveau
+  JSON, comportement observable inchangé.
+- `useHookyState.ts`/`PetAvatar.tsx` inchangés (même contrat `AnimationName`, même usage
+  contrôlé `<Cubee animation={...} size={240} />`).
+- Vérifié : `pnpm typecheck`, `pnpm lint`, `pnpm build` passent ; rendu visuel de Cubee
+  (animation `sleeping` par défaut) confirmé dans un navigateur pointé sur le serveur Vite
+  déjà lancé par Baptiste (`localhost:1420`) — les erreurs console `listen()`/
+  `transformCallback` viennent de l'API Tauri absente hors webview réelle, pas de la
+  migration.

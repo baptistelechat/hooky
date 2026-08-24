@@ -1,5 +1,5 @@
 import { useHookyState } from "./hooks/useHookyState";
-import { PetAvatar } from "./components/PetAvatar";
+import { PetAvatar } from "./components/Avatar";
 import "./App.css";
 
 function App() {
