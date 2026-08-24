@@ -34,15 +34,21 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         if (op[0] & 5) throw op[1]; return { value: op[0] ? op[1] : void 0, done: true };
     }
 };
+import path from "node:path";
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
-// @ts-expect-error process is a nodejs global
+import tailwindcss from "@tailwindcss/vite";
 var host = process.env.TAURI_DEV_HOST;
 // https://vite.dev/config/
 export default defineConfig(function () { return __awaiter(void 0, void 0, void 0, function () {
     return __generator(this, function (_a) {
         return [2 /*return*/, ({
-                plugins: [react()],
+                plugins: [react(), tailwindcss()],
+                resolve: {
+                    alias: {
+                        "@": path.resolve(import.meta.dirname, "./src"),
+                    },
+                },
                 // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
                 //
                 // 1. prevent Vite from obscuring rust errors

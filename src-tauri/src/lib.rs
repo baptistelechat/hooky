@@ -37,6 +37,13 @@ const SEARCH_TOOLS: &[&str] = &["Grep", "WebSearch", "Glob", "WebFetch"];
 /// Mapping event Claude Code -> animation Strobi (cf. docs/BRIEF.md, section "Mapping events").
 /// `SessionEnd` n'a pas d'animation propre : la session est retirée de la map (géré à l'appel).
 /// `tool_name` n'est consulté que pour `PreToolUse` (granularité working/searching).
+///
+/// Étape 8 du roadmap (events `clawd-on-desk` documentés non repris) close ici : seuls les
+/// events déjà identifiés comme pertinents et vérifiés dans la doc officielle Claude Code sont
+/// mappés, sur la palette d'animations existante (aucune nouvelle animation ajoutée). Le reste
+/// de la liste `clawd-on-desk` (bookkeeping interne : ConfigChange, TaskCreated, WorktreeCreate,
+/// FileChanged...) reste volontairement non mappé -- trop de bruit potentiel pour un signal
+/// perçu incertain, à rouvrir si un besoin réel se présente.
 fn animation_for_event(event_name: &str, tool_name: Option<&str>) -> Option<&'static str> {
     match event_name {
         "SessionStart" => Some("waking"),
@@ -52,6 +59,13 @@ fn animation_for_event(event_name: &str, tool_name: Option<&str>) -> Option<&'st
         "PostToolUseFailure" => Some("confused"),
         "Notification" => Some("listening"),
         "Stop" => Some("idle"),
+        "StopFailure" => Some("confused"),
+        "SubagentStart" => Some("working"),
+        "SubagentStop" => Some("idle"),
+        "PreCompact" => Some("thinking"),
+        "PostCompact" => Some("idle"),
+        "PermissionRequest" => Some("listening"),
+        "Elicitation" => Some("listening"),
         // ponytail: event inconnu/non mappé -> ignoré sans erreur, pas de session mutée
         _ => None,
     }
@@ -131,9 +145,12 @@ async fn on_event(State(state): State<ServerState>, Json(payload): Json<Value>) 
         resolve_state(&sessions)
     };
 
-    let _ = state
-        .app_handle
-        .emit("hooky-state", serde_json::json!({ "state": resolved }));
+    // lastEvent/toolName : uniquement pour le mode debug frontend (affichage du hook
+    // déclencheur) -- absents quand ils ne s'appliquent pas (ex. event ignoré côté mapping).
+    let _ = state.app_handle.emit(
+        "hooky-state",
+        serde_json::json!({ "state": resolved, "lastEvent": event_name, "toolName": tool_name }),
+    );
 
     // Les hooks "http" de Claude Code exigent un corps de réponse JSON valide
     // (un simple texte "ok" est rejeté : "must return JSON, but got non-JSON response").
@@ -184,6 +201,15 @@ fn spawn_idle_reaper(sessions: Sessions, app_handle: AppHandle) {
     });
 }
 
+/// Écrit `content` dans `path`. Commande applicative interne (pas un plugin) : pas de
+/// scope à déclarer côté capabilities, contrairement à `fs:allow-write-text-file`. Le
+/// chemin vient toujours du dialogue natif `save()` (`@tauri-apps/plugin-dialog`) côté
+/// front -- l'utilisateur a déjà choisi/consenti l'emplacement avant l'appel.
+#[tauri::command]
+fn write_text_file(path: String, content: String) -> Result<(), String> {
+    std::fs::write(path, content).map_err(|e| e.to_string())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let sessions: Sessions = Arc::new(Mutex::new(HashMap::new()));
@@ -197,6 +223,8 @@ pub fn run() {
             }
         }))
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
+        .invoke_handler(tauri::generate_handler![write_text_file])
         .setup(move |app| {
             let app_handle = app.handle().clone();
 

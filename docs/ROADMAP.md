@@ -28,7 +28,10 @@ initial du brief :
 - [x] Étape 7b — Fix drag & drop (cause réelle : permission `core:window:allow-start-dragging` manquante dans `capabilities/default.json`)
 - [x] Étape 7c — Découpage frontend en `hooks/` + `components/` pour réutilisabilité
 - [x] Étape 7d — Tooling `package.json` : ESLint installé et configuré (le script existait, rien derrière), `typecheck` ajouté
-- [x] Étape 8 — Documenter les events `clawd-on-desk` non repris (table plus bas) — **décision "lesquels intégrer" volontairement différée**, pas un TODO oublié : pas de signal Claude Code exploitable identifié pour l'instant, à rouvrir si besoin réel constaté à l'usage
+- [x] Étape 8 — Mapping des hooks finalisé : `StopFailure`, `SubagentStart`/`SubagentStop`,
+      `PreCompact`/`PostCompact`, `PermissionRequest`, `Elicitation` ajoutés (7 events, sur la
+      palette d'animations existante, aucun ajout d'animation) — voir table mise à jour plus bas
+      pour le détail et pour ce qui reste volontairement non mappé
 - [x] Étape 9 — Migration du moteur copié vers le package npm `@bible-strong/avatar-react` (licence AGPL-3.0-only inchangée)
 - [x] En-têtes `NOTICE` (licence AGPL) ajoutés dans `src/avatar/*`, `LICENSE` (AGPL-3.0 complète) créée à la racine
 - [x] **Fusionner `hooks/claude-settings-snippet.json` dans le `settings.json` global**
@@ -150,6 +153,8 @@ additionnel. À reconsidérer si le moteur expose un jour ce type de hook.
       IPC asynchrone et mes événements souris synthétiques (get bloqué en drag continu)
       — artefact de test, pas un bug applicatif. **À reconfirmer avec un vrai clic
       souris.**
+- [x] Étape 10 — Fenêtre de settings (taille avatar, mode debug, JSON, export/import) —
+      voir section dédiée plus bas
 - [x] **Découpage frontend.** `src/App.tsx` (orchestrateur fin) + `src/hooks/useHookyState.ts`
       (écoute l'event `hooky-state`) + `src/components/PetAvatar.tsx` (rendu + drag) —
       base réutilisable pour ajouter d'autres hooks/composants sans repartir d'un
@@ -162,29 +167,44 @@ additionnel. À reconsidérer si le moteur expose un jour ce type de hook.
       build complet). `name` du `package.json` aligné sur `hooky` (au lieu du
       `tauri-app` du scaffold).
 
-## Étape 8 — Events `clawd-on-desk` à documenter (V2, non implémentés)
+## Étape 8 — Events `clawd-on-desk` : mapping finalisé ✅
 
 Référence : [`clawd-on-desk`](https://github.com/rullerzhou-afk/clawd-on-desk). Liste des
-events interceptés par ce projet, à titre d'inspiration — **pas de reprise systématique
-prévue**, à évaluer un par un selon la valeur perçue avant d'ajouter du mapping.
+events interceptés par ce projet, à titre d'inspiration initiale. Décision prise event par
+event (pas de reprise systématique) : mappés sur la palette d'animations **existante**
+(`sleeping, waking, idle, listening, thinking, searching, working, bored, confused`) — aucune
+nouvelle animation n'a été ajoutée pour cette étape.
 
-| Event                            | Déjà dans Hooky ?              | Note                                                                                                                                                                                      |
-| -------------------------------- | ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `SessionStart`                   | ✅                             | `waking`                                                                                                                                                                                  |
-| `UserPromptSubmit`               | ✅                             | `thinking`                                                                                                                                                                                |
-| `PreToolUse`                     | ✅                             | `working`/`searching`                                                                                                                                                                     |
-| `PostToolUse`                    | ✅                             | retour `idle`                                                                                                                                                                             |
-| `PostToolUseFailure`             | ✅                             | `confused`                                                                                                                                                                                |
-| `Notification`                   | ✅                             | `listening`                                                                                                                                                                               |
-| `Stop`                           | ✅                             | `idle`                                                                                                                                                                                    |
-| `SessionEnd`                     | ✅                             | session retirée                                                                                                                                                                           |
-| `SubagentStart` / `SubagentStop` | ⏸️ V2 déjà notée dans le brief | `curious`/`excited`                                                                                                                                                                       |
-| `PermissionRequest`              | ❌ non exploré                 | chez clawd-on-desk, affichait les prompts de permission via le pet (serveur local dédié 127.0.0.1:23333) — pertinent si Hooky doit un jour relayer les demandes de permission Claude Code |
-| `Elicitation`                    | ❌ non exploré                 | à documenter si un jour pertinent                                                                                                                                                         |
-| `PreCompact` / `PostCompact`     | ❌ non exploré                 | signal de compaction de contexte, valeur perçue à évaluer                                                                                                                                 |
-| `StopFailure`                    | ❌ non exploré                 | pendant échec de `Stop`                                                                                                                                                                   |
+| Event                | Déjà dans Hooky ? | Animation             | Note                                                                       |
+| -------------------- | ----------------- | --------------------- | -------------------------------------------------------------------------- |
+| `SessionStart`       | ✅                | `waking`              |                                                                            |
+| `UserPromptSubmit`   | ✅                | `thinking`            |                                                                            |
+| `PreToolUse`         | ✅                | `working`/`searching` |                                                                            |
+| `PostToolUse`        | ✅                | `idle`                |                                                                            |
+| `PostToolUseFailure` | ✅                | `confused`            |                                                                            |
+| `Notification`       | ✅                | `listening`           |                                                                            |
+| `Stop`               | ✅                | `idle`                |                                                                            |
+| `SessionEnd`         | ✅                | —                     | session retirée de la map                                                  |
+| `StopFailure`        | ✅ (nouveau)      | `confused`            | échec d'API pendant `Stop` — même famille que `PostToolUseFailure`         |
+| `SubagentStart`      | ✅ (nouveau)      | `working`             | un sous-agent démarre du travail                                           |
+| `SubagentStop`       | ✅ (nouveau)      | `idle`                |                                                                            |
+| `PreCompact`         | ✅ (nouveau)      | `thinking`            | compaction du contexte en cours                                            |
+| `PostCompact`        | ✅ (nouveau)      | `idle`                |                                                                            |
+| `PermissionRequest`  | ✅ (nouveau)      | `listening`           | attente d'une décision utilisateur — même intention que côté clawd-on-desk |
+| `Elicitation`        | ✅ (nouveau)      | `listening`           | un serveur MCP attend une réponse utilisateur                              |
 
-Pas d'action de code pour cette étape — décision à prendre au cas par cas plus tard.
+**Volontairement non mappé** — bookkeeping interne sans valeur perçue claire pour un pet de
+bureau, ou dont l'existence même en tant que hook officiel n'est pas confirmée avec certitude
+(retour d'un agent de recherche daté du 2026-08-24, à vérifier dans la doc officielle si l'un
+d'eux s'avère pertinent à l'usage) : `PermissionDenied`, `TaskCreated`/`TaskCompleted`,
+`WorktreeCreate`/`WorktreeRemove`, `ConfigChange`, `TeammateIdle`, `FileChanged`,
+`CwdChanged`, `DirectoryAdded`, `InstructionsLoaded`, `ElicitationResult`, `MessageDisplay`,
+`Setup`, `UserPromptExpansion`, `PostToolBatch`. À rouvrir au cas par cas si un besoin réel se
+présente à l'usage — pas un TODO oublié.
+
+Côté code : mapping dans `animation_for_event()` (`src-tauri/src/lib.rs`), hooks déclarés dans
+`docs/hooks/claude-settings-snippet.json` et fusionnés dans `~/.claude/settings.json` (15
+events au total).
 
 ## Étape 9 — Migration vers le package npm `@bible-strong/avatar-react` ✅
 
@@ -206,3 +226,129 @@ thinking, searching, working, bored, confused`) sont toutes présentes dans le n
   déjà lancé par Baptiste (`localhost:1420`) — les erreurs console `listen()`/
   `transformCallback` viennent de l'API Tauri absente hors webview réelle, pas de la
   migration.
+
+## Étape 10 — Fenêtre de settings ✅
+
+Clic droit **ou** double-clic sur l'avatar ouvre une seconde fenêtre Tauri (`WebviewWindow`
+label `"settings"`, créée dynamiquement en JS -- pas déclarée dans `tauri.conf.json`, qui ne
+liste que les fenêtres créées au démarrage). Même bundle frontend pour les deux fenêtres :
+`App.tsx` bascule le rendu (`PetAvatar` vs `SettingsPanel`) selon `getCurrentWindow().label`,
+pas de second point d'entrée HTML.
+
+- **Stockage : `localStorage`**, confirmé suffisant -- pas de besoin de synchro multi-PC.
+  Diffusion aux autres fenêtres via l'event Tauri `hooky-settings` (même pattern que
+  `hooky-state` déjà utilisé pour l'avatar) : `localStorage` seul n'aurait pas re-render la
+  fenêtre du pet en temps réel pendant qu'on bouge un slider dans les settings.
+- **Taille de l'avatar** : slider 80-240px, prop `size` déjà supportée par
+  `@bible-strong/avatar-react` -- réutilisée telle quelle. La fenêtre native reste fixe à
+  240×240 (cf. étape 0, décision "cropé à l'avatar") : un avatar plus petit laisse une marge
+  transparente autour, pas de redimensionnement de fenêtre (aurait demandé de rendre la
+  fenêtre `resizable` + une permission Tauri supplémentaire pour un gain visuel marginal).
+- **Mode debug** : fond du pet passé à `rgba(0,0,0,0.5)` + overlay `<pre>` rouge monospace
+  (`position: absolute`, `pointer-events: none` pour ne jamais intercepter le drag/clic-droit)
+  affichant l'animation courante et le dernier hook Claude Code déclencheur (+ `tool_name` si
+  présent). Le backend Rust transmet désormais `lastEvent`/`toolName` dans le payload de
+  l'event `hooky-state` (`src-tauri/src/lib.rs`) -- absents sur les émissions du reaper
+  (transition idle→bored, éviction), qui n'ont pas d'event Claude Code à l'origine.
+- **JSON sauvegardé** : `SettingsPanel` affiche le JSON des settings persistées dans un
+  textarea éditable (bouton "Appliquer le JSON"), synchronisé avec les contrôles (slider/
+  checkbox) dans les deux sens.
+- **Export/import** : zéro dépendance ajoutée -- export via `Blob` + `<a download>` (le
+  WebView2 gère un vrai téléchargement natif, contrairement à un contexte sandboxé), import
+  via `<input type="file">` + `File.text()`. Pas de `tauri-plugin-dialog`/`fs` : le besoin ne
+  justifiait pas la dépendance supplémentaire.
+- **Permissions Tauri** ajoutées : `core:webview:allow-create-webview-window` sur la capability
+  `main` (absente de `core:webview:default`, vérifié dans `gen/schemas/acl-manifests.json`
+  avant d'ajouter) ; nouvelle capability `src-tauri/capabilities/settings.json`
+  (`core:default` suffit -- `core:event:default` qui couvre `emit`/`listen` y est déjà inclus).
+- Vérifié : `pnpm typecheck`, `pnpm lint`, `pnpm build` et `cargo check` passent tous. Rendu
+  visuel réel non testé dans cette session (une instance Hooky de Baptiste tournait déjà sur
+  le port 4242 pendant l'implémentation -- relancer l'app aurait risqué d'interrompre son
+  usage en cours, cf. [LRN-004](../.claude/memory/learnings/LRN-004.md)) : **à valider
+  visuellement par Baptiste** (clic droit/double-clic sur le pet, sliders, mode debug).
+
+### Retours d'usage (même session) — 3 bugs + 1 refonte UI
+
+- **Avatar non carré sous 240px** : cause racine, pas la lib d'avatar (qui pose bien
+  `width: M; height: M` en style inline, donc intrinsèquement carrée). `#root` (div de
+  montage React dans `index.html`) n'avait aucune règle CSS -- la chaîne de pourcentages
+  `html → body → #root → .pet-window { height: 100% }` était donc rompue dès `#root`
+  (hauteur `auto`, retombant sur celle du contenu), alors que la largeur restait pleine
+  (héritée du flow de bloc, pas de la chaîne de %). Invisible à 240px par coïncidence
+  (contenu = taille de fenêtre), visible dès qu'on réduit. Fix : `height: 100%` explicite
+  sur `html, body` et nouvelle règle `#root { height: 100% }` (`src/App.css`) -- même
+  pattern que GLRN-242 (mémoire globale, hors repo : chaîne `height:100%`, chaque
+  ancêtre compte, `#root` y compris).
+- **Clic droit retiré, double-clic uniquement** : le clic droit fonctionnait, le
+  double-clic non -- cause : `startDragging()` était appelé sur **chaque** `mousedown`
+  (y compris les deux clics d'un double-clic), et cette fonction entre dans une boucle de
+  drag OS bloquante qui casse le comptage natif `dblclick` du navigateur. Remplacé par une
+  détection manuelle par chronométrage (`performance.now()`, fenêtre 300ms) dans
+  `onMouseDown` : le second clic dans la fenêtre ouvre les settings et n'appelle pas
+  `startDragging()`, le premier (ou un clic isolé) déclenche le drag comme avant. Pattern
+  déjà documenté : GLRN-212 (mémoire globale, hors repo)
+  (`dblclick` natif pas fiable → détection manuelle).
+- **UI settings refaite avec shadcn/ui** : Tailwind CSS v4 (`@tailwindcss/vite`) + shadcn
+  (préréglage `nova`, base `@base-ui/react`, `iconLibrary: lucide` -- déjà la valeur par
+  défaut) installés dans un projet Vite qui n'avait ni l'un ni l'autre. Alias `@/*` ajouté
+  (`tsconfig.json` `paths` + `resolve.alias` dans `vite.config.ts`, ce dernier a aussi
+  nécessité `@types/node` pour `node:path`/`import.meta.dirname`). Composants ajoutés :
+  `Field`/`FieldGroup`/`FieldLabel`/`FieldDescription`/`FieldTitle`/`FieldSeparator`,
+  `Slider`, `Switch`, `Button`, `Separator`. Icônes `lucide-react`. Section JSON éditable +
+  bouton "Appliquer le JSON" **retirés** (les contrôles appliquent déjà en temps réel via
+  `useSettings`, le bouton était mort). `Settings.css` custom supprimé, remplacé par les
+  classes Tailwind/tokens shadcn (`bg-background`, `text-foreground`...) -- le fond du
+  `body` reste `transparent` (règle globale de `App.css`, non-layered donc prioritaire sur
+  le `@layer base` de Tailwind), la fenêtre settings garde donc son propre fond opaque
+  porté par son conteneur racine (`h-screen bg-background`), pas par `body`.
+- **Frictions pnpm rencontrées** : quarantaine `minimum-release-age` (politique globale
+  7 jours) bloquée par des variantes de plateforme optionnelles de `rollup` totalement
+  sans rapport avec ce qui était installé -- déjà documenté
+  ([LRN-003](../.claude/memory/learnings/LRN-003.md)). Le CLI shadcn appelant `pnpm add` en
+  interne à plusieurs reprises (impossible d'y passer un flag), contournement via un
+  `.npmrc` local temporaire (`minimum-release-age=0`) le temps de l'`init`, supprimé
+  ensuite -- politique globale jamais modifiée.
+- Re-vérifié après ces correctifs : `pnpm typecheck`, `pnpm lint` (1 warning bénin,
+  pré-existant dans le code vendor `components/ui/button.tsx`, cf.
+  GLRN-210 (mémoire globale, hors repo)), `pnpm build` --
+  tous passent. Toujours pas de rendu visuel réel testé cette session (même contrainte
+  port 4242 déjà occupé).
+
+### Retours d'usage (round 2) — double-clic validé, 3 nouveaux fixes
+
+Double-clic confirmé fonctionnel par Baptiste. Trois nouveaux retours traités :
+
+- **Zone de drag trop large sous 240px** : `.pet-window` (qui porte `onMouseDown`) faisait
+  toujours `width: 100%; height: 100%` de la fenêtre (240×240), même quand
+  `settings.avatarSize` était réduit -- toute la marge transparente autour de l'avatar
+  rétréci déclenchait donc encore le drag/double-clic. Fix : `.pet-window` dimensionné
+  exactement à `avatarSize × avatarSize` (style inline, comme `AvatarEngine` lui-même),
+  englobé dans une nouvelle `.pet-shell` (100% de la fenêtre, purement pour le centrage
+  flex, aucun handler dessus) -- `src/App.css` + `src/components/Avatar.tsx`.
+- **Export silencieux (rien ne se passait au clic)** : pas un bug de code applicatif mais
+  une limitation connue de Tauri, cross-plateforme, WebView2 inclus -- `<a download>` sur
+  une URL `blob:` ne déclenche généralement aucun événement de téléchargement dans une
+  webview Tauri (confirmé par plusieurs issues GitHub `tauri-apps/tauri`/`wry`), donc rien
+  n'apparaît et aucune erreur ne remonte. Remplacé par le vrai dialogue natif :
+  `@tauri-apps/plugin-dialog` (`save()`) pour choisir le chemin + une commande Rust
+  applicative minimale `write_text_file` (`src-tauri/src/lib.rs`, `std::fs::write`) pour
+  écrire le contenu -- pas le plugin `fs` officiel, qui aurait exigé un `scope` de chemins
+  pré-déclaré en capability alors que le chemin n'est connu qu'après le choix utilisateur
+  dans le dialogue ; une commande applicative custom (`invoke_handler`, pas un plugin)
+  n'a besoin d'aucune entrée de capability -- confirmé dans la doc officielle Tauri
+  ("by default, all commands registered via `invoke_handler` are allowed to be used by
+  all the windows and webviews of the app"). Permission ajoutée : `dialog:default` sur la
+  capability `settings` (couvre `allow-save`). Import (`<input type="file">`) inchangé --
+  c'est un vrai picker OS natif, pas concerné par le bug `blob:`, fonctionnait déjà.
+- **Réinitialiser en `destructive` + confirmation** : composant `AlertDialog` shadcn ajouté
+  (`pnpm dlx shadcn add alert-dialog`, aucune nouvelle dépendance npm). Le bouton devient le
+  trigger (`variant="destructive"`, pattern base-ui `render={<Button .../>}`, pas `asChild`
+  qui est Radix) ; confirmation avant reset avec message explicite sur la perte des
+  réglages actuels ; l'action de reset elle-même (`AlertDialogAction`) est aussi
+  `variant="destructive"`.
+- Vérifié : `pnpm typecheck`, `pnpm lint`, `pnpm build` et `cargo check` (nouveau plugin
+  `tauri-plugin-dialog` + commande `write_text_file`) passent tous. Toujours pas de test
+  visuel réel de ce round par moi -- l'instance de Baptiste tourne toujours sur le port
+  4242 (redémarrée au moins une fois entre-temps par son propre `tauri:dev` suite aux
+  changements `src-tauri`, comportement normal cf.
+  [LRN-004](../.claude/memory/learnings/LRN-004.md)).

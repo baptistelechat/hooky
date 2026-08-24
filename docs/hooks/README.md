@@ -17,7 +17,8 @@ contenu de `claude-settings-snippet.json` tel quel dedans.
 Si une clé `"hooks"` **existe déjà** (d'autres hooks configurés) : **ne remplace pas
 le bloc entier** — fusionne clé par clé. Pour chaque event du snippet (`SessionStart`,
 `UserPromptSubmit`, `PreToolUse`, `PostToolUse`, `PostToolUseFailure`, `Notification`,
-`Stop`, `SessionEnd`) :
+`Stop`, `SessionEnd`, `StopFailure`, `SubagentStart`, `SubagentStop`, `PreCompact`,
+`PostCompact`, `PermissionRequest`, `Elicitation`) :
 
 - Si l'event n'existe pas encore dans ton `settings.json` → ajoute son tableau tel quel.
 - Si l'event existe déjà (ex. tu as déjà un hook `PreToolUse` pour autre chose) →

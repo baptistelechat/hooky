@@ -58,6 +58,55 @@
           { "type": "http", "url": "http://127.0.0.1:4242/event", "timeout": 5 }
         ]
       }
+    ],
+    "StopFailure": [
+      {
+        "hooks": [
+          { "type": "http", "url": "http://127.0.0.1:4242/event", "timeout": 5 }
+        ]
+      }
+    ],
+    "SubagentStart": [
+      {
+        "hooks": [
+          { "type": "http", "url": "http://127.0.0.1:4242/event", "timeout": 5 }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          { "type": "http", "url": "http://127.0.0.1:4242/event", "timeout": 5 }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [
+          { "type": "http", "url": "http://127.0.0.1:4242/event", "timeout": 5 }
+        ]
+      }
+    ],
+    "PostCompact": [
+      {
+        "hooks": [
+          { "type": "http", "url": "http://127.0.0.1:4242/event", "timeout": 5 }
+        ]
+      }
+    ],
+    "PermissionRequest": [
+      {
+        "hooks": [
+          { "type": "http", "url": "http://127.0.0.1:4242/event", "timeout": 5 }
+        ]
+      }
+    ],
+    "Elicitation": [
+      {
+        "hooks": [
+          { "type": "http", "url": "http://127.0.0.1:4242/event", "timeout": 5 }
+        ]
+      }
     ]
   }
 }
