@@ -1,8 +1,17 @@
 # Installation des hooks Claude Code pour Hooky
 
-`claude-settings-snippet.json` déclare les hooks `http` qui font vivre Hooky : chaque
-event Claude Code listé y est POST sur `http://127.0.0.1:4242/event`, le port fixe du
-serveur axum embarqué dans l'app Tauri.
+`claude-settings-snippet.json` déclare les hooks qui font vivre Hooky : chaque event
+Claude Code listé y est POST sur `http://127.0.0.1:4242/event`, le port fixe du serveur
+axum embarqué dans l'app Tauri.
+
+> **Cas particulier `SessionStart`** : depuis Claude Code v2.1.51, les hooks de type
+> `"http"` ne sont pas supportés sur `SessionStart` (ni `Setup`) — restriction de
+> sécurité non documentée officiellement ([issue #28044](https://github.com/anthropics/claude-code/issues/28044)).
+> La requête ne part jamais, silencieusement, sans erreur visible. Le snippet utilise
+> donc un hook `"command"` qui pipe le JSON du hook (stdin) vers `curl` à la place —
+> `curl` est préinstallé sur Windows 10+/macOS/Linux, donc ça reste portable sans
+> script à copier en plus. Tous les autres events du snippet restent en `"http"`
+> natif, qui fonctionne normalement partout ailleurs.
 
 ## 1. Fusionner le snippet dans `settings.json`
 

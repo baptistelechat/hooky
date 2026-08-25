@@ -175,32 +175,9 @@ event (pas de reprise systématique) : mappés sur la palette d'animations **exi
 (`sleeping, waking, idle, listening, thinking, searching, working, bored, confused`) — aucune
 nouvelle animation n'a été ajoutée pour cette étape.
 
-| Event                | Déjà dans Hooky ? | Animation             | Note                                                                       |
-| -------------------- | ----------------- | --------------------- | -------------------------------------------------------------------------- |
-| `SessionStart`       | ✅                | `waking`              |                                                                            |
-| `UserPromptSubmit`   | ✅                | `thinking`            |                                                                            |
-| `PreToolUse`         | ✅                | `working`/`searching` |                                                                            |
-| `PostToolUse`        | ✅                | `idle`                |                                                                            |
-| `PostToolUseFailure` | ✅                | `confused`            |                                                                            |
-| `Notification`       | ✅                | `listening`           |                                                                            |
-| `Stop`               | ✅                | `idle`                |                                                                            |
-| `SessionEnd`         | ✅                | —                     | session retirée de la map                                                  |
-| `StopFailure`        | ✅ (nouveau)      | `confused`            | échec d'API pendant `Stop` — même famille que `PostToolUseFailure`         |
-| `SubagentStart`      | ✅ (nouveau)      | `working`             | un sous-agent démarre du travail                                           |
-| `SubagentStop`       | ✅ (nouveau)      | `idle`                |                                                                            |
-| `PreCompact`         | ✅ (nouveau)      | `thinking`            | compaction du contexte en cours                                            |
-| `PostCompact`        | ✅ (nouveau)      | `idle`                |                                                                            |
-| `PermissionRequest`  | ✅ (nouveau)      | `listening`           | attente d'une décision utilisateur — même intention que côté clawd-on-desk |
-| `Elicitation`        | ✅ (nouveau)      | `listening`           | un serveur MCP attend une réponse utilisateur                              |
-
-**Volontairement non mappé** — bookkeeping interne sans valeur perçue claire pour un pet de
-bureau, ou dont l'existence même en tant que hook officiel n'est pas confirmée avec certitude
-(retour d'un agent de recherche daté du 2026-08-24, à vérifier dans la doc officielle si l'un
-d'eux s'avère pertinent à l'usage) : `PermissionDenied`, `TaskCreated`/`TaskCompleted`,
-`WorktreeCreate`/`WorktreeRemove`, `ConfigChange`, `TeammateIdle`, `FileChanged`,
-`CwdChanged`, `DirectoryAdded`, `InstructionsLoaded`, `ElicitationResult`, `MessageDisplay`,
-`Setup`, `UserPromptExpansion`, `PostToolBatch`. À rouvrir au cas par cas si un besoin réel se
-présente à l'usage — pas un TODO oublié.
+Table de correspondance complète, sous-typage `Notification` inclus, et liste du
+volontairement non mappé : déplacés vers [`docs/EVENTS.md`](EVENTS.md) (source de vérité
+tenue à jour en dehors du journal de roadmap).
 
 Côté code : mapping dans `animation_for_event()` (`src-tauri/src/lib.rs`), hooks déclarés dans
 `docs/hooks/claude-settings-snippet.json` et fusionnés dans `~/.claude/settings.json` (15

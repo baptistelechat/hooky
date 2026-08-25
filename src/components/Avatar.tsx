@@ -52,9 +52,9 @@ export function PetAvatar({ animation, lastEvent, toolName }: PetAvatarProps) {
   const lastClickAtRef = useRef(0);
 
   return (
-    <div className="pet-shell">
+    <div className="flex h-full w-full items-center justify-center overflow-hidden">
       <div
-        className="pet-window"
+        className="relative flex items-center justify-center overflow-hidden"
         style={{
           width: settings.avatarSize,
           height: settings.avatarSize,
@@ -76,7 +76,7 @@ export function PetAvatar({ animation, lastEvent, toolName }: PetAvatarProps) {
       >
         <AvatarEngine animation={animation} size={settings.avatarSize} />
         {settings.debugMode && (
-          <pre className="debug-overlay">
+          <pre className="pointer-events-none absolute top-1 left-1 m-0 font-mono text-xs leading-[1.3] whitespace-pre-wrap text-white [text-shadow:0_0_2px_#000]">
             {`animation: ${animation}\nhook: ${lastEvent ?? "-"}${toolName ? ` (${toolName})` : ""}`}
           </pre>
         )}

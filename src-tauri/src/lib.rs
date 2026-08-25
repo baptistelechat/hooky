@@ -20,6 +20,8 @@ const REAPER_INTERVAL: Duration = Duration::from_secs(10);
 /// État d'une session Claude Code active, tel que vu par le dernier hook reçu.
 struct SessionState {
     animation: String,
+    event_name: String,
+    tool_name: Option<String>,
     last_event_at: Instant,
 }
 
@@ -34,17 +36,15 @@ struct ServerState {
 // Étape 6 : outils de recherche -> animation "searching" plutôt que "working" générique.
 const SEARCH_TOOLS: &[&str] = &["Grep", "WebSearch", "Glob", "WebFetch"];
 
-/// Mapping event Claude Code -> animation Strobi (cf. docs/BRIEF.md, section "Mapping events").
-/// `SessionEnd` n'a pas d'animation propre : la session est retirée de la map (géré à l'appel).
-/// `tool_name` n'est consulté que pour `PreToolUse` (granularité working/searching).
-///
-/// Étape 8 du roadmap (events `clawd-on-desk` documentés non repris) close ici : seuls les
-/// events déjà identifiés comme pertinents et vérifiés dans la doc officielle Claude Code sont
-/// mappés, sur la palette d'animations existante (aucune nouvelle animation ajoutée). Le reste
-/// de la liste `clawd-on-desk` (bookkeeping interne : ConfigChange, TaskCreated, WorktreeCreate,
-/// FileChanged...) reste volontairement non mappé -- trop de bruit potentiel pour un signal
-/// perçu incertain, à rouvrir si un besoin réel se présente.
-fn animation_for_event(event_name: &str, tool_name: Option<&str>) -> Option<&'static str> {
+/// Table de correspondance events Claude Code -> animations : voir docs/EVENTS.md
+/// (source de vérité, tenue à jour manuellement en miroir de ce match).
+/// `tool_name` n'est consulté que pour `PreToolUse` (granularité working/searching),
+/// `notification_type` seulement pour `Notification` (granularité listening/idle/bored).
+fn animation_for_event(
+    event_name: &str,
+    tool_name: Option<&str>,
+    notification_type: Option<&str>,
+) -> Option<&'static str> {
     match event_name {
         "SessionStart" => Some("waking"),
         "UserPromptSubmit" => Some("thinking"),
@@ -57,8 +57,49 @@ fn animation_for_event(event_name: &str, tool_name: Option<&str>) -> Option<&'st
         }
         "PostToolUse" => Some("idle"),
         "PostToolUseFailure" => Some("confused"),
-        "Notification" => Some("listening"),
-        "Stop" => Some("idle"),
+        // 12 valeurs documentées (hooks.md, table "Matcher patterns") -- toutes couvertes
+        // explicitement, cf. docs/EVENTS.md pour le détail du raisonnement par valeur.
+        "Notification" => Some(match notification_type {
+            // Attend une décision utilisateur -- même intention que l'event PermissionRequest.
+            Some("permission_prompt") => "listening",
+            // Un serveur MCP attend une réponse (formulaire ou ouverture d'URL) -- même
+            // intention que l'event Elicitation.
+            Some("elicitation_dialog" | "elicitation_url_dialog") => "listening",
+            // L'échange MCP vient de se conclure (formulaire soumis/fermé, réponse envoyée)
+            // -- retour à un état neutre, pas une attente active.
+            Some("elicitation_complete" | "elicitation_response") => "idle",
+            // Un sous-agent attend une entrée utilisateur -- même intention que permission_prompt.
+            Some("agent_needs_input") => "listening",
+            // Un sous-agent a terminé (succès OU échec, non distinguable ici) -- même
+            // traitement neutre que l'event SubagentStop, pas de "confused" sur un simple bundle
+            // succès/échec indifférencié.
+            Some("agent_completed") => "idle",
+            // Claude Code reprend le travail après une pause quota -- même intention narrative
+            // que SessionStart : on "se réveille" pour continuer.
+            Some("quota_auto_resume_fired") => "waking",
+            // Le quota s'est réinitialisé pendant une pause de plus de 30 min -- signal
+            // d'inactivité prolongée, même famille que idle_prompt.
+            Some("quota_auto_resume_stale") => "bored",
+            // Claude Code abandonne l'attente sans reprendre -- bloqué, a besoin d'une action
+            // utilisateur pour repartir.
+            Some("quota_auto_resume_disabled") => "listening",
+            // Claude Code signale lui-même une session sans réponse depuis un moment -- c'est
+            // littéralement le signal "bored" (inactivité prolongée), pas une écoute active.
+            Some("idle_prompt") => "bored",
+            // Une action vient de se conclure avec succès (ex. login MCP) -- retour à un état
+            // neutre, pas une attente active. "auth_success" est un succès ponctuel isolé,
+            // pas la conclusion d'une tâche -- "idle" reste le bon choix ici (contrairement à
+            // `Stop`, cf. juste en dessous).
+            Some("auth_success") => "idle",
+            // Type inconnu/absent (futur ajout côté Claude Code non encore mappé ici) -- repli
+            // sur le comportement générique précédent.
+            _ => "listening",
+        }),
+        // Claude vient de terminer de répondre -- seul moment qui marque une vraie fin de
+        // tâche (contrairement à PostToolUse/SubagentStop/PostCompact, qui restent "idle" :
+        // simples pauses entre deux actions dans un flux toujours en cours). Retombe sur
+        // "bored" après BORED_TIMEOUT sans nouvel event, comme "idle" (cf. effective_animation).
+        "Stop" => Some("celebrate"),
         "StopFailure" => Some("confused"),
         "SubagentStart" => Some("working"),
         "SubagentStop" => Some("idle"),
@@ -71,41 +112,43 @@ fn animation_for_event(event_name: &str, tool_name: Option<&str>) -> Option<&'st
     }
 }
 
-/// Une session `idle` depuis plus de BORED_TIMEOUT sans être encore évincée
-/// (IDLE_TIMEOUT) affiche `bored` -- signal réel (temps écoulé), pas un état
-/// inventé sans déclencheur. Reprend l'intention déjà notée dans le brief initial
-/// ("bored/drowsy : inactivité prolongée avant sleeping").
+/// Une session `idle`/`celebrate` depuis plus de BORED_TIMEOUT sans être encore évincée
+/// (IDLE_TIMEOUT) affiche `bored` -- signal réel (temps écoulé), pas un état inventé sans
+/// déclencheur. Reprend l'intention déjà notée dans le brief initial ("bored/drowsy :
+/// inactivité prolongée avant sleeping") ; `celebrate` (fin de tâche via `Stop`) suit la même
+/// règle pour ne pas rester figé indéfiniment si personne ne relance une session.
 fn effective_animation(session: &SessionState) -> &str {
-    if session.animation == "idle" && session.last_event_at.elapsed() >= BORED_TIMEOUT {
+    if matches!(session.animation.as_str(), "idle" | "celebrate")
+        && session.last_event_at.elapsed() >= BORED_TIMEOUT
+    {
         "bored"
     } else {
         session.animation.as_str()
     }
 }
 
-/// Résout l'état agrégé affiché par le pet à partir de toutes les sessions actives.
-/// Priorité : working > searching > thinking > listening > idle > bored ;
-/// `sleeping` si plus aucune session.
-fn resolve_state(sessions: &HashMap<String, SessionState>) -> &'static str {
+const STATE_PRIORITY: &[&str] = &[
+    "working", "searching", "confused", "celebrate", "thinking", "waking", "listening", "idle",
+];
+
+/// Résout l'état agrégé affiché par le pet à partir de toutes les sessions actives, ainsi que
+/// le hook/outil de la session qui a produit cet état (pour l'overlay debug -- sinon le hook
+/// affiché peut venir d'une session dont l'animation a perdu la priorité, ce qui semble
+/// contradictoire alors que l'agrégat est correct).
+/// Priorité : working > searching > confused > celebrate > thinking > waking > listening >
+/// idle > bored ; `sleeping` si plus aucune session.
+fn resolve_state(sessions: &HashMap<String, SessionState>) -> (&'static str, Option<&SessionState>) {
     if sessions.is_empty() {
-        return "sleeping";
+        return ("sleeping", None);
     }
 
-    let animations: Vec<&str> = sessions.values().map(effective_animation).collect();
-
-    if animations.contains(&"working") {
-        "working"
-    } else if animations.contains(&"searching") {
-        "searching"
-    } else if animations.contains(&"thinking") {
-        "thinking"
-    } else if animations.contains(&"listening") {
-        "listening"
-    } else if animations.contains(&"idle") {
-        "idle"
-    } else {
-        "bored"
+    for &candidate in STATE_PRIORITY {
+        if let Some(session) = sessions.values().find(|s| effective_animation(s) == candidate) {
+            return (candidate, Some(session));
+        }
     }
+
+    ("bored", sessions.values().next())
 }
 
 async fn on_event(State(state): State<ServerState>, Json(payload): Json<Value>) -> Json<Value> {
@@ -121,8 +164,9 @@ async fn on_event(State(state): State<ServerState>, Json(payload): Json<Value>) 
         .unwrap_or("");
 
     let tool_name = payload.get("tool_name").and_then(Value::as_str);
+    let notification_type = payload.get("notification_type").and_then(Value::as_str);
 
-    let resolved = {
+    let (resolved, source_event, source_tool) = {
         // Mutex empoisonné (panic d'un autre thread pendant le lock) -> on récupère quand
         // même les données plutôt que de paniquer à notre tour dans le handler HTTP.
         let mut sessions = state
@@ -132,24 +176,32 @@ async fn on_event(State(state): State<ServerState>, Json(payload): Json<Value>) 
 
         if event_name == "SessionEnd" {
             sessions.remove(&session_id);
-        } else if let Some(animation) = animation_for_event(event_name, tool_name) {
+        } else if let Some(animation) = animation_for_event(event_name, tool_name, notification_type) {
             sessions.insert(
                 session_id,
                 SessionState {
                     animation: animation.to_string(),
+                    event_name: event_name.to_string(),
+                    tool_name: tool_name.map(str::to_string),
                     last_event_at: Instant::now(),
                 },
             );
         }
 
-        resolve_state(&sessions)
+        let (state, session) = resolve_state(&sessions);
+        (
+            state,
+            session.map(|s| s.event_name.clone()),
+            session.and_then(|s| s.tool_name.clone()),
+        )
     };
 
-    // lastEvent/toolName : uniquement pour le mode debug frontend (affichage du hook
-    // déclencheur) -- absents quand ils ne s'appliquent pas (ex. event ignoré côté mapping).
+    // lastEvent/toolName : uniquement pour le mode debug frontend -- reflètent le hook de la
+    // session qui a produit l'état affiché (pas forcément celle de cette requête, l'agrégat
+    // peut être dominé par une autre session), absents quand plus aucune session (sleeping).
     let _ = state.app_handle.emit(
         "hooky-state",
-        serde_json::json!({ "state": resolved, "lastEvent": event_name, "toolName": tool_name }),
+        serde_json::json!({ "state": resolved, "lastEvent": source_event, "toolName": source_tool }),
     );
 
     // Les hooks "http" de Claude Code exigent un corps de réponse JSON valide
@@ -190,7 +242,7 @@ fn spawn_idle_reaper(sessions: Sessions, app_handle: AppHandle) {
 
             let mut guard = sessions.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
             guard.retain(|_, s| s.last_event_at.elapsed() < IDLE_TIMEOUT);
-            let resolved = resolve_state(&guard);
+            let (resolved, _) = resolve_state(&guard);
             drop(guard);
 
             if last_emitted.as_deref() != Some(resolved) {

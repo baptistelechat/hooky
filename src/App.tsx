@@ -1,8 +1,8 @@
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import "./App.css";
 import { useHookyState } from "./hooks/useHookyState";
 import { PetAvatar } from "./components/Avatar";
 import { SettingsPanel } from "./components/Settings";
-import "./App.css";
 
 function App() {
   const hooky = useHookyState();
