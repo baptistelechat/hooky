@@ -23,13 +23,19 @@ interface PetAvatarProps {
 // GLRN-212 en mémoire globale -- pattern déjà rencontré ailleurs).
 const DOUBLE_CLICK_WINDOW_MS = 300;
 
-/** Ouvre (ou refocus) la fenêtre de settings. `show()`/`unminimize()` avant `setFocus()`
- * -- Windows refuse silencieusement de voler le focus à une autre appli avec `setFocus()`
- * seul (anti-focus-stealing), y compris pour ramener au premier plan une fenêtre déjà
- * ouverte mais passée en arrière-plan ou minimisée. */
+/** Ouvre, refocus ou minimise la fenêtre de settings. Si elle a déjà le focus, le
+ * double-clic la minimise (toggle, comme cliquer une icône de taskbar déjà active) --
+ * sinon `show()`/`unminimize()` avant `setFocus()` la ramène au premier plan : Windows
+ * refuse silencieusement de voler le focus à une autre appli avec `setFocus()` seul
+ * (anti-focus-stealing), y compris pour ramener une fenêtre déjà ouverte mais passée en
+ * arrière-plan ou minimisée. */
 async function openSettingsWindow(): Promise<void> {
   const existing = await WebviewWindow.getByLabel("settings");
   if (existing) {
+    if (await existing.isFocused()) {
+      await existing.minimize();
+      return;
+    }
     await existing.show();
     await existing.unminimize();
     await existing.setFocus();
@@ -118,7 +124,11 @@ export function PetAvatar({
         <pre
           className={`pointer-events-none absolute top-1 left-1 m-0 font-mono text-xs leading-[1.3] whitespace-pre-wrap text-white opacity-0 [text-shadow:0_0_2px_#000] transition-opacity duration-300 ${settings.debugMode ? "opacity-100" : ""}`}
         >
-          {`animation: ${animation}\nhook: ${lastEvent ?? "-"}${toolName ? ` (${toolName})` : ""}`}
+          {`animation: ${animation}\nhook: ${lastEvent ?? "-"}${
+            (toolName ?? notificationType)
+              ? ` (${toolName ?? notificationType})`
+              : ""
+          }`}
         </pre>
       </div>
 

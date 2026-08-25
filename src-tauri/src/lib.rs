@@ -90,9 +90,10 @@ fn animation_for_event(
             // Claude Code abandonne l'attente sans reprendre -- bloqué, a besoin d'une action
             // utilisateur pour repartir.
             Some("quota_auto_resume_disabled") => "listening",
-            // Claude Code signale lui-même une session sans réponse depuis un moment -- c'est
-            // littéralement le signal "bored" (inactivité prolongée), pas une écoute active.
-            Some("idle_prompt") => "bored",
+            // Claude Code signale lui-même une session sans réponse depuis un moment -- signal
+            // d'inactivité prolongée plus fort qu'un simple "bored" (auto-détecté par Claude
+            // Code lui-même, pas juste par notre propre BORED_TIMEOUT) : "sleeping" (zzz).
+            Some("idle_prompt") => "sleeping",
             // Une action vient de se conclure avec succès (ex. login MCP) -- retour à un état
             // neutre, pas une attente active. "auth_success" est un succès ponctuel isolé,
             // pas la conclusion d'une tâche -- "idle" reste le bon choix ici (contrairement à
@@ -134,8 +135,12 @@ fn effective_animation(session: &SessionState) -> &str {
     }
 }
 
+// Doit couvrir CHAQUE valeur que animation_for_event()/effective_animation() peuvent
+// produire (cf. LRN-007 en mémoire projet) -- une valeur absente ici retombe
+// silencieusement sur le fallback de fin de fonction, sans erreur ni log.
 const STATE_PRIORITY: &[&str] = &[
-    "working", "searching", "confused", "celebrate", "thinking", "listening", "idle",
+    "working", "searching", "confused", "celebrate", "thinking", "listening", "idle", "bored",
+    "sleeping",
 ];
 
 /// Résout l'état agrégé affiché par le pet à partir de toutes les sessions actives, ainsi que
@@ -143,9 +148,10 @@ const STATE_PRIORITY: &[&str] = &[
 /// affiché peut venir d'une session dont l'animation a perdu la priorité, ce qui semble
 /// contradictoire alors que l'agrégat est correct).
 /// Priorité : working > searching > confused > celebrate > thinking > listening >
-/// idle > bored ; `sleeping` si plus aucune session. "waking" n'apparaît plus dans cette
-/// liste : plus aucun event ne le produit depuis la correction du 2026-08-25 (cf.
-/// animation_for_event()).
+/// idle > bored > sleeping (une session `idle_prompt` reste "sleeping" même face à une
+/// autre session "bored" moins profondément inactive) ; `sleeping` aussi si plus aucune
+/// session (early return ci-dessous). "waking" n'apparaît plus dans cette liste : plus
+/// aucun event ne le produit depuis la correction du 2026-08-25 (cf. animation_for_event()).
 fn resolve_state(sessions: &HashMap<String, SessionState>) -> (&'static str, Option<&SessionState>) {
     if sessions.is_empty() {
         return ("sleeping", None);
@@ -157,6 +163,8 @@ fn resolve_state(sessions: &HashMap<String, SessionState>) -> (&'static str, Opt
         }
     }
 
+    // Inatteignable tant que STATE_PRIORITY reste exhaustive (garde-fou pour le compilateur,
+    // pas un comportement voulu -- cf. commentaire sur STATE_PRIORITY).
     ("bored", sessions.values().next())
 }
 

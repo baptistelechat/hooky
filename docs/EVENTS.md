@@ -38,21 +38,21 @@ après validation visuelle -- voir encart dédié plus bas.
 12 valeurs documentées ([hooks.md](https://code.claude.com/docs/en/hooks.md), table "Matcher
 patterns"), toutes couvertes explicitement — pas de valeur laissée au repli générique.
 
-| `notification_type`          | Animation   | Pourquoi                                                                                                                                                              |
-| ---------------------------- | ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `permission_prompt`          | `listening` | Même intention que l'event `PermissionRequest`                                                                                                                        |
-| `elicitation_dialog`         | `listening` | Un serveur MCP attend une réponse — même intention que l'event `Elicitation`                                                                                          |
-| `elicitation_url_dialog`     | `listening` | Idem, un serveur MCP demande d'ouvrir une URL                                                                                                                         |
-| `elicitation_complete`       | `idle`      | Le formulaire MCP vient d'être soumis/fermé — retour à un état neutre                                                                                                 |
-| `elicitation_response`       | `idle`      | La réponse MCP vient d'être renvoyée — même conclusion que `elicitation_complete`                                                                                     |
-| `agent_needs_input`          | `listening` | Un sous-agent attend une entrée utilisateur — même intention que `permission_prompt`                                                                                  |
-| `agent_completed`            | `idle`      | Un sous-agent a terminé (succès **ou** échec, non distinguable ici) — même traitement neutre que l'event `SubagentStop`                                               |
-| `quota_auto_resume_fired`    | `bored`     | Claude Code reprend le travail après une pause quota — corrigé le 2026-08-25 après validation visuelle (`waking` lisait plus comme une inactivité qu'un réveil actif) |
-| `quota_auto_resume_stale`    | `bored`     | Quota réinitialisé pendant une pause de plus de 30 min — signal d'inactivité prolongée, même famille que `idle_prompt`                                                |
-| `quota_auto_resume_disabled` | `listening` | Claude Code abandonne l'attente sans reprendre — bloqué, a besoin d'une action utilisateur                                                                            |
-| `idle_prompt`                | `bored`     | Claude Code signale lui-même une session sans réponse depuis un moment — signal réel d'inactivité, pas une écoute active                                              |
-| `auth_success`               | `idle`      | Succès ponctuel isolé, pas la conclusion d'une tâche (contrairement à `Stop`) — `idle` reste le bon choix ici                                                         |
-| autre / absent (futur)       | `listening` | Repli — comportement générique conservé pour une valeur pas encore mappée ici                                                                                         |
+| `notification_type`          | Animation   | Pourquoi                                                                                                                                                                            |
+| ---------------------------- | ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `permission_prompt`          | `listening` | Même intention que l'event `PermissionRequest`                                                                                                                                      |
+| `elicitation_dialog`         | `listening` | Un serveur MCP attend une réponse — même intention que l'event `Elicitation`                                                                                                        |
+| `elicitation_url_dialog`     | `listening` | Idem, un serveur MCP demande d'ouvrir une URL                                                                                                                                       |
+| `elicitation_complete`       | `idle`      | Le formulaire MCP vient d'être soumis/fermé — retour à un état neutre                                                                                                               |
+| `elicitation_response`       | `idle`      | La réponse MCP vient d'être renvoyée — même conclusion que `elicitation_complete`                                                                                                   |
+| `agent_needs_input`          | `listening` | Un sous-agent attend une entrée utilisateur — même intention que `permission_prompt`                                                                                                |
+| `agent_completed`            | `idle`      | Un sous-agent a terminé (succès **ou** échec, non distinguable ici) — même traitement neutre que l'event `SubagentStop`                                                             |
+| `quota_auto_resume_fired`    | `bored`     | Claude Code reprend le travail après une pause quota — corrigé le 2026-08-25 après validation visuelle (`waking` lisait plus comme une inactivité qu'un réveil actif)               |
+| `quota_auto_resume_stale`    | `bored`     | Quota réinitialisé pendant une pause de plus de 30 min — signal d'inactivité prolongée (moins profonde que `idle_prompt`, qui passe en `sleeping`)                                  |
+| `quota_auto_resume_disabled` | `listening` | Claude Code abandonne l'attente sans reprendre — bloqué, a besoin d'une action utilisateur                                                                                          |
+| `idle_prompt`                | `sleeping`  | Claude Code signale lui-même une session sans réponse depuis un moment — signal d'inactivité plus fort qu'un simple `bored` (auto-détecté par Claude Code, pas notre BORED_TIMEOUT) |
+| `auth_success`               | `idle`      | Succès ponctuel isolé, pas la conclusion d'une tâche (contrairement à `Stop`) — `idle` reste le bon choix ici                                                                       |
+| autre / absent (futur)       | `listening` | Repli — comportement générique conservé pour une valeur pas encore mappée ici                                                                                                       |
 
 ## `celebrate` sur `Stop`
 

@@ -70,6 +70,7 @@ export const EVENT_ANIMATIONS: AnimationMappingEntry[] = [
     label: "PostToolUse",
     animation: "idle",
     note: "L'outil vient de rendre la main - pause entre deux actions, pas une fin de tâche.",
+    icon: Brain,
     trigger: { hookEventName: "PostToolUse" },
   },
   {
@@ -103,6 +104,7 @@ export const EVENT_ANIMATIONS: AnimationMappingEntry[] = [
     label: "SubagentStop",
     animation: "idle",
     note: "Le sous-agent a terminé.",
+    icon: Brain,
     trigger: { hookEventName: "SubagentStop" },
   },
   {
@@ -116,6 +118,7 @@ export const EVENT_ANIMATIONS: AnimationMappingEntry[] = [
     label: "PostCompact",
     animation: "idle",
     note: "Compaction terminée, retour à un état neutre.",
+    icon: Brain,
     trigger: { hookEventName: "PostCompact" },
   },
   {
@@ -232,8 +235,8 @@ export const NOTIFICATION_ANIMATIONS: AnimationMappingEntry[] = [
   },
   {
     label: "idle_prompt",
-    animation: "bored",
-    note: "Session sans réponse depuis un moment - signal réel d'inactivité.",
+    animation: "sleeping",
+    note: "Session sans réponse depuis un moment - signal réel d'inactivité, plus fort qu'un simple bored.",
     trigger: { hookEventName: "Notification", notificationType: "idle_prompt" },
   },
   {

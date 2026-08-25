@@ -32,7 +32,7 @@ interface AnimationCardProps {
  * Cliquer envoie l'event réel au backend local (même route que les hooks Claude Code) pour
  * voir aussi le vrai pet réagir, et surligne localement cette seule carte (cf. onSelect). */
 export function AnimationCard({ entry, isLive, onSelect }: AnimationCardProps) {
-  const { label, animation, note } = entry;
+  const { label, animation, note, icon: Icon } = entry;
   const containerRef = useRef<HTMLDivElement>(null);
   const [revision, setRevision] = useState(0);
 
@@ -82,7 +82,8 @@ export function AnimationCard({ entry, isLive, onSelect }: AnimationCardProps) {
         />
       </div>
       <span className="font-mono text-xs font-medium break-all">{label}</span>
-      <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[0.7rem] text-primary">
+      <span className="flex items-center gap-1 rounded bg-primary/10 px-1.5 py-0.5 text-[0.7rem] text-primary">
+        {Icon && <Icon className="size-3 shrink-0" />}
         {animation}
       </span>
       <span className="text-[0.7rem] leading-snug text-muted-foreground">
