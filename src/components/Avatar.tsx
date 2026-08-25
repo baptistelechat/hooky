@@ -29,9 +29,14 @@ async function openSettingsWindow(): Promise<void> {
   }
 
   new WebviewWindow("settings", {
-    title: "Hooky — Paramètres",
-    width: 420,
-    height: 560,
+    title: "Hooky - Paramètres",
+    width: 620,
+    height: 640,
+    // maxHeight doit être fourni pour que maxWidth soit pris en compte (quirk de l'API
+    // Tauri) -- généreux, seule la largeur doit rester bornée (grille de l'onglet
+    // Animation calée sur 3 colonnes max, cf. minmax(150px,1fr) dans les grilles).
+    maxWidth: 620,
+    maxHeight: 1000,
     resizable: true,
     decorations: true,
     center: true,
@@ -54,7 +59,7 @@ export function PetAvatar({ animation, lastEvent, toolName }: PetAvatarProps) {
   return (
     <div className="flex h-full w-full items-center justify-center overflow-hidden">
       <div
-        className="relative flex items-center justify-center overflow-hidden"
+        className="relative flex items-center justify-center overflow-hidden transition-[width,height,background-color] duration-300 ease-out"
         style={{
           width: settings.avatarSize,
           height: settings.avatarSize,
@@ -74,12 +79,16 @@ export function PetAvatar({ animation, lastEvent, toolName }: PetAvatarProps) {
           void getCurrentWindow().startDragging();
         }}
       >
-        <AvatarEngine animation={animation} size={settings.avatarSize} />
-        {settings.debugMode && (
-          <pre className="pointer-events-none absolute top-1 left-1 m-0 font-mono text-xs leading-[1.3] whitespace-pre-wrap text-white [text-shadow:0_0_2px_#000]">
-            {`animation: ${animation}\nhook: ${lastEvent ?? "-"}${toolName ? ` (${toolName})` : ""}`}
-          </pre>
-        )}
+        <AvatarEngine
+          animation={animation}
+          size={settings.avatarSize}
+          style={{ transition: "width 300ms ease-out, height 300ms ease-out" }}
+        />
+        <pre
+          className={`pointer-events-none absolute top-1 left-1 m-0 font-mono text-xs leading-[1.3] whitespace-pre-wrap text-white opacity-0 [text-shadow:0_0_2px_#000] transition-opacity duration-300 ${settings.debugMode ? "opacity-100" : ""}`}
+        >
+          {`animation: ${animation}\nhook: ${lastEvent ?? "-"}${toolName ? ` (${toolName})` : ""}`}
+        </pre>
       </div>
     </div>
   );

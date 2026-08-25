@@ -1,14 +1,7 @@
 import { useRef, useState, type ChangeEvent } from "react";
 import { save } from "@tauri-apps/plugin-dialog";
 import { invoke } from "@tauri-apps/api/core";
-import {
-  Bug,
-  Download,
-  RotateCcw,
-  Ruler,
-  Settings2,
-  Upload,
-} from "lucide-react";
+import { Bug, Download, RotateCcw, Ruler, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
@@ -55,10 +48,11 @@ async function exportSettings(settings: HookySettings): Promise<void> {
   });
 }
 
-/** Fenêtre de settings (window label "settings", cf. App.tsx). Stockage localStorage,
- * diffusé aux autres fenêtres via l'event Tauri "hooky-settings" (cf. useSettings).
- * Chaque contrôle applique directement -- pas de bouton "Appliquer". */
-export function SettingsPanel() {
+/** Réglages persistés (taille avatar, mode debug) + export/import/reset. Stockage
+ * localStorage, diffusé aux autres fenêtres via l'event Tauri "hooky-settings" (cf.
+ * useSettings). Chaque contrôle applique directement -- pas de bouton "Appliquer".
+ * Mode debug en footer épinglé : reste visible même si le contenu au-dessus défile. */
+export function SettingsControls() {
   const [settings, setSettings] = useSettings();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [resetDialogOpen, setResetDialogOpen] = useState(false);
@@ -80,13 +74,8 @@ export function SettingsPanel() {
   };
 
   return (
-    <div className="flex h-screen flex-col gap-6 bg-background p-6 text-foreground">
-      <h1 className="flex items-center gap-2 text-base font-semibold">
-        <Settings2 className="size-4" />
-        Paramètres Hooky
-      </h1>
-
-      <FieldGroup>
+    <div className="flex flex-1 flex-col gap-4 overflow-hidden">
+      <FieldGroup className="flex-1 overflow-x-hidden overflow-y-auto pr-1">
         <Field>
           <FieldLabel htmlFor="avatar-size" className="items-center">
             <Ruler className="size-4" />
@@ -104,24 +93,6 @@ export function SettingsPanel() {
           />
         </Field>
 
-        <Field orientation="horizontal">
-          <FieldContent>
-            <FieldTitle>
-              <Bug className="size-4" />
-              Mode debug
-            </FieldTitle>
-            <FieldDescription>
-              Fond semi-opaque + animation/hook affichés sur le pet.
-            </FieldDescription>
-          </FieldContent>
-          <Switch
-            checked={settings.debugMode}
-            onCheckedChange={(checked) =>
-              setSettings({ ...settings, debugMode: checked })
-            }
-          />
-        </Field>
-
         <FieldSeparator />
 
         <Field>
@@ -129,8 +100,9 @@ export function SettingsPanel() {
           <FieldDescription>
             Exporter, importer ou réinitialiser les réglages.
           </FieldDescription>
-          <div className="mt-1 flex flex-wrap gap-2">
+          <div className="mt-1 flex flex-col gap-2 @md/field-group:flex-row @md/field-group:flex-wrap">
             <Button
+              className="w-full @md/field-group:w-auto"
               variant="outline"
               onClick={() => void exportSettings(settings)}
             >
@@ -138,6 +110,7 @@ export function SettingsPanel() {
               Exporter
             </Button>
             <Button
+              className="w-full @md/field-group:w-auto"
               variant="outline"
               onClick={() => fileInputRef.current?.click()}
             >
@@ -156,7 +129,14 @@ export function SettingsPanel() {
               open={resetDialogOpen}
               onOpenChange={setResetDialogOpen}
             >
-              <AlertDialogTrigger render={<Button variant="destructive" />}>
+              <AlertDialogTrigger
+                render={
+                  <Button
+                    className="w-full @md/field-group:w-auto"
+                    variant="destructive"
+                  />
+                }
+              >
                 <RotateCcw data-icon="inline-start" />
                 Réinitialiser
               </AlertDialogTrigger>
@@ -190,6 +170,26 @@ export function SettingsPanel() {
           </div>
         </Field>
       </FieldGroup>
+
+      <FieldSeparator />
+
+      <Field orientation="horizontal">
+        <FieldContent>
+          <FieldTitle>
+            <Bug className="size-4" />
+            Mode debug
+          </FieldTitle>
+          <FieldDescription>
+            Fond semi-opaque + animation/hook affichés sur le pet.
+          </FieldDescription>
+        </FieldContent>
+        <Switch
+          checked={settings.debugMode}
+          onCheckedChange={(checked) =>
+            setSettings({ ...settings, debugMode: checked })
+          }
+        />
+      </Field>
     </div>
   );
 }

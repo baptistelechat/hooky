@@ -6,49 +6,53 @@ prises event par event : `ROADMAP.md`, étape 8.
 
 Palette d'animations disponible côté moteur (23, export Studio) : seule une partie est
 câblée côté backend, cf. table ci-dessous et section "Volontairement non mappé".
-Animations actuellement utilisées : `sleeping, waking, idle, listening, thinking,
+Animations actuellement utilisées : `sleeping, idle, listening, thinking,
 searching, working, bored, confused, celebrate`.
+
+`waking` a été retiré de cette liste le 2026-08-25 : c'était la seule animation qui
+l'utilisait (`SessionStart` et `quota_auto_resume_fired`), corrigées toutes les deux
+après validation visuelle -- voir encart dédié plus bas.
 
 ## Table de correspondance
 
-| Event                | Animation               | Note                                                                                                 |
-| -------------------- | ----------------------- | ---------------------------------------------------------------------------------------------------- |
-| `SessionStart`       | `waking`                | Distinct de `idle` : marque la transition depuis `sleeping`, pas un état de repos entre deux actions |
-| `UserPromptSubmit`   | `thinking`              |                                                                                                      |
-| `PreToolUse`         | `working` / `searching` | `searching` si `tool_name` ∈ `Grep, WebSearch, Glob, WebFetch`, sinon `working`                      |
-| `PostToolUse`        | `idle`                  | Simple pause entre deux actions, pas une fin de tâche (contrairement à `Stop`)                       |
-| `PostToolUseFailure` | `confused`              |                                                                                                      |
-| `Notification`       | voir sous-table         | Granularité par `notification_type` (payload du hook)                                                |
-| `Stop`               | `celebrate`             | Seul moment qui marque une vraie fin de tâche — voir encart dédié ci-dessous                         |
-| `SessionEnd`         | —                       | Session retirée de la map, pas d'animation propre                                                    |
-| `StopFailure`        | `confused`              | Échec d'API pendant `Stop` — même famille que `PostToolUseFailure`                                   |
-| `SubagentStart`      | `working`               | Un sous-agent démarre du travail                                                                     |
-| `SubagentStop`       | `idle`                  | Pause entre deux actions (le sous-agent n'est pas _la_ tâche que l'utilisateur a demandée)           |
-| `PreCompact`         | `thinking`              | Compaction du contexte en cours                                                                      |
-| `PostCompact`        | `idle`                  |                                                                                                      |
-| `PermissionRequest`  | `listening`             | Attente d'une décision utilisateur                                                                   |
-| `Elicitation`        | `listening`             | Un serveur MCP attend une réponse utilisateur                                                        |
+| Event                | Animation               | Note                                                                                                                                                |
+| -------------------- | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `SessionStart`       | `listening`             | Claude Code démarre et attend le premier prompt -- corrigé le 2026-08-25 après validation visuelle (`waking` ne se distinguait pas assez de `idle`) |
+| `UserPromptSubmit`   | `thinking`              |                                                                                                                                                     |
+| `PreToolUse`         | `working` / `searching` | `searching` si `tool_name` ∈ `Grep, WebSearch, Glob, WebFetch`, sinon `working`                                                                     |
+| `PostToolUse`        | `idle`                  | Simple pause entre deux actions, pas une fin de tâche (contrairement à `Stop`)                                                                      |
+| `PostToolUseFailure` | `confused`              |                                                                                                                                                     |
+| `Notification`       | voir sous-table         | Granularité par `notification_type` (payload du hook)                                                                                               |
+| `Stop`               | `celebrate`             | Seul moment qui marque une vraie fin de tâche — voir encart dédié ci-dessous                                                                        |
+| `SessionEnd`         | —                       | Session retirée de la map, pas d'animation propre                                                                                                   |
+| `StopFailure`        | `confused`              | Échec d'API pendant `Stop` — même famille que `PostToolUseFailure`                                                                                  |
+| `SubagentStart`      | `working`               | Un sous-agent démarre du travail                                                                                                                    |
+| `SubagentStop`       | `idle`                  | Pause entre deux actions (le sous-agent n'est pas _la_ tâche que l'utilisateur a demandée)                                                          |
+| `PreCompact`         | `thinking`              | Compaction du contexte en cours                                                                                                                     |
+| `PostCompact`        | `idle`                  |                                                                                                                                                     |
+| `PermissionRequest`  | `listening`             | Attente d'une décision utilisateur                                                                                                                  |
+| `Elicitation`        | `listening`             | Un serveur MCP attend une réponse utilisateur                                                                                                       |
 
 ### `Notification` — granularité par `notification_type`
 
 12 valeurs documentées ([hooks.md](https://code.claude.com/docs/en/hooks.md), table "Matcher
 patterns"), toutes couvertes explicitement — pas de valeur laissée au repli générique.
 
-| `notification_type`          | Animation   | Pourquoi                                                                                                                 |
-| ---------------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------ |
-| `permission_prompt`          | `listening` | Même intention que l'event `PermissionRequest`                                                                           |
-| `elicitation_dialog`         | `listening` | Un serveur MCP attend une réponse — même intention que l'event `Elicitation`                                             |
-| `elicitation_url_dialog`     | `listening` | Idem, un serveur MCP demande d'ouvrir une URL                                                                            |
-| `elicitation_complete`       | `idle`      | Le formulaire MCP vient d'être soumis/fermé — retour à un état neutre                                                    |
-| `elicitation_response`       | `idle`      | La réponse MCP vient d'être renvoyée — même conclusion que `elicitation_complete`                                        |
-| `agent_needs_input`          | `listening` | Un sous-agent attend une entrée utilisateur — même intention que `permission_prompt`                                     |
-| `agent_completed`            | `idle`      | Un sous-agent a terminé (succès **ou** échec, non distinguable ici) — même traitement neutre que l'event `SubagentStop`  |
-| `quota_auto_resume_fired`    | `waking`    | Claude Code reprend le travail après une pause quota — même intention narrative que `SessionStart` : on se réveille      |
-| `quota_auto_resume_stale`    | `bored`     | Quota réinitialisé pendant une pause de plus de 30 min — signal d'inactivité prolongée, même famille que `idle_prompt`   |
-| `quota_auto_resume_disabled` | `listening` | Claude Code abandonne l'attente sans reprendre — bloqué, a besoin d'une action utilisateur                               |
-| `idle_prompt`                | `bored`     | Claude Code signale lui-même une session sans réponse depuis un moment — signal réel d'inactivité, pas une écoute active |
-| `auth_success`               | `idle`      | Succès ponctuel isolé, pas la conclusion d'une tâche (contrairement à `Stop`) — `idle` reste le bon choix ici            |
-| autre / absent (futur)       | `listening` | Repli — comportement générique conservé pour une valeur pas encore mappée ici                                            |
+| `notification_type`          | Animation   | Pourquoi                                                                                                                                                              |
+| ---------------------------- | ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `permission_prompt`          | `listening` | Même intention que l'event `PermissionRequest`                                                                                                                        |
+| `elicitation_dialog`         | `listening` | Un serveur MCP attend une réponse — même intention que l'event `Elicitation`                                                                                          |
+| `elicitation_url_dialog`     | `listening` | Idem, un serveur MCP demande d'ouvrir une URL                                                                                                                         |
+| `elicitation_complete`       | `idle`      | Le formulaire MCP vient d'être soumis/fermé — retour à un état neutre                                                                                                 |
+| `elicitation_response`       | `idle`      | La réponse MCP vient d'être renvoyée — même conclusion que `elicitation_complete`                                                                                     |
+| `agent_needs_input`          | `listening` | Un sous-agent attend une entrée utilisateur — même intention que `permission_prompt`                                                                                  |
+| `agent_completed`            | `idle`      | Un sous-agent a terminé (succès **ou** échec, non distinguable ici) — même traitement neutre que l'event `SubagentStop`                                               |
+| `quota_auto_resume_fired`    | `bored`     | Claude Code reprend le travail après une pause quota — corrigé le 2026-08-25 après validation visuelle (`waking` lisait plus comme une inactivité qu'un réveil actif) |
+| `quota_auto_resume_stale`    | `bored`     | Quota réinitialisé pendant une pause de plus de 30 min — signal d'inactivité prolongée, même famille que `idle_prompt`                                                |
+| `quota_auto_resume_disabled` | `listening` | Claude Code abandonne l'attente sans reprendre — bloqué, a besoin d'une action utilisateur                                                                            |
+| `idle_prompt`                | `bored`     | Claude Code signale lui-même une session sans réponse depuis un moment — signal réel d'inactivité, pas une écoute active                                              |
+| `auth_success`               | `idle`      | Succès ponctuel isolé, pas la conclusion d'une tâche (contrairement à `Stop`) — `idle` reste le bon choix ici                                                         |
+| autre / absent (futur)       | `listening` | Repli — comportement générique conservé pour une valeur pas encore mappée ici                                                                                         |
 
 ## `celebrate` sur `Stop`
 
@@ -70,7 +74,14 @@ identiquement.
 
 ## Volontairement non mappé
 
-Deux catégories distinctes, à ne pas confondre :
+Trois catégories distinctes, à ne pas confondre :
+
+**`waking` — retiré, pas jamais câblé.** Utilisé jusqu'au 2026-08-25 par `SessionStart`
+et `quota_auto_resume_fired` ; retiré des deux après une session de validation visuelle
+dans la grille de test des settings (chaque animation rejouée en boucle à côté de sa
+raison d'être documentée) : le rendu ne correspondait pas à ce que son nom promettait
+dans ces deux contextes (cf. table et sous-table ci-dessus pour le détail par event). Ne
+figure donc plus dans aucun `match` de `animation_for_event()` ni dans `STATE_PRIORITY`.
 
 **Animations jamais câblées** — décision explicite (étape 6 du roadmap), pas un oubli :
 `happy`, `proud`, `playful`, `suspicious`, `scared` (+ `angry`, `curious`, `surprised`,

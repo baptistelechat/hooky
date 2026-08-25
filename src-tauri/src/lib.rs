@@ -46,7 +46,11 @@ fn animation_for_event(
     notification_type: Option<&str>,
 ) -> Option<&'static str> {
     match event_name {
-        "SessionStart" => Some("waking"),
+        // "waking" utilisé initialement (transition depuis sleeping) -- corrigé en
+        // "listening" après validation visuelle (2026-08-25) : le rendu ne se
+        // distinguait pas assez de idle, "listening" (attente du premier prompt) est
+        // plus cohérent avec ce que l'animation montre réellement.
+        "SessionStart" => Some("listening"),
         "UserPromptSubmit" => Some("thinking"),
         "PreToolUse" => {
             if tool_name.is_some_and(|name| SEARCH_TOOLS.contains(&name)) {
@@ -74,9 +78,10 @@ fn animation_for_event(
             // traitement neutre que l'event SubagentStop, pas de "confused" sur un simple bundle
             // succès/échec indifférencié.
             Some("agent_completed") => "idle",
-            // Claude Code reprend le travail après une pause quota -- même intention narrative
-            // que SessionStart : on "se réveille" pour continuer.
-            Some("quota_auto_resume_fired") => "waking",
+            // Claude Code reprend le travail après une pause quota -- "waking" utilisé
+            // initialement, corrigé en "bored" après validation visuelle (2026-08-25) :
+            // le rendu lisait plus comme une inactivité qu'un réveil actif.
+            Some("quota_auto_resume_fired") => "bored",
             // Le quota s'est réinitialisé pendant une pause de plus de 30 min -- signal
             // d'inactivité prolongée, même famille que idle_prompt.
             Some("quota_auto_resume_stale") => "bored",
@@ -128,15 +133,17 @@ fn effective_animation(session: &SessionState) -> &str {
 }
 
 const STATE_PRIORITY: &[&str] = &[
-    "working", "searching", "confused", "celebrate", "thinking", "waking", "listening", "idle",
+    "working", "searching", "confused", "celebrate", "thinking", "listening", "idle",
 ];
 
 /// Résout l'état agrégé affiché par le pet à partir de toutes les sessions actives, ainsi que
 /// le hook/outil de la session qui a produit cet état (pour l'overlay debug -- sinon le hook
 /// affiché peut venir d'une session dont l'animation a perdu la priorité, ce qui semble
 /// contradictoire alors que l'agrégat est correct).
-/// Priorité : working > searching > confused > celebrate > thinking > waking > listening >
-/// idle > bored ; `sleeping` si plus aucune session.
+/// Priorité : working > searching > confused > celebrate > thinking > listening >
+/// idle > bored ; `sleeping` si plus aucune session. "waking" n'apparaît plus dans cette
+/// liste : plus aucun event ne le produit depuis la correction du 2026-08-25 (cf.
+/// animation_for_event()).
 fn resolve_state(sessions: &HashMap<String, SessionState>) -> (&'static str, Option<&SessionState>) {
     if sessions.is_empty() {
         return ("sleeping", None);
