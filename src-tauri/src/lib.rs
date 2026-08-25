@@ -27,7 +27,16 @@ struct SessionState {
     last_event_at: Instant,
 }
 
-type Sessions = Arc<Mutex<HashMap<String, SessionState>>>;
+// Clé composite (session_id, agent_id) : un sous-agent (Task explicite ou fork système --
+// auto-mémoire, résumé, suggestion -- cf. doc hooks officielle "agent_id ... populated when
+// the hook fires inside a subagent") partage le session_id de la session parente mais porte
+// son propre agent_id. Sans distinguer les deux, un SubagentStop tardif écrase l'état
+// "celebrate" du Stop parent (même clé = même entrée). Avec une entrée par (session_id,
+// agent_id), STATE_PRIORITY fait déjà le tri entre les deux (celebrate > idle) sans logique
+// ad-hoc supplémentaire.
+type SessionKey = (String, Option<String>);
+type SessionMap = HashMap<SessionKey, SessionState>;
+type Sessions = Arc<Mutex<SessionMap>>;
 
 #[derive(Clone)]
 struct ServerState {
@@ -138,6 +147,12 @@ fn effective_animation(session: &SessionState) -> &str {
 // Doit couvrir CHAQUE valeur que animation_for_event()/effective_animation() peuvent
 // produire (cf. LRN-007 en mémoire projet) -- une valeur absente ici retombe
 // silencieusement sur le fallback de fin de fonction, sans erreur ni log.
+// N'arbitre plus QU'entre le parent d'une session et ses sous-agents (cf. resolve_state) --
+// comparer des sessions différentes par cette seule priorité masquait une session qui
+// démarre activement (ex: SessionStart -> "listening") derrière un état "au repos"
+// (celebrate/idle/bored) d'une AUTRE session qui vient juste de finir, uniquement parce
+// qu'il est plus haut dans cette liste -- bug rapporté (2026-08-25) : n'importe quelle
+// dernière animation jouée "collait" à l'affichage au démarrage d'une nouvelle session.
 const STATE_PRIORITY: &[&str] = &[
     "working", "searching", "confused", "celebrate", "thinking", "listening", "idle", "bored",
     "sleeping",
@@ -147,25 +162,48 @@ const STATE_PRIORITY: &[&str] = &[
 /// le hook/outil de la session qui a produit cet état (pour l'overlay debug -- sinon le hook
 /// affiché peut venir d'une session dont l'animation a perdu la priorité, ce qui semble
 /// contradictoire alors que l'agrégat est correct).
-/// Priorité : working > searching > confused > celebrate > thinking > listening >
-/// idle > bored > sleeping (une session `idle_prompt` reste "sleeping" même face à une
-/// autre session "bored" moins profondément inactive) ; `sleeping` aussi si plus aucune
-/// session (early return ci-dessous). "waking" n'apparaît plus dans cette liste : plus
-/// aucun event ne le produit depuis la correction du 2026-08-25 (cf. animation_for_event()).
-fn resolve_state(sessions: &HashMap<String, SessionState>) -> (&'static str, Option<&SessionState>) {
+///
+/// Deux niveaux, volontairement différents :
+/// 1. Intra-session (un `session_id` + ses sous-agents, cf. SessionKey) : STATE_PRIORITY
+///    décide de l'état représentatif -- un `SubagentStop` (vrai sous-agent ou fork système)
+///    ne doit jamais masquer le `celebrate` de son propre parent.
+/// 2. Inter-sessions (des `session_id` différents) : c'est la session la PLUS RÉCEMMENT
+///    ACTIVE (max de `last_event_at` parmi ses entrées) qui gagne, pas la priorité globale
+///    -- une session qui démarre est par nature plus pertinente qu'une autre restée
+///    silencieuse depuis quelques secondes, même si son animation est "moins prioritaire"
+///    dans l'absolu (STATE_PRIORITY n'a de sens qu'entre un parent et SES PROPRES
+///    sous-agents, pas pour arbitrer entre deux sessions sans rapport).
+///
+/// `sleeping` si plus aucune session (early return ci-dessous). "waking" n'apparaît plus
+/// dans STATE_PRIORITY : plus aucun event ne le produit depuis la correction du
+/// 2026-08-25 (cf. animation_for_event()).
+fn resolve_state(sessions: &SessionMap) -> (&'static str, Option<&SessionState>) {
     if sessions.is_empty() {
         return ("sleeping", None);
     }
 
-    for &candidate in STATE_PRIORITY {
-        if let Some(session) = sessions.values().find(|s| effective_animation(s) == candidate) {
-            return (candidate, Some(session));
-        }
+    let mut groups: HashMap<&str, Vec<&SessionState>> = HashMap::new();
+    for ((session_id, _agent_id), state) in sessions {
+        groups.entry(session_id.as_str()).or_default().push(state);
     }
 
-    // Inatteignable tant que STATE_PRIORITY reste exhaustive (garde-fou pour le compilateur,
-    // pas un comportement voulu -- cf. commentaire sur STATE_PRIORITY).
-    ("bored", sessions.values().next())
+    groups
+        .into_values()
+        .filter_map(|states| {
+            let (label, winner) = STATE_PRIORITY.iter().find_map(|&candidate| {
+                states
+                    .iter()
+                    .find(|s| effective_animation(s) == candidate)
+                    .map(|s| (candidate, *s))
+            })?;
+            let most_recent_in_session = states.iter().map(|s| s.last_event_at).max()?;
+            Some((label, winner, most_recent_in_session))
+        })
+        .max_by_key(|&(_, _, most_recent_in_session)| most_recent_in_session)
+        .map(|(label, winner, _)| (label, Some(winner)))
+        // Inatteignable tant que STATE_PRIORITY reste exhaustive et que `sessions` est
+        // non-vide (garde-fou pour le compilateur, pas un comportement voulu).
+        .unwrap_or(("bored", sessions.values().next()))
 }
 
 /// Résout l'état affiché + les champs identifiant précisément le hook qui l'a produit
@@ -178,7 +216,7 @@ fn resolve_state(sessions: &HashMap<String, SessionState>) -> (&'static str, Opt
 /// le badge/icône (qui dépend de `lastEvent`, cf. animationCatalog.findMappingEntry)
 /// disparaissait alors que l'animation restait active.
 fn resolve_full_state(
-    sessions: &HashMap<String, SessionState>,
+    sessions: &SessionMap,
 ) -> (&'static str, Option<String>, Option<String>, Option<String>) {
     let (resolved, session) = resolve_state(sessions);
     (
@@ -203,6 +241,13 @@ async fn on_event(State(state): State<ServerState>, Json(payload): Json<Value>) 
 
     let tool_name = payload.get("tool_name").and_then(Value::as_str);
     let notification_type = payload.get("notification_type").and_then(Value::as_str);
+    // Cf. commentaire sur SessionKey : distingue le parent (agent_id absent) de ses
+    // sous-agents (Task explicite ou fork système) pour ne pas écraser leurs états respectifs.
+    let agent_id = payload
+        .get("agent_id")
+        .and_then(Value::as_str)
+        .map(str::to_string);
+    let key = (session_id.clone(), agent_id);
 
     let (resolved, source_event, source_tool, source_notification) = {
         // Mutex empoisonné (panic d'un autre thread pendant le lock) -> on récupère quand
@@ -213,10 +258,13 @@ async fn on_event(State(state): State<ServerState>, Json(payload): Json<Value>) 
             .unwrap_or_else(|poisoned| poisoned.into_inner());
 
         if event_name == "SessionEnd" {
-            sessions.remove(&session_id);
+            // Purge toutes les entrées de ce session_id, y compris celles de ses
+            // sous-agents (SessionEnd n'a lui-même pas d'agent_id) -- sinon une entrée
+            // sous-agent orpheline continuerait à peser sur l'agrégat jusqu'à IDLE_TIMEOUT.
+            sessions.retain(|(sid, _), _| sid != &session_id);
         } else if let Some(animation) = animation_for_event(event_name, tool_name, notification_type) {
             sessions.insert(
-                session_id,
+                key,
                 SessionState {
                     animation: animation.to_string(),
                     event_name: event_name.to_string(),
