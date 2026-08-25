@@ -1,23 +1,32 @@
-import {
-  Archive,
-  Bot,
-  Brain,
-  Ear,
-  ExternalLink,
-  HelpCircle,
-  MessageCircleQuestion,
-  PauseCircle,
-  Search,
-  Sparkles,
-  TriangleAlert,
-  Wrench,
-  type LucideIcon,
-} from "lucide-react";
 import type { AnimationName } from "@/components/Avatar";
+import { ArchiveIcon } from "@/components/icons/archive";
+import { BadgeAlertIcon } from "@/components/icons/badge-alert";
+import { BotIcon } from "@/components/icons/bot";
+import { BrainIcon } from "@/components/icons/brain";
+import { CircleHelpIcon } from "@/components/icons/circle-help";
+import { ExternalLinkIcon } from "@/components/icons/external-link";
+import { MessageCircleMoreIcon } from "@/components/icons/message-circle-more";
+import { PauseIcon } from "@/components/icons/pause";
+import { SearchIcon } from "@/components/icons/search";
+import { SparklesIcon } from "@/components/icons/sparkles";
+import { SquarePenIcon } from "@/components/icons/square-pen";
+import { type LucideIcon } from "lucide-react";
+import type { ComponentType } from "react";
 
 // Miroir manuel de docs/EVENTS.md (source de vérité tenue à jour en parallèle de
 // animation_for_event(), src-tauri/src/lib.rs) - même convention de duplication
 // documentée assumée par ce fichier que par le reste du projet.
+
+/** Type structurel minimal pour une icône de badge -- couvre à la fois les icônes
+ * lucide-react statiques restantes (`Ear`, sans équivalent animé) et les icônes animées de
+ * `components/icons/` (lucide-animated, boucle continue), qui n'exposent ni le même type de
+ * ref (`SVGSVGElement` vs un handle `{ startAnimation, stopAnimation }`) ni les mêmes props
+ * que `LucideIcon` -- seuls `size` et `className` sont réellement consommés par
+ * `AnimationOverlay`. */
+export type BadgeIcon =
+  | LucideIcon
+  | ComponentType<{ size?: number; className?: string }>;
+
 export interface AnimationMappingEntry {
   label: string;
   animation: AnimationName;
@@ -27,7 +36,7 @@ export interface AnimationMappingEntry {
    * partagent "listening") sans avoir le même sens, une icône unique par bucket
    * d'animation n'aurait donc pas de sens (ex. une oreille sur SessionStart). Absent pour
    * les hooks qui n'ont pas besoin d'insister (idle, working générique...). */
-  icon?: LucideIcon;
+  icon?: BadgeIcon;
   /** Payload minimal pour rejouer cette entrée sur le vrai backend (POST /event, cf.
    * lib/eventTrigger.ts) -- mêmes champs que ceux lus par `on_event()` côté Rust. */
   trigger: {
@@ -42,42 +51,42 @@ export const EVENT_ANIMATIONS: AnimationMappingEntry[] = [
     label: "SessionStart",
     animation: "listening",
     note: "Claude Code démarre et attend le premier prompt.",
-    icon: Sparkles,
+    icon: SparklesIcon,
     trigger: { hookEventName: "SessionStart" },
   },
   {
     label: "UserPromptSubmit",
     animation: "thinking",
     note: "L'utilisateur vient d'envoyer un prompt, Claude commence à réfléchir dessus.",
-    icon: Brain,
+    icon: BrainIcon,
     trigger: { hookEventName: "UserPromptSubmit" },
   },
   {
     label: "PreToolUse (outil standard)",
     animation: "working",
     note: "Un outil non lié à la recherche (Edit, Write, Bash...) est en cours d'exécution.",
-    icon: Wrench,
+    icon: SquarePenIcon,
     trigger: { hookEventName: "PreToolUse", toolName: "Edit" },
   },
   {
     label: "PreToolUse (recherche)",
     animation: "searching",
     note: "Un outil de recherche (Grep, WebSearch, Glob, WebFetch) est en cours d'exécution.",
-    icon: Search,
+    icon: SearchIcon,
     trigger: { hookEventName: "PreToolUse", toolName: "Grep" },
   },
   {
     label: "PostToolUse",
     animation: "idle",
     note: "L'outil vient de rendre la main - pause entre deux actions, pas une fin de tâche.",
-    icon: Brain,
+    icon: BrainIcon,
     trigger: { hookEventName: "PostToolUse" },
   },
   {
     label: "PostToolUseFailure",
     animation: "confused",
     note: "L'outil vient d'échouer.",
-    icon: TriangleAlert,
+    icon: BadgeAlertIcon,
     trigger: { hookEventName: "PostToolUseFailure" },
   },
   {
@@ -90,49 +99,49 @@ export const EVENT_ANIMATIONS: AnimationMappingEntry[] = [
     label: "StopFailure",
     animation: "confused",
     note: "Échec d'API pendant Stop",
-    icon: TriangleAlert,
+    icon: BadgeAlertIcon,
     trigger: { hookEventName: "StopFailure" },
   },
   {
     label: "SubagentStart",
     animation: "working",
     note: "Un sous-agent démarre du travail.",
-    icon: Bot,
+    icon: BotIcon,
     trigger: { hookEventName: "SubagentStart" },
   },
   {
     label: "SubagentStop",
     animation: "idle",
     note: "Le sous-agent a terminé.",
-    icon: Brain,
+    icon: BrainIcon,
     trigger: { hookEventName: "SubagentStop" },
   },
   {
     label: "PreCompact",
     animation: "thinking",
     note: "Compaction du contexte en cours.",
-    icon: Archive,
+    icon: ArchiveIcon,
     trigger: { hookEventName: "PreCompact" },
   },
   {
     label: "PostCompact",
     animation: "idle",
     note: "Compaction terminée, retour à un état neutre.",
-    icon: Brain,
+    icon: BrainIcon,
     trigger: { hookEventName: "PostCompact" },
   },
   {
     label: "PermissionRequest",
     animation: "listening",
     note: "Claude Code attend une décision utilisateur (autoriser/refuser).",
-    icon: Ear,
+    icon: CircleHelpIcon,
     trigger: { hookEventName: "PermissionRequest" },
   },
   {
     label: "Elicitation",
     animation: "listening",
     note: "Un serveur MCP attend une réponse utilisateur.",
-    icon: MessageCircleQuestion,
+    icon: CircleHelpIcon,
     trigger: { hookEventName: "Elicitation" },
   },
 ];
@@ -142,7 +151,7 @@ export const NOTIFICATION_ANIMATIONS: AnimationMappingEntry[] = [
     label: "permission_prompt",
     animation: "listening",
     note: "Même intention que l'event PermissionRequest.",
-    icon: MessageCircleQuestion,
+    icon: CircleHelpIcon,
     trigger: {
       hookEventName: "Notification",
       notificationType: "permission_prompt",
@@ -152,7 +161,7 @@ export const NOTIFICATION_ANIMATIONS: AnimationMappingEntry[] = [
     label: "elicitation_dialog",
     animation: "listening",
     note: "Un serveur MCP attend une réponse.",
-    icon: MessageCircleQuestion,
+    icon: CircleHelpIcon,
     trigger: {
       hookEventName: "Notification",
       notificationType: "elicitation_dialog",
@@ -162,7 +171,7 @@ export const NOTIFICATION_ANIMATIONS: AnimationMappingEntry[] = [
     label: "elicitation_url_dialog",
     animation: "listening",
     note: "Un serveur MCP demande d'ouvrir une URL.",
-    icon: ExternalLink,
+    icon: ExternalLinkIcon,
     trigger: {
       hookEventName: "Notification",
       notificationType: "elicitation_url_dialog",
@@ -190,7 +199,7 @@ export const NOTIFICATION_ANIMATIONS: AnimationMappingEntry[] = [
     label: "agent_needs_input",
     animation: "listening",
     note: "Un sous-agent attend une entrée utilisateur.",
-    icon: MessageCircleQuestion,
+    icon: CircleHelpIcon,
     trigger: {
       hookEventName: "Notification",
       notificationType: "agent_needs_input",
@@ -227,7 +236,7 @@ export const NOTIFICATION_ANIMATIONS: AnimationMappingEntry[] = [
     label: "quota_auto_resume_disabled",
     animation: "listening",
     note: "Claude Code abandonne l'attente sans reprendre.",
-    icon: PauseCircle,
+    icon: PauseIcon,
     trigger: {
       hookEventName: "Notification",
       notificationType: "quota_auto_resume_disabled",
@@ -252,7 +261,7 @@ export const NOTIFICATION_ANIMATIONS: AnimationMappingEntry[] = [
     label: "(type inconnu / absent)",
     animation: "listening",
     note: "Repli générique pour un notification_type pas encore mappé.",
-    icon: HelpCircle,
+    icon: MessageCircleMoreIcon,
     trigger: {
       hookEventName: "Notification",
       notificationType: "__preview_unmapped__",

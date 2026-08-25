@@ -1,10 +1,13 @@
 import { useEffect, useRef, useState } from "react";
-import type { LucideIcon } from "lucide-react";
+import type { BadgeIcon } from "../lib/animationCatalog";
 import type { AnimationName } from "./Avatar";
 import { useWaapi } from "../hooks/useWaapi";
 import { badgeIconColor } from "./avatarDefinition";
 // Doit correspondre à la durée de transition Tailwind utilisée sur le badge (duration-200).
 const BADGE_TRANSITION_MS = 200;
+// Crossfade du glyphe (duration-150) : plus court que le badge -- c'est une simple
+// ponctuation entre deux icônes déjà visibles, pas une apparition/disparition.
+const GLYPH_TRANSITION_MS = 150;
 
 interface AnimationOverlayProps {
   animation: AnimationName;
@@ -18,7 +21,7 @@ interface AnimationOverlayProps {
    * pas par `animation` seule : plusieurs hooks partagent le même bucket d'animation sans
    * avoir le même sens (une oreille sur SessionStart n'aurait aucun sens). Absent = pas de
    * badge icône pour ce hook (idle, working générique...). */
-  icon?: LucideIcon;
+  icon?: BadgeIcon;
 }
 
 const RISE: Keyframe[] = [
@@ -52,25 +55,69 @@ export function AnimationOverlay({
   const confettiRef = useRef<HTMLDivElement>(null);
   const zzzRef = useRef<HTMLSpanElement>(null);
 
-  // Garde la dernière icône affichée le temps du fade-out (200ms) au lieu de démonter
-  // instantanément -- une transition CSS ne peut pas animer une disparition sur un nœud
-  // qui n'existe déjà plus au rendu suivant. La synchronisation immédiate (Icon défini)
-  // se fait pendant le rendu (pattern React "adjusting state when a prop changes"), pas
-  // dans un effect -- seul le clear différé (Icon absent) est un vrai effet de bord.
-  const [displayIcon, setDisplayIcon] = useState<LucideIcon | undefined>(Icon);
-  const [prevIcon, setPrevIcon] = useState<LucideIcon | undefined>(Icon);
-  if (Icon !== prevIcon) {
-    setPrevIcon(() => Icon);
-    if (Icon) setDisplayIcon(() => Icon);
+  // Le cercle du badge ne fade que sur une vraie apparition/disparition (icône <-> aucune
+  // icône) -- un changement entre deux hooks actifs (ex: recherche -> réflexion) ne doit
+  // pas faire clignoter le cercle, seul le glyphe à l'intérieur doit crossfader (cf.
+  // glyphIcon plus bas). `containerMounted` gère la présence DOM (démontage différé de
+  // 200ms le temps que le fade-out joue) ; `containerVisible` gère l'opacité/scale et
+  // est volontairement monté à `false` sur une apparition -- sinon le nouveau nœud naît
+  // déjà à son état final (opacity-100) et la transition CSS n'a rien à interpoler
+  // (même piège que le glyphe, cf. plus bas : double rAF pour forcer un paint entre les
+  // deux états).
+  const hasIcon = !!Icon;
+  const [containerMounted, setContainerMounted] = useState(hasIcon);
+  const [containerVisible, setContainerVisible] = useState(hasIcon);
+  const [prevHasIcon, setPrevHasIcon] = useState(hasIcon);
+  if (hasIcon !== prevHasIcon) {
+    setPrevHasIcon(hasIcon);
+    if (hasIcon) {
+      setContainerMounted(true);
+      setContainerVisible(false);
+    } else {
+      setContainerVisible(false);
+    }
   }
   useEffect(() => {
-    if (Icon) return;
+    if (hasIcon) {
+      if (containerVisible) return;
+      requestAnimationFrame(() =>
+        requestAnimationFrame(() => setContainerVisible(true)),
+      );
+      return;
+    }
     const timeout = setTimeout(
-      () => setDisplayIcon(undefined),
+      () => setContainerMounted(false),
       BADGE_TRANSITION_MS,
     );
     return () => clearTimeout(timeout);
-  }, [Icon]);
+  }, [hasIcon, containerVisible]);
+
+  // Glyphe affiché à l'intérieur du badge : crossfade séquencé (fade-out -> swap ->
+  // fade-in) indépendant du cercle -- ignore les passages par `undefined` (le glyphe
+  // reste figé pendant que le cercle entier fade out, cf. ci-dessus).
+  const [glyphIcon, setGlyphIcon] = useState<BadgeIcon | undefined>(Icon);
+  const [prevGlyphTarget, setPrevGlyphTarget] = useState<BadgeIcon | undefined>(
+    Icon,
+  );
+  const [glyphVisible, setGlyphVisible] = useState(true);
+  if (Icon && Icon !== prevGlyphTarget) {
+    setPrevGlyphTarget(Icon);
+    if (Icon !== glyphIcon) setGlyphVisible(false);
+  }
+  useEffect(() => {
+    if (!Icon || Icon === glyphIcon) return;
+    const timeout = setTimeout(() => {
+      setGlyphIcon(() => Icon);
+      // Double rAF : le nouveau glyphe est un nœud DOM fraîchement monté (composant
+      // différent) -- un seul rAF peut s'exécuter avant que le navigateur ait peint
+      // l'état initial opacity-0, auquel cas le passage à opacity-100 est coalescé dans
+      // la même frame et la transition ne joue jamais (l'icône apparaît instantanément).
+      requestAnimationFrame(() =>
+        requestAnimationFrame(() => setGlyphVisible(true)),
+      );
+    }, GLYPH_TRANSITION_MS);
+    return () => clearTimeout(timeout);
+  }, [Icon, glyphIcon]);
 
   // Confettis : effet imperatif plutôt qu'un tas de refs React -- un burst est jetable
   // par nature (créé, joué, retiré), pas un état à faire vivre dans le rendu.
@@ -138,7 +185,7 @@ export function AnimationOverlay({
 
   // Alias capitalisé -- JSX exige un identifiant commençant par une majuscule pour
   // reconnaître une variable comme composant plutôt que comme balise DOM littérale.
-  const DisplayIcon = displayIcon;
+  const GlyphIcon = glyphIcon;
 
   return (
     <div className="pointer-events-none absolute inset-0">
@@ -154,10 +201,12 @@ export function AnimationOverlay({
           className="relative"
           style={{ width: avatarSize, height: avatarSize }}
         >
-          {DisplayIcon && (
+          {containerMounted && (
             <span
               className={`absolute flex items-center justify-center rounded-full bg-white/90 shadow-sm transition-[opacity,transform] duration-200 ease-out ${
-                Icon ? "scale-100 opacity-100" : "scale-75 opacity-0"
+                containerVisible
+                  ? "scale-100 opacity-100"
+                  : "scale-75 opacity-0"
               }`}
               style={{
                 ...badgeStyle,
@@ -166,7 +215,14 @@ export function AnimationOverlay({
                 color: badgeIconColor,
               }}
             >
-              <DisplayIcon size={iconSize} />
+              {GlyphIcon && (
+                <GlyphIcon
+                  size={iconSize}
+                  className={`transition-opacity duration-150 ease-out ${
+                    glyphVisible ? "opacity-100" : "opacity-0"
+                  }`}
+                />
+              )}
             </span>
           )}
 

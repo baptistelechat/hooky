@@ -83,7 +83,10 @@ export function AnimationCard({ entry, isLive, onSelect }: AnimationCardProps) {
       </div>
       <span className="font-mono text-xs font-medium break-all">{label}</span>
       <span className="flex items-center gap-1 rounded bg-primary/10 px-1.5 py-0.5 text-[0.7rem] text-primary">
-        {Icon && <Icon className="size-3 shrink-0" />}
+        {/* `size` explicite -- les icônes animées (components/icons/) rendent leur SVG
+            dans un <div> wrapper : la classe Tailwind n'atteint que ce conteneur, pas le
+            SVG lui-même (qui a son propre attribut width/height, 28 par défaut). */}
+        {Icon && <Icon size={12} className="shrink-0" />}
         {animation}
       </span>
       <span className="text-[0.7rem] leading-snug text-muted-foreground">
