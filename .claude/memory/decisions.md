@@ -29,3 +29,5 @@ register: decisions
 | [BDR-023](decisions/BDR-023.md) | 2026-08-25 | Icônes de badge remplacées par lucide-animated (copies locales + `motion`)   | #badge #icon #lucide-animated #motion #animation #hooks                       | actif  |
 | [BDR-024](decisions/BDR-024.md) | 2026-08-25 | Badge reste un cercle simple, tentative de bulle BD abandonnée               | #badge #icon #ui-design #revert #speech-bubble                                | actif  |
 | [BDR-025](decisions/BDR-025.md) | 2026-08-25 | Icône "listening" : CircleHelp conservé, MessageCircleMore réservé au repli  | #badge #icon #animation-mapping #listening #ux                                | actif  |
+| [BDR-026](decisions/BDR-026.md) | 2026-08-25 | Clé de session (session_id, agent_id) au lieu de session_id seul             | #rust #hashmap #session-key #subagent #claude-code #hooks #multi-session      | actif  |
+| [BDR-027](decisions/BDR-027.md) | 2026-08-25 | Résolution d'état 2 niveaux : priorité intra-session, récence inter-sessions | #rust #state-resolution #multi-session #priority #recency #claude-code        | actif  |

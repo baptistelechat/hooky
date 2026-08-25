@@ -219,3 +219,15 @@ Après le commit, bug remonté en usage réel : deux hooks déclenchés coup sur
 - [ZBLK-011](archive/blockers/ZBLK-011.md) — entrée du badge n'animait pas, résolu
 - [ZBLK-012](archive/blockers/ZBLK-012.md) — icônes géantes dans la grille Settings, résolu
 - [ZBLK-013](archive/blockers/ZBLK-013.md) — "badge blanc" sur rafale d'icônes rapprochées, résolu
+
+---
+
+Session de vérification de config (`settings.json` vs le snippet partagé vs `animationCatalog.ts`) qui a débouché sur un diagnostic multi-session en profondeur. Baptiste a signalé un affichage incohérent en usage réel : `celebrate` (`Stop`) suivi d'un `SubagentStop` non désiré, puis un `SessionStart` masqué au lancement d'une nouvelle session — "n'importe quelle dernière animation jouée" semblait rejouée. Plusieurs pistes explorées et écartées une à une avant la vraie cause : `autoMemoryEnabled` (rejeté par Baptiste, identique sur toutes ses machines), le spinner CLI "running stop hooks 1/4" (réfuté par la doc officielle des hooks — `SubagentStop` n'est jamais déclenché par un hook `Stop` configuré en settings), un fork automatique du harness (piste correcte mais incomplète). `ListAgents`/`SendMessage` utilisés pour interroger directement une autre session Claude Code active sur la machine plutôt que deviner.
+
+Sur demande explicite de Baptiste ("on debug au lieu d'échanger"), prise de contrôle directe du serveur : process de dev tué, log de debug temporaire ajouté, binaire relancé et piloté à la main, payloads curl isolés rejoués pour reproduire exactement les séquences buguées. Deux bugs distincts confirmés et corrigés dans `resolve_state()`/`on_event()` : (1) la map `Sessions` keyée uniquement par `session_id` laissait un `SubagentStop` (sous-agent visible ou fork système) écraser l'entrée de son propre parent ; (2) `STATE_PRIORITY` servait aussi à arbitrer entre sessions différentes, masquant une session qui démarre activement derrière un état "au repos" d'une autre. Fix : clé composite `(session_id, agent_id)` + résolution à deux niveaux (priorité intra-session, récence inter-sessions) — les deux validés en live par tests curl isolés avant remise en état de l'app (`pnpm tauri:dev`, avec nettoyage au passage d'un process Vite orphelin bloquant le port 1420).
+
+**Entrées clés :**
+
+- [BDR-026](decisions/BDR-026.md) — clé de session (session_id, agent_id)
+- [BDR-027](decisions/BDR-027.md) — résolution d'état à deux niveaux (priorité intra-session, récence inter-sessions)
+- [BLK-014](blockers/BLK-014.md) — animation incohérente en multi-session, résolu
