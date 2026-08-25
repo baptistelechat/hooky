@@ -96,18 +96,22 @@ export function AnimationOverlay({
   // fade-in) indépendant du cercle -- ignore les passages par `undefined` (le glyphe
   // reste figé pendant que le cercle entier fade out, cf. ci-dessus).
   const [glyphIcon, setGlyphIcon] = useState<BadgeIcon | undefined>(Icon);
-  const [prevGlyphTarget, setPrevGlyphTarget] = useState<BadgeIcon | undefined>(
-    Icon,
-  );
   const [glyphVisible, setGlyphVisible] = useState(true);
-  if (Icon && Icon !== prevGlyphTarget) {
-    setPrevGlyphTarget(Icon);
-    if (Icon !== glyphIcon) setGlyphVisible(false);
-  }
+  // Cible la plus récente lue par le timeout en vol -- toujours à jour, y compris quand
+  // plusieurs events arrivent plus vite que GLYPH_TRANSITION_MS (deux tool calls d'affilée).
+  // `fadeTimeoutRef` empêche de relancer un nouveau fade-out à chaque event : sans ça,
+  // chaque nouvelle icône annulait le timer précédent avant qu'il n'ait pu commiter le
+  // swap -- glyphVisible restait bloqué à `false` indéfiniment (cercle du badge visible,
+  // glyphe invisible -- le badge "blanc" observé en usage réel).
+  const pendingIconRef = useRef(Icon);
+  const fadeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
-    if (!Icon || Icon === glyphIcon) return;
-    const timeout = setTimeout(() => {
-      setGlyphIcon(() => Icon);
+    pendingIconRef.current = Icon;
+    if (!Icon || Icon === glyphIcon || fadeTimeoutRef.current) return;
+    setGlyphVisible(false);
+    fadeTimeoutRef.current = setTimeout(() => {
+      fadeTimeoutRef.current = null;
+      setGlyphIcon(() => pendingIconRef.current);
       // Double rAF : le nouveau glyphe est un nœud DOM fraîchement monté (composant
       // différent) -- un seul rAF peut s'exécuter avant que le navigateur ait peint
       // l'état initial opacity-0, auquel cas le passage à opacity-100 est coalescé dans
@@ -116,8 +120,13 @@ export function AnimationOverlay({
         requestAnimationFrame(() => setGlyphVisible(true)),
       );
     }, GLYPH_TRANSITION_MS);
-    return () => clearTimeout(timeout);
   }, [Icon, glyphIcon]);
+  useEffect(
+    () => () => {
+      if (fadeTimeoutRef.current) clearTimeout(fadeTimeoutRef.current);
+    },
+    [],
+  );
 
   // Confettis : effet imperatif plutôt qu'un tas de refs React -- un burst est jetable
   // par nature (créé, joué, retiré), pas un état à faire vivre dans le rendu.
