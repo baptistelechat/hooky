@@ -1,0 +1,17 @@
+---
+id: ZBLK-010
+type: blocker
+date: 2026-08-25
+tags: [tauri, capabilities, permissions, acl, window, double-click, debugging]
+---
+
+# ZBLK-010 — Double-clic sur l'avatar ne ramenait pas la fenêtre settings au premier plan
+
+| Friction                                                                                                                                                                                                                                     | Cause réelle                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | Solution                                                                                                                                         | Statut |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ | ------ |
+| Après avoir ajouté le toggle focus/minimize ([BDR-021](../../decisions/BDR-021.md)), Baptiste a signalé en usage réel que le double-clic ne ramenait plus la fenêtre settings au premier plan quand elle était déjà ouverte en arrière-plan. | La capability `default` (fenêtre avatar, seule à appeler `show()`/`unminimize()`/`setFocus()`/`minimize()` sur la fenêtre settings) ne déclarait que `core:default` — qui, vérifié dans `src-tauri/gen/schemas/acl-manifests.json`, n'inclut que les permissions de lecture du plugin window (`allow-is-focused`, `allow-is-minimized`...) dans son `default_permission`, jamais les actions. Les appels échouaient donc silencieusement (rejet de permission avalé par le `void openSettingsWindow()` de l'appelant), y compris pour le comportement `show()`/`unminimize()`/`setFocus()` déjà en place avant ce changement. | Ajout explicite de `core:window:allow-show`, `allow-unminimize`, `allow-minimize`, `allow-set-focus` dans `src-tauri/capabilities/default.json`. | résolu |
+
+## Références
+
+- voir aussi GLRN-256 (mémoire globale) — pattern extrait (core:default incomplet pour le plugin window)
+- [BDR-021](../../decisions/BDR-021.md) — fonctionnalité qui a révélé le bug
