@@ -9,6 +9,7 @@ use serde_json::Value;
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::TrayIconBuilder;
 use tauri::{AppHandle, Emitter, Manager, PhysicalPosition};
+use tower_http::cors::CorsLayer;
 
 const SERVER_PORT: u16 = 4242;
 const NO_SESSION_KEY: &str = "_no_session";
@@ -22,6 +23,7 @@ struct SessionState {
     animation: String,
     event_name: String,
     tool_name: Option<String>,
+    notification_type: Option<String>,
     last_event_at: Instant,
 }
 
@@ -158,6 +160,27 @@ fn resolve_state(sessions: &HashMap<String, SessionState>) -> (&'static str, Opt
     ("bored", sessions.values().next())
 }
 
+/// Résout l'état affiché + les champs identifiant précisément le hook qui l'a produit
+/// (lastEvent/toolName/notificationType) -- factorisé entre `on_event` et
+/// `spawn_idle_reaper` : avant, le reaper réémettait `{state}` seul dès qu'il détectait
+/// un changement, quel qu'il soit (y compris une simple désynchronisation de son propre
+/// suivi interne `last_emitted`, jamais recalé sur les émissions de `on_event`) --
+/// écrasant `lastEvent` à `undefined` côté frontend dans les ~REAPER_INTERVAL (10s)
+/// suivant n'importe quel event, sans que l'animation elle-même n'ait changé. Symptôme :
+/// le badge/icône (qui dépend de `lastEvent`, cf. animationCatalog.findMappingEntry)
+/// disparaissait alors que l'animation restait active.
+fn resolve_full_state(
+    sessions: &HashMap<String, SessionState>,
+) -> (&'static str, Option<String>, Option<String>, Option<String>) {
+    let (resolved, session) = resolve_state(sessions);
+    (
+        resolved,
+        session.map(|s| s.event_name.clone()),
+        session.and_then(|s| s.tool_name.clone()),
+        session.and_then(|s| s.notification_type.clone()),
+    )
+}
+
 async fn on_event(State(state): State<ServerState>, Json(payload): Json<Value>) -> Json<Value> {
     let session_id = payload
         .get("session_id")
@@ -173,7 +196,7 @@ async fn on_event(State(state): State<ServerState>, Json(payload): Json<Value>) 
     let tool_name = payload.get("tool_name").and_then(Value::as_str);
     let notification_type = payload.get("notification_type").and_then(Value::as_str);
 
-    let (resolved, source_event, source_tool) = {
+    let (resolved, source_event, source_tool, source_notification) = {
         // Mutex empoisonné (panic d'un autre thread pendant le lock) -> on récupère quand
         // même les données plutôt que de paniquer à notre tour dans le handler HTTP.
         let mut sessions = state
@@ -190,25 +213,29 @@ async fn on_event(State(state): State<ServerState>, Json(payload): Json<Value>) 
                     animation: animation.to_string(),
                     event_name: event_name.to_string(),
                     tool_name: tool_name.map(str::to_string),
+                    notification_type: notification_type.map(str::to_string),
                     last_event_at: Instant::now(),
                 },
             );
         }
 
-        let (state, session) = resolve_state(&sessions);
-        (
-            state,
-            session.map(|s| s.event_name.clone()),
-            session.and_then(|s| s.tool_name.clone()),
-        )
+        resolve_full_state(&sessions)
     };
 
-    // lastEvent/toolName : uniquement pour le mode debug frontend -- reflètent le hook de la
-    // session qui a produit l'état affiché (pas forcément celle de cette requête, l'agrégat
-    // peut être dominé par une autre session), absents quand plus aucune session (sleeping).
+    // lastEvent/toolName/notificationType : identifient précisément le hook affiché (pas
+    // seulement son animation agrégée) -- utilisés par le frontend pour choisir l'icône du
+    // badge (cf. animationCatalog.findMappingEntry) en plus du mode debug. Reflètent le
+    // hook de la session qui a produit l'état affiché (pas forcément celle de cette
+    // requête, l'agrégat peut être dominé par une autre session), absents quand plus
+    // aucune session (sleeping).
     let _ = state.app_handle.emit(
         "hooky-state",
-        serde_json::json!({ "state": resolved, "lastEvent": source_event, "toolName": source_tool }),
+        serde_json::json!({
+            "state": resolved,
+            "lastEvent": source_event,
+            "toolName": source_tool,
+            "notificationType": source_notification,
+        }),
     );
 
     // Les hooks "http" de Claude Code exigent un corps de réponse JSON valide
@@ -247,14 +274,23 @@ fn spawn_idle_reaper(sessions: Sessions, app_handle: AppHandle) {
         loop {
             ticker.tick().await;
 
-            let mut guard = sessions.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
-            guard.retain(|_, s| s.last_event_at.elapsed() < IDLE_TIMEOUT);
-            let (resolved, _) = resolve_state(&guard);
-            drop(guard);
+            let (resolved, event_name, tool_name, notification_type) = {
+                let mut guard = sessions.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+                guard.retain(|_, s| s.last_event_at.elapsed() < IDLE_TIMEOUT);
+                resolve_full_state(&guard)
+            };
 
             if last_emitted.as_deref() != Some(resolved) {
                 last_emitted = Some(resolved.to_string());
-                let _ = app_handle.emit("hooky-state", serde_json::json!({ "state": resolved }));
+                let _ = app_handle.emit(
+                    "hooky-state",
+                    serde_json::json!({
+                        "state": resolved,
+                        "lastEvent": event_name,
+                        "toolName": tool_name,
+                        "notificationType": notification_type,
+                    }),
+                );
             }
         }
     });
@@ -317,8 +353,15 @@ pub fn run() {
                 app_handle,
                 sessions,
             };
+            // CORS permissif : la fenêtre settings appelle /event en fetch() depuis son
+            // propre webview (onglet Animation, clic sur une carte pour tester en live) --
+            // un fetch cross-origin est bloqué sans ces headers, contrairement aux vrais
+            // hooks Claude Code qui posent en curl (pas de préflight CORS côté serveur HTTP
+            // à HTTP). Serveur bindé sur 127.0.0.1 uniquement -- pas de risque d'exposition
+            // externe à autoriser toute origine ici.
             let router = Router::new()
                 .route("/event", post(on_event))
+                .layer(CorsLayer::permissive())
                 .with_state(server_state);
 
             tauri::async_runtime::spawn(async move {

@@ -3,11 +3,13 @@ import { emit } from "@tauri-apps/api/event";
 export interface HookySettings {
   avatarSize: number;
   debugMode: boolean;
+  effectsEnabled: boolean;
 }
 
 export const DEFAULT_SETTINGS: HookySettings = {
   avatarSize: 240,
   debugMode: false,
+  effectsEnabled: true,
 };
 
 const STORAGE_KEY = "hooky-settings";

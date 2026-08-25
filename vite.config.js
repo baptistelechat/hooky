@@ -67,7 +67,7 @@ export default defineConfig(function () { return __awaiter(void 0, void 0, void 
                         : undefined,
                     watch: {
                         // 3. tell Vite to ignore watching `src-tauri`
-                        ignored: ["**/src-tauri/**"],
+                        ignored: ["**/src-tauri/**", "**/.claude/**"],
                     },
                 },
             })];

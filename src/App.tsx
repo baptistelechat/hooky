@@ -18,6 +18,8 @@ function App() {
       animation={hooky.animation}
       lastEvent={hooky.lastEvent}
       toolName={hooky.toolName}
+      notificationType={hooky.notificationType}
+      revision={hooky.revision}
     />
   );
 }
