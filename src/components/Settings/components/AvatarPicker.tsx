@@ -28,6 +28,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { useAvatarBundle } from "@/hooks/useAvatarBundle";
 import { useSettings } from "@/hooks/useSettings";
+import { cn } from "@/lib/utils";
 import { Palette, RotateCcw } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
@@ -238,6 +239,50 @@ function ColorSwatch({ id, label, value, onChange }: ColorSwatchProps) {
   );
 }
 
+interface ResetButtonsProps {
+  className?: string;
+  selectedName: string;
+  canResetCurrent: boolean;
+  canResetAll: boolean;
+  onResetCurrentClick: () => void;
+  onResetAllClick: () => void;
+}
+
+// Rendu deux fois dans AvatarPicker (large sous la description, étroit sous les swatches --
+// cf. commentaire sur Field ci-dessous) : composant partagé pour ne pas dupliquer le JSX,
+// seul le `className` (direction flex, visibilité) change entre les deux instances.
+function ResetButtons({
+  className,
+  selectedName,
+  canResetCurrent,
+  canResetAll,
+  onResetCurrentClick,
+  onResetAllClick,
+}: ResetButtonsProps) {
+  return (
+    <div className={cn("gap-2", className)}>
+      <Button
+        responsive
+        variant="outline"
+        disabled={!canResetCurrent}
+        onClick={onResetCurrentClick}
+      >
+        <RotateCcw data-icon="inline-start" />
+        Réinitialiser {selectedName}
+      </Button>
+      <Button
+        responsive
+        variant="destructive"
+        disabled={!canResetAll}
+        onClick={onResetAllClick}
+      >
+        <RotateCcw data-icon="inline-start" />
+        Réinitialiser les avatars
+      </Button>
+    </div>
+  );
+}
+
 /** Grille de sélection d'avatar -- un fichier déposé dans src/components/avatars/*.json
  * (export du Studio bible-strong) apparaît ici automatiquement (cf. avatarDefinition.ts,
  * import.meta.glob). Clic = persistance immédiate via useSettings, même pattern que le
@@ -305,7 +350,14 @@ export function AvatarPicker() {
             "Effets visuels" (label+description à gauche, contrôle à droite) mais qui
             repasse sous le label dès que le conteneur `field-group` (posé par FieldGroup
             lui-même, cf. `@container/field-group`) devient trop étroit -- le Switch reste
-            toujours sur une ligne, les 2 swatches ont besoin de plus de place. */}
+            toujours sur une ligne, les 2 swatches ont besoin de plus de place.
+
+            Les boutons de reset sont dupliqués (cf. ResetButtons) plutôt que déplacés : en
+            large ils doivent apparaître sous la description (donc dans FieldContent, à
+            gauche des swatches), en étroit après les swatches (rendu existant, à ne pas
+            changer) -- deux positions dans deux conteneurs flex différents, impossible à
+            obtenir avec un seul élément + `order` CSS. Les <AlertDialog> restent uniques
+            (state partagé), seuls les boutons déclencheurs sont dupliqués. */}
         <Field orientation="responsive">
           <FieldContent>
             <FieldTitle>
@@ -315,6 +367,14 @@ export function AvatarPicker() {
             <FieldDescription>
               Personnalise le corps et les yeux de l'avatar sélectionné.
             </FieldDescription>
+            <ResetButtons
+              className="hidden @md/field-group:mt-2 @md/field-group:flex @md/field-group:flex-row @md/field-group:flex-wrap"
+              selectedName={selectedBundle.name}
+              canResetCurrent={!!override}
+              canResetAll={hasAnyOverride}
+              onResetCurrentClick={() => setResetCurrentDialogOpen(true)}
+              onResetAllClick={() => setResetAllDialogOpen(true)}
+            />
           </FieldContent>
           <div className="flex items-center gap-6">
             <ColorSwatch
@@ -332,89 +392,75 @@ export function AvatarPicker() {
           </div>
         </Field>
 
-        <Field>
-          <div className="flex flex-col gap-2 @md/field-group:flex-row @md/field-group:flex-wrap">
-            <AlertDialog
-              open={resetCurrentDialogOpen}
-              onOpenChange={setResetCurrentDialogOpen}
-            >
-              <AlertDialogTrigger
-                render={
-                  <Button responsive variant="outline" disabled={!override} />
-                }
-              >
-                <RotateCcw data-icon="inline-start" />
-                Réinitialiser {selectedBundle.name}
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>
-                    Réinitialiser les couleurs de {selectedBundle.name} ?
-                  </AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Les couleurs éditées pour cet avatar reviendront à celles
-                    d'origine. Les modifications actuelles seront perdues.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Annuler</AlertDialogCancel>
-                  <AlertDialogAction
-                    variant="destructive"
-                    onClick={() => {
-                      resetColors(selectedBundle.id);
-                      setResetCurrentDialogOpen(false);
-                    }}
-                  >
-                    Réinitialiser
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-
-            <AlertDialog
-              open={resetAllDialogOpen}
-              onOpenChange={setResetAllDialogOpen}
-            >
-              <AlertDialogTrigger
-                render={
-                  <Button
-                    responsive
-                    variant="destructive"
-                    disabled={!hasAnyOverride}
-                  />
-                }
-              >
-                <RotateCcw data-icon="inline-start" />
-                Réinitialiser les avatars
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>
-                    Réinitialiser tous les avatars ?
-                  </AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Les couleurs éditées pour TOUS les avatars reviendront à
-                    celles d'origine. Les modifications actuelles seront
-                    perdues.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Annuler</AlertDialogCancel>
-                  <AlertDialogAction
-                    variant="destructive"
-                    onClick={() => {
-                      resetAllColors();
-                      setResetAllDialogOpen(false);
-                    }}
-                  >
-                    Réinitialiser les avatars
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          </div>
+        <Field className="@md/field-group:hidden">
+          <ResetButtons
+            className="flex flex-col"
+            selectedName={selectedBundle.name}
+            canResetCurrent={!!override}
+            canResetAll={hasAnyOverride}
+            onResetCurrentClick={() => setResetCurrentDialogOpen(true)}
+            onResetAllClick={() => setResetAllDialogOpen(true)}
+          />
         </Field>
       </FieldGroup>
+
+      <AlertDialog
+        open={resetCurrentDialogOpen}
+        onOpenChange={setResetCurrentDialogOpen}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Réinitialiser les couleurs de {selectedBundle.name} ?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Les couleurs éditées pour cet avatar reviendront à celles
+              d'origine. Les modifications actuelles seront perdues.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={() => {
+                resetColors(selectedBundle.id);
+                setResetCurrentDialogOpen(false);
+              }}
+            >
+              Réinitialiser
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={resetAllDialogOpen}
+        onOpenChange={setResetAllDialogOpen}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Réinitialiser tous les avatars ?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Les couleurs éditées pour TOUS les avatars reviendront à celles
+              d'origine. Les modifications actuelles seront perdues.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={() => {
+                resetAllColors();
+                setResetAllDialogOpen(false);
+              }}
+            >
+              Réinitialiser les avatars
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
