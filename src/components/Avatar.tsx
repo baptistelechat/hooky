@@ -46,11 +46,12 @@ async function openSettingsWindow(): Promise<void> {
     title: "Hooky - Paramètres",
     width: 620,
     height: 640,
-    // maxHeight doit être fourni pour que maxWidth soit pris en compte (quirk de l'API
-    // Tauri) -- généreux, seule la largeur doit rester bornée (grille de l'onglet
-    // Animation calée sur 3 colonnes max, cf. minmax(150px,1fr) dans les grilles).
+    // max/min Width doivent être fournis en paire avec Height pour être pris en compte
+    // (quirk de l'API Tauri, cf. LRN-012) -- généreux sur l'axe non contraint.
     maxWidth: 620,
     maxHeight: 1000,
+    minWidth: 400,
+    minHeight: 550,
     resizable: true,
     decorations: true,
     center: true,
@@ -90,7 +91,7 @@ export function PetAvatar({
     <div className="relative flex h-full w-full items-center justify-center overflow-hidden">
       <div
         ref={containerRef}
-        className="relative flex items-center justify-center overflow-hidden transition-[width,height,background-color] duration-300 ease-out"
+        className="relative flex cursor-grab items-center justify-center overflow-hidden transition-[width,height,background-color] duration-300 ease-out active:cursor-grabbing"
         style={{
           width: settings.avatarSize,
           height: settings.avatarSize,
