@@ -230,4 +230,99 @@ Sur demande explicite de Baptiste ("on debug au lieu d'échanger"), prise de con
 
 - [BDR-026](decisions/BDR-026.md) — clé de session (session_id, agent_id)
 - [BDR-027](decisions/BDR-027.md) — résolution d'état à deux niveaux (priorité intra-session, récence inter-sessions)
-- [BLK-014](blockers/BLK-014.md) — animation incohérente en multi-session, résolu
+- [ZBLK-014](archive/blockers/ZBLK-014.md) — animation incohérente en multi-session, résolu
+
+## 2026-08-26
+
+Petite session : fenêtre settings dotée d'une largeur minimale (`minWidth: 400`/`minHeight: 550`, paire
+requise par le quirk Tauri déjà documenté en LRN-012) pour éviter qu'elle devienne trop étroite au
+redimensionnement, et curseur `grab`/`grabbing` ajouté sur le conteneur de l'avatar pour signaler
+visuellement qu'il est draggable au survol. Commit généré via `/gen-commit`.
+
+---
+
+Suite directe sur le feedback tactile au hover/drag de l'avatar. Baptiste a d'abord demandé un avis
+(curseur natif Windows vs curseur custom) : recommandation de garder `grab`/`grabbing` natif plutôt
+que d'investir dans un curseur SVG custom (coût hotspot/DPI pour un gain marginal sur un widget aussi
+petit), avec en alternative un effet visuel sur l'avatar lui-même. Squash au hover/active
+(`hover:scale-105 active:scale-95`) ajouté, puis signalé sans transition visible malgré
+`transition-[...,transform]` — cause trouvée : Tailwind v4 émet `scale`/`rotate` comme propriétés
+CSS natives séparées, plus composées dans `transform` comme en v3, donc lister `transform` dans
+`transition-[...]` ne capte plus rien (voir [LRN-026](learnings/LRN-026.md)). Wobble
+(`hover:-rotate-2`) et ombre au hover ajoutés ensuite ; premier essai avec `hover:brightness-95`
+corrigé sur retour de Baptiste (il voulait assombrir l'ombre, pas l'avatar) en `drop-shadow`
+arbitraire à opacité croissante (`rgba(0,0,0,0.2)` → `0.4`). Ombre permanente légère étendue par
+cohérence aux deux autres endroits où l'avatar est prévisualisé dans les settings (sélecteur
+d'avatar, grille de validation des animations).
+
+**Entrées clés :**
+
+- [LRN-026](learnings/LRN-026.md) — Tailwind v4 : scale/rotate sont des propriétés CSS natives
+
+---
+
+Grosse fonctionnalité demandée par Baptiste : picker d'avatar, avec plusieurs de ses propres exports
+du Studio bible-strong à sélectionner et à mémoriser (localStorage, "lolcastroga"). `avatarDefinition.ts`
+refactorisé d'un singleton (un seul `avatar.json` importé en dur) vers un registre construit au
+chargement via `import.meta.glob("./avatars/*.json", { eager: true })` : déposer un fichier dans le
+dossier suffit à le faire apparaître, aucun changement de code. `AvatarBundle` (définition clampée,
+`AvatarEngine`, `avatarFitScale`, `badgeIconColor`) calculé une fois par avatar plutôt qu'à la demande,
+pour ne pas remonter le SVG à chaque changement de sélection. Nouveau champ `avatarId` dans
+`HookySettings`, même mécanisme de sync (localStorage + event Tauri) que le reste des réglages —
+zéro nouvelle plomberie. `Avatar.tsx`, `AnimationOverlay.tsx` et `AnimationCard.tsx` migrés du
+singleton statique vers `getAvatarBundle(settings.avatarId)` (`badgeIconColor` devient une prop
+plutôt qu'un import statique, puisqu'il dépend désormais de l'avatar sélectionné).
+
+Détour de typage TypeScript pendant le refactor : `RawAvatarDefinition` dérivé d'un import statique
+de `cubee.json` (conservé uniquement pour le type, le chargement runtime passe par le glob) — un
+premier essai de simplification de `clampDefinition` en signature concrète a cassé le build
+(`never[]` inféré du tableau `nodes: []` vide de cubee.json), corrigé en restaurant la signature
+générique d'origine (voir GLRN-262).
+
+Trois itérations de placement de l'UI, chacune tranchée par Baptiste après discussion (avis demandé
+explicitement, jamais imposé) : d'abord onglet "Avatar" dédié, proposition de fusion dans "Réglages"
+(rejetée d'abord par argument de densité visuelle plutôt que de volume, cf. LRN-028), fusionnée une
+fois sur insistance de Baptiste ("Réglages ne va pas s'étoffer tant que ça"), puis revert vers onglet
+dédié à sa demande — avec au passage réordonnancement (Avatar → Réglages → Animation, Avatar par
+défaut à l'ouverture) et un fondu d'entrée (`key` + `animate-in fade-in`, tw-animate-css) sur le
+switch d'avatar dans la fenêtre du pet, chaque avatar ayant son propre composant généré par
+`createAvatar()` donc un remount inévitable (voir GLRN-263).
+
+Dernier retour utilisateur en usage réel (Baptiste avait déjà déposé lui-même 9 nouveaux avatars
+dans le dossier, capture d'écran à l'appui) : grille sans scroll si la fenêtre est trop petite (fix
+— wrapper `flex-1 overflow-y-auto` manquant, pattern déjà utilisé ailleurs dans les settings), et
+l'animation "aléatoire" des cartes ne l'était pas vraiment — première implémentation piochait dans
+une liste curatée de 8 animations "accueil" puis se figeait sur "idle" après un délai fixe, rejetée
+explicitement par Baptiste au profit d'un cycle perpétuel piochant dans les 23 animations réelles,
+dont la durée est calculée depuis les steps déclarés plutôt que devinée (voir LRN-027).
+
+**Entrées clés :**
+
+- [BDR-028](decisions/BDR-028.md) — registre multi-avatar auto-découvert via `import.meta.glob`
+- [BDR-029](decisions/BDR-029.md) — onglet Avatar dédié, ordre Avatar/Réglages/Animation
+- [LRN-027](learnings/LRN-027.md) — durée réelle du cycle d'animation plutôt qu'un timeout arbitraire
+- [LRN-028](learnings/LRN-028.md) — densité visuelle, pas volume, décide d'un onglet dédié
+
+---
+
+Suite directe sur le picker d'avatar : ajout de l'édition de couleurs (corps/yeux) de l'avatar sélectionné, demandée par Baptiste. `getAvatarBundle` étendu pour accepter un `colorOverride` optionnel et reconstruire le bundle à la volée (nouveau `createAvatar`) ; couleurs persistées dans `HookySettings.avatarColorOverrides`, keyed par avatarId pour ne pas écraser l'édition d'un autre avatar en changeant de sélection (cf. [BDR-030](decisions/BDR-030.md)).
+
+Deux bugs sérieux trouvés en usage réel juste après la première implémentation. D'abord un lag perceptible en éditant une couleur, cause double : `getAvatarBundle` non mémoïsé reconstruisait tout l'avatar à chaque re-render (pas seulement au changement de couleur), et le picker natif committait à chaque event "input" continu du drag plutôt qu'au "change" final — fix via un hook partagé `useAvatarBundle` (mémoïsé sur les valeurs primitives body/eyes) et un commit différé côté `ColorSwatch`. Ensuite, un crash silencieux : éditer une seule des deux couleurs faisait disparaître l'avatar (fenêtre transparente vide) — l'override toujours construit avec les deux clés laissait l'autre à `undefined`, écrasant via spread une couleur valide et cassant la validation du schéma runtime (`createAvatar` throw sans error boundary, même famille que [LRN-013](learnings/LRN-013.md)).
+
+Itération UI ensuite, pilotée par plusieurs retours visuels successifs de Baptiste : swatches ronds stylés (label + input natif superposé) plutôt que le rectangle natif brut, reset par carte (icône CCW, immédiat) puis reset groupé en footer avec confirmation `AlertDialog` (cf. [BDR-031](decisions/BDR-031.md)), panneau couleurs sorti du conteneur scrollable et plaqué en bas comme "Configuration" dans Réglages, card retirée au profit du même pattern `Field`+`Separator` que le reste des settings.
+
+Tentative ratée de "métamorphose" : composant `AvatarEngineView` dédié (fade-out séquencé → swap → fade-in) construit pour animer le changement de couleur comme une transformation douce. Baptiste a signalé que le pet flottant n'avait plus AUCUNE transition (contrairement aux cartes settings) et jugé l'implémentation trop complexe par rapport à l'existant — diagnostic : un `style.transition` explicite passé au composant écrasait la classe `transition-opacity` du crossfade. Composant entièrement retiré, remplacé par l'extension du mécanisme déjà en place (`avatarBundleKey` = avatarId+couleurs comme clé de remount, même `animate-in fade-in` que le changement d'avatar) — cf. [BDR-033](decisions/BDR-033.md)/[LRN-032](learnings/LRN-032.md).
+
+Enfin, à la demande explicite de Baptiste, extraction d'une variante `responsive` (cva) dans `ui/button.tsx` pour remplacer le `className="w-full @md/field-group:w-auto"` dupliqué 5 fois entre `ConfigurationField` et `AvatarPicker` (cf. [BDR-032](decisions/BDR-032.md)). Un bug résiduel de layout (boutons reset toujours en pleine largeur, contrairement à Réglages) a été traité en restructurant vers le vrai composant `FieldGroup` ancêtre (au lieu d'un `@container/field-group` posé à la main) — CSS généré vérifié correct dans le build, mais non reconfirmé visuellement par Baptiste en fin de session (cf. [BLK-018](blockers/BLK-018.md), resté ouvert).
+
+**Entrées clés :**
+
+- [BDR-030](decisions/BDR-030.md) — couleurs keyed avatarId, pas d'override global
+- [BDR-031](decisions/BDR-031.md) — deux niveaux de reset (icône carte / footer confirmé)
+- [BDR-032](decisions/BDR-032.md) — variante `responsive` sur Button plutôt que className dupliqué
+- [BDR-033](decisions/BDR-033.md) — transition couleur = mécanisme du changement d'avatar
+- [BLK-015](blockers/BLK-015.md) — color pickers lents, résolu
+- [BLK-016](blockers/BLK-016.md) — avatar disparaît sur override partiel, résolu
+- [BLK-017](blockers/BLK-017.md) — crossfade custom cassait la transition existante, résolu
+- [BLK-018](blockers/BLK-018.md) — boutons reset toujours full-width, ouvert (non reconfirmé)
+- [LRN-029](learnings/LRN-029.md), [LRN-030](learnings/LRN-030.md), [LRN-031](learnings/LRN-031.md), [LRN-032](learnings/LRN-032.md) — patterns extraits des blocages ci-dessus

@@ -31,3 +31,9 @@ register: decisions
 | [BDR-025](decisions/BDR-025.md) | 2026-08-25 | Icône "listening" : CircleHelp conservé, MessageCircleMore réservé au repli  | #badge #icon #animation-mapping #listening #ux                                | actif  |
 | [BDR-026](decisions/BDR-026.md) | 2026-08-25 | Clé de session (session_id, agent_id) au lieu de session_id seul             | #rust #hashmap #session-key #subagent #claude-code #hooks #multi-session      | actif  |
 | [BDR-027](decisions/BDR-027.md) | 2026-08-25 | Résolution d'état 2 niveaux : priorité intra-session, récence inter-sessions | #rust #state-resolution #multi-session #priority #recency #claude-code        | actif  |
+| [BDR-028](decisions/BDR-028.md) | 2026-08-26 | Registre multi-avatar auto-découvert via `import.meta.glob`                  | #avatar #import-meta-glob #vite #auto-discovery #registry #multi-avatar       | actif  |
+| [BDR-029](decisions/BDR-029.md) | 2026-08-26 | Onglet Avatar dédié, ordre Avatar/Réglages/Animation                         | #avatar #settings #tabs #ux #default-tab #tab-order                           | actif  |
+| [BDR-030](decisions/BDR-030.md) | 2026-08-26 | Couleurs éditées par avatar, keyed avatarId (pas d'override global)          | #avatar #settings #color-override #per-avatar #keyed-by-id #state-management  | actif  |
+| [BDR-031](decisions/BDR-031.md) | 2026-08-26 | Deux niveaux de reset couleurs : icône carte immédiate, footer confirmé      | #avatar #reset #alert-dialog #confirmation #ux #two-tier                      | actif  |
+| [BDR-032](decisions/BDR-032.md) | 2026-08-26 | Variante `responsive` (cva) sur Button plutôt que className dupliqué         | #shadcn #button #cva #variant #container-query #dedup                         | actif  |
+| [BDR-033](decisions/BDR-033.md) | 2026-08-26 | Transition couleur = même mécanisme que le changement d'avatar               | #avatar #transition #animate-in #remount #avatarbundlekey #simplification     | actif  |
