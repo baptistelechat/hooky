@@ -321,8 +321,23 @@ Enfin, à la demande explicite de Baptiste, extraction d'une variante `responsiv
 - [BDR-031](decisions/BDR-031.md) — deux niveaux de reset (icône carte / footer confirmé)
 - [BDR-032](decisions/BDR-032.md) — variante `responsive` sur Button plutôt que className dupliqué
 - [BDR-033](decisions/BDR-033.md) — transition couleur = mécanisme du changement d'avatar
-- [BLK-015](blockers/BLK-015.md) — color pickers lents, résolu
-- [BLK-016](blockers/BLK-016.md) — avatar disparaît sur override partiel, résolu
-- [BLK-017](blockers/BLK-017.md) — crossfade custom cassait la transition existante, résolu
+- [ZBLK-015](archive/blockers/ZBLK-015.md) — color pickers lents, résolu
+- [ZBLK-016](archive/blockers/ZBLK-016.md) — avatar disparaît sur override partiel, résolu
+- [ZBLK-017](archive/blockers/ZBLK-017.md) — crossfade custom cassait la transition existante, résolu
 - [BLK-018](blockers/BLK-018.md) — boutons reset toujours full-width, ouvert (non reconfirmé)
 - [LRN-029](learnings/LRN-029.md), [LRN-030](learnings/LRN-030.md), [LRN-031](learnings/LRN-031.md), [LRN-032](learnings/LRN-032.md) — patterns extraits des blocages ci-dessus
+
+---
+
+Demande de Baptiste : repositionner les 2 boutons de reset couleurs sous la description "Personnalise le corps et les yeux..." en fenêtre large, sans toucher au rendu en fenêtre étroite (déjà validé). Diagnostic : les deux positions appartiennent à deux conteneurs flex distincts (l'un imbriqué dans `FieldContent`, l'autre sibling du `Field` principal) — `order` CSS seul ne permet pas de déplacer un élément entre deux conteneurs flex différents. Solution retenue : composant `ResetButtons` partagé, rendu deux fois avec des classes de visibilité responsive opposées (`hidden @md/field-group:flex` / `@md/field-group:hidden`), et les deux `AlertDialog` de confirmation découplés de leur `AlertDialogTrigger` (state contrôlé, boutons appelant `setOpen(true)` directement) pour éviter de dupliquer le dialog lui-même (cf. [BDR-034](decisions/BDR-034.md)/[LRN-033](learnings/LRN-033.md)).
+
+Vérification visuelle faite dans la vraie app Tauri (pas seulement lecture de code), via interop Win32 direct en PowerShell (EnumWindows pour localiser les fenêtres, double-clic simulé pour ouvrir les settings, redimensionnement + screenshot GDI pour chaque largeur) — confirme au passage [BLK-018](blockers/BLK-018.md) (resté ouvert en fin de session précédente faute de confirmation visuelle), désormais résolu et archivé. Nouveau blocage rencontré et résolu en cours de route : un premier lancement de `tauri dev` combinant `run_in_background` et `&` sortait immédiatement sans réellement lancer le serveur, laissant un process zombie sur le port 1420 qui bloquait la relance (cf. [BLK-019](blockers/BLK-019.md)/[LRN-034](learnings/LRN-034.md)).
+
+Ménage mémoire en fin de session : archivage de 3 blockers résolus non encore archivés ([ZBLK-015](archive/blockers/ZBLK-015.md), [ZBLK-016](archive/blockers/ZBLK-016.md), [ZBLK-017](archive/blockers/ZBLK-017.md)) avec mise à jour de toutes les références croisées.
+
+**Entrées clés :**
+
+- [BDR-034](decisions/BDR-034.md) — boutons reset dupliqués plutôt que déplacés en CSS pur
+- [BLK-018](blockers/BLK-018.md) — full-width des boutons reset, enfin confirmé résolu
+- [BLK-019](blockers/BLK-019.md) — process zombie `tauri dev` sur le port 1420
+- [LRN-033](learnings/LRN-033.md), [LRN-034](learnings/LRN-034.md), [LRN-035](learnings/LRN-035.md) — patterns extraits (dialog découplé, run_in_background+&, vérif Tauri via Win32)

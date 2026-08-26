@@ -1,11 +1,11 @@
 ---
-id: BLK-015
+id: ZBLK-015
 type: blocker
 date: 2026-08-26
 tags: [avatar, performance, lag, usememo, ipc, color-picker]
 ---
 
-# BLK-015 — Color pickers lents/lag lors de l'édition de couleur
+# ZBLK-015 — Color pickers lents/lag lors de l'édition de couleur
 
 | Friction                                                                                             | Cause réelle                                                                                                                                                                                                                                                                                    | Solution                                                                                                                                                         | Statut |
 | ---------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
@@ -13,5 +13,5 @@ tags: [avatar, performance, lag, usememo, ipc, color-picker]
 
 ## Références
 
-- [LRN-030](../learnings/LRN-030.md) — pattern extrait (mémoïser sur primitives)
-- [LRN-031](../learnings/LRN-031.md) — pattern extrait (onChange color input = "input" continu)
+- [LRN-030](../../learnings/LRN-030.md) — pattern extrait (mémoïser sur primitives)
+- [LRN-031](../../learnings/LRN-031.md) — pattern extrait (onChange color input = "input" continu)

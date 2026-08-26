@@ -38,3 +38,6 @@ register: learnings
 | [LRN-030](learnings/LRN-030.md) | 2026-08-26 | Rebuild coûteux dans un hook doit se mémoïser sur des primitives                | #react #usememo #performance #ipc #tauri #object-identity                             |
 | [LRN-031](learnings/LRN-031.md) | 2026-08-26 | `input type=color` : onChange React = event natif "input" continu               | #react #color-input #onchange #native-events #debounce #performance                   |
 | [LRN-032](learnings/LRN-032.md) | 2026-08-26 | Étendre le mécanisme de transition existant plutôt qu'un parallèle              | #react #transition #simplification #over-engineering #remount #key-prop               |
+| [LRN-033](learnings/LRN-033.md) | 2026-08-26 | Découpler AlertDialog de son Trigger pour piloter 2 boutons responsive          | #react #alert-dialog #base-ui #controlled-component #responsive #dialog               |
+| [LRN-034](learnings/LRN-034.md) | 2026-08-26 | `run_in_background:true` + `&` en fin de commande = process zombie              | #bash-tool #run-in-background #zombie-process #tooling #port-conflict                 |
+| [LRN-035](learnings/LRN-035.md) | 2026-08-26 | Vérifier une fenêtre Tauri native via interop Win32 direct sans harness e2e     | #tauri #desktop-testing #win32 #powershell #screenshot #e2e-fallback                  |

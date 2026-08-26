@@ -37,3 +37,4 @@ register: decisions
 | [BDR-031](decisions/BDR-031.md) | 2026-08-26 | Deux niveaux de reset couleurs : icône carte immédiate, footer confirmé      | #avatar #reset #alert-dialog #confirmation #ux #two-tier                      | actif  |
 | [BDR-032](decisions/BDR-032.md) | 2026-08-26 | Variante `responsive` (cva) sur Button plutôt que className dupliqué         | #shadcn #button #cva #variant #container-query #dedup                         | actif  |
 | [BDR-033](decisions/BDR-033.md) | 2026-08-26 | Transition couleur = même mécanisme que le changement d'avatar               | #avatar #transition #animate-in #remount #avatarbundlekey #simplification     | actif  |
+| [BDR-034](decisions/BDR-034.md) | 2026-08-26 | Boutons reset dupliqués (ResetButtons) plutôt que déplacés                   | #avatar #reset #css #field-group #container-query #duplication #responsive    | actif  |

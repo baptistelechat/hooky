@@ -1,11 +1,11 @@
 ---
-id: BLK-017
+id: ZBLK-017
 type: blocker
 date: 2026-08-26
 tags: [avatar, transition, css, regression, over-engineering, revert]
 ---
 
-# BLK-017 — Transition crossfade custom cassait la transition existante du pet
+# ZBLK-017 — Transition crossfade custom cassait la transition existante du pet
 
 | Friction                                                                                                                                                                                                                                                                                                                                              | Cause réelle                                                                                                                                                                                                                                                                               | Solution                                                                                                                                                                                                            | Statut |
 | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
@@ -13,5 +13,5 @@ tags: [avatar, transition, css, regression, over-engineering, revert]
 
 ## Références
 
-- [BDR-033](../decisions/BDR-033.md) — décision actée suite à ce blocage
-- [LRN-032](../learnings/LRN-032.md) — pattern extrait (étendre l'existant plutôt qu'un système parallèle)
+- [BDR-033](../../decisions/BDR-033.md) — décision actée suite à ce blocage
+- [LRN-032](../../learnings/LRN-032.md) — pattern extrait (étendre l'existant plutôt qu'un système parallèle)
