@@ -94,7 +94,7 @@ export function PetAvatar({
     <div className="relative flex h-full w-full items-center justify-center overflow-hidden">
       <div
         ref={containerRef}
-        className="relative flex cursor-grab items-center justify-center overflow-hidden drop-shadow-[0_4px_6px_rgba(0,0,0,0.2)] transition-[width,height,background-color,scale,rotate,filter] duration-300 ease-out hover:-rotate-2 hover:scale-105 hover:drop-shadow-[0_8px_10px_rgba(0,0,0,0.4)] active:cursor-grabbing active:scale-95"
+        className="relative flex cursor-grab items-center justify-center overflow-hidden drop-shadow-[0_4px_6px_rgba(0,0,0,0.2)] transition-[width,height,background-color,scale,rotate,filter] duration-300 ease-out hover:-rotate-5 hover:scale-100 active:drop-shadow-[0_8px_10px_rgba(0,0,0,0.4)] active:cursor-grabbing active:scale-105"
         style={{
           width: settings.avatarSize,
           height: settings.avatarSize,
