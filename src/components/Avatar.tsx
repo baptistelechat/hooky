@@ -1,13 +1,13 @@
 import { useRef } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
-import { AvatarEngine, avatarFitScale, definition } from "./avatarDefinition";
+import { getAvatarBundle, type AnimationName } from "./avatarDefinition";
 import { useSettings } from "../hooks/useSettings";
 import { useAnimationEffects } from "../hooks/useAnimationEffects";
 import { findMappingEntry } from "../lib/animationCatalog";
 import { AnimationOverlay } from "./AnimationOverlay";
 
-export type AnimationName = keyof typeof definition.animations;
+export type { AnimationName };
 
 interface PetAvatarProps {
   animation: AnimationName;
@@ -77,6 +77,9 @@ export function PetAvatar({
   const [settings] = useSettings();
   const lastClickAtRef = useRef(0);
   const containerRef = useRef<HTMLDivElement>(null);
+  const { AvatarEngine, avatarFitScale, badgeIconColor } = getAvatarBundle(
+    settings.avatarId,
+  );
 
   useAnimationEffects(
     containerRef,
@@ -91,7 +94,7 @@ export function PetAvatar({
     <div className="relative flex h-full w-full items-center justify-center overflow-hidden">
       <div
         ref={containerRef}
-        className="relative flex cursor-grab items-center justify-center overflow-hidden transition-[width,height,background-color] duration-300 ease-out active:cursor-grabbing"
+        className="relative flex cursor-grab items-center justify-center overflow-hidden drop-shadow-[0_4px_6px_rgba(0,0,0,0.2)] transition-[width,height,background-color,scale,rotate,filter] duration-300 ease-out hover:-rotate-2 hover:scale-105 hover:drop-shadow-[0_8px_10px_rgba(0,0,0,0.4)] active:cursor-grabbing active:scale-95"
         style={{
           width: settings.avatarSize,
           height: settings.avatarSize,
@@ -112,9 +115,18 @@ export function PetAvatar({
         }}
         onContextMenu={(e) => e.preventDefault()}
       >
+        {/* `key` sur l'id d'avatar : chaque bundle a son propre composant `AvatarEngine`
+            (cf. avatarDefinition.createAvatar) -- changer d'avatar remonte forcément le
+            SVG, pas de morph possible entre deux moteurs différents. `animate-in fade-in`
+            (tw-animate-css, déjà utilisé ailleurs dans l'app) adoucit ce remount plutôt que
+            de laisser le nouvel avatar apparaître d'un coup ; pas de fade-out symétrique de
+            l'ancien -- demanderait de garder les deux montés en parallèle le temps de la
+            transition, disproportionné pour un changement d'avatar rare et volontaire. */}
         <AvatarEngine
+          key={settings.avatarId}
           animation={animation}
           size={settings.avatarSize}
+          className="animate-in fade-in duration-300"
           style={{
             transition: "width 300ms ease-out, height 300ms ease-out",
             transform:
@@ -139,6 +151,7 @@ export function PetAvatar({
         enabled={settings.effectsEnabled}
         avatarSize={settings.avatarSize}
         icon={mappingEntry?.icon}
+        badgeIconColor={badgeIconColor}
       />
     </div>
   );

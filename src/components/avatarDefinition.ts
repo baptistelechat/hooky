@@ -1,5 +1,11 @@
-import { createAvatar } from "@bible-strong/avatar-react";
-import rawDefinition from "./avatar.json";
+import {
+  createAvatar,
+  type CreatedAvatarComponent,
+} from "@bible-strong/avatar-react";
+// Import statique gardé uniquement pour le TYPE (schéma bible-strong partagé par tous
+// les avatars, cf. plus bas) -- le chargement runtime des définitions passe par
+// `import.meta.glob` (voir requireAvatarModules).
+import cubeeDefinition from "./avatars/cubee.json";
 
 // Le Studio (outil d'export officiel bible-strong) autorise tipRoundness/baseRoundness
 // jusqu'à 2 et morphRoundness au-delà de 1 via son UI, mais le schéma de validation
@@ -34,7 +40,19 @@ interface BodyNode extends Record<string, unknown> {
   surface: Record<string, unknown>;
 }
 
-function clampDefinition<T extends typeof rawDefinition>(def: T): T {
+// Toutes les définitions d'avatar (dossier ./avatars/) partagent ce schéma bible-strong --
+// un seul type structurel dérivé de l'import statique de cubee.json, réutilisé (via cast)
+// pour chaque fichier chargé dynamiquement par le glob plus bas. `createAvatar` est
+// surchargé pour narrower `animation`/`expression` sur les clés littérales de ce type
+// (cf. dist/createAvatar.d.ts du package) -- garder un type concret ici (plutôt que
+// `unknown`) préserve ce narrowing pour tous les avatars, pas seulement le premier.
+type RawAvatarDefinition = typeof cubeeDefinition;
+
+// Générique (et non `(def: RawAvatarDefinition): RawAvatarDefinition`) : `nodes: []` dans
+// cubee.json s'infère en `never[]`, un retour non-générique contre ce type concret rejette
+// donc le `nodes.map(...)` ci-dessous -- contre un type paramètre T, TS type-check plus
+// souplement (assignabilité à la contrainte plutôt qu'au type exact).
+function clampDefinition<T extends RawAvatarDefinition>(def: T): T {
   // `nodes` est toujours `[]` dans les avatars actuels (le Studio n'en génère pas
   // encore ici) -- TS l'infère donc en `never[]`, d'où le cast pour rester générique
   // si un avatar en ajoute un jour.
@@ -51,9 +69,6 @@ function clampDefinition<T extends typeof rawDefinition>(def: T): T {
     },
   };
 }
-
-export const definition = clampDefinition(rawDefinition);
-export const AvatarEngine = createAvatar(definition);
 
 // Le viewBox du moteur est fixe ("-150 -150 300 300", cf. dist du package) -- un avatar
 // avec des `body.nodes[]` (satellites autour du corps principal, ex. "Sunee") peut
@@ -81,7 +96,7 @@ function halfExtent({ width, height, x = 0, y = 0 }: Extent2D): number {
   return Math.sqrt(x * x + y * y) + Math.max(width, height) / 2;
 }
 
-function computeFitScale(def: typeof definition): number {
+function computeFitScale(def: RawAvatarDefinition): number {
   const nodes = def.body.nodes as unknown as Array<{
     surface: { width: number; height: number };
     position?: [number, number, number];
@@ -103,8 +118,6 @@ function computeFitScale(def: typeof definition): number {
   const maxExtent = Math.max(...extents);
   return maxExtent > VIEWBOX_HALF_EXTENT ? VIEWBOX_HALF_EXTENT / maxExtent : 1;
 }
-
-export const avatarFitScale = computeFitScale(definition);
 
 // WCAG relative luminance -- même formule que le calcul de contraste standard
 // (https://www.w3.org/TR/WCAG21/#dfn-relative-luminance).
@@ -199,4 +212,68 @@ function ensureReadableOnWhite(hex: string): string {
   return candidate;
 }
 
-export const badgeIconColor = ensureReadableOnWhite(definition.colors.body);
+// Un avatar = un export du Studio bible-strong déposé dans ./avatars/*.json -- picker
+// d'avatar (Settings) : déposer un nouveau fichier ici suffit à le faire apparaître,
+// aucun changement de code. `eager: true` : peu de fichiers, JSON léger, pas besoin de
+// code-splitting async pour ça.
+function loadAvatarDefinitions(): {
+  id: string;
+  definition: RawAvatarDefinition;
+}[] {
+  const modules = import.meta.glob("./avatars/*.json", {
+    eager: true,
+  }) as Record<string, { default: RawAvatarDefinition }>;
+  return Object.entries(modules).map(([path, mod]) => ({
+    // "./avatars/cubee.json" -> "cubee"
+    id: path.replace("./avatars/", "").replace(".json", ""),
+    definition: mod.default,
+  }));
+}
+
+export interface AvatarBundle {
+  id: string;
+  name: string;
+  definition: RawAvatarDefinition;
+  AvatarEngine: CreatedAvatarComponent<RawAvatarDefinition>;
+  avatarFitScale: number;
+  badgeIconColor: string;
+}
+
+function buildAvatarBundle(
+  id: string,
+  rawDefinition: RawAvatarDefinition,
+): AvatarBundle {
+  const definition = clampDefinition(rawDefinition);
+  return {
+    id,
+    name: definition.name,
+    definition,
+    AvatarEngine: createAvatar(definition),
+    avatarFitScale: computeFitScale(definition),
+    badgeIconColor: ensureReadableOnWhite(definition.colors.body),
+  };
+}
+
+// Registre calculé une seule fois au chargement du module (peu d'avatars, JSON léger) --
+// évite de rappeler `createAvatar` (donc de remonter le SVG) à chaque changement de
+// sélection dans les settings.
+export const avatarRegistry: Record<string, AvatarBundle> = Object.fromEntries(
+  loadAvatarDefinitions().map(({ id, definition }) => [
+    id,
+    buildAvatarBundle(id, definition),
+  ]),
+);
+
+export const avatarIds = Object.keys(avatarRegistry);
+export const DEFAULT_AVATAR_ID = avatarIds[0];
+
+/** Résout un id d'avatar vers son bundle ; retombe sur le premier avatar disponible si
+ * l'id stocké (settings persistés) ne correspond plus à un fichier présent -- cas d'un
+ * avatar retiré de ./avatars/ après avoir été sélectionné. */
+export function getAvatarBundle(id: string): AvatarBundle {
+  return avatarRegistry[id] ?? avatarRegistry[DEFAULT_AVATAR_ID];
+}
+
+// Set d'animations = contrat fixe du moteur (state machine partagée par tous les
+// avatars, cf. animationOrder) -- dérivé du schéma statique, pas d'un bundle particulier.
+export type AnimationName = keyof RawAvatarDefinition["animations"] & string;

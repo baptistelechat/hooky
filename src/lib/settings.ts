@@ -1,15 +1,18 @@
 import { emit } from "@tauri-apps/api/event";
+import { DEFAULT_AVATAR_ID } from "../components/avatarDefinition";
 
 export interface HookySettings {
   avatarSize: number;
   debugMode: boolean;
   effectsEnabled: boolean;
+  avatarId: string;
 }
 
 export const DEFAULT_SETTINGS: HookySettings = {
   avatarSize: 240,
   debugMode: false,
   effectsEnabled: true,
+  avatarId: DEFAULT_AVATAR_ID,
 };
 
 const STORAGE_KEY = "hooky-settings";

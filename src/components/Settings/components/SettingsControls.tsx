@@ -41,8 +41,6 @@ export function SettingsControls() {
           />
         </Field>
 
-        <FieldSeparator />
-
         <Field orientation="horizontal">
           <FieldContent>
             <FieldTitle>

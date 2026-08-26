@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from "react";
 import type { BadgeIcon } from "../lib/animationCatalog";
 import type { AnimationName } from "./Avatar";
 import { useWaapi } from "../hooks/useWaapi";
-import { badgeIconColor } from "./avatarDefinition";
 // Doit correspondre à la durée de transition Tailwind utilisée sur le badge (duration-200).
 const BADGE_TRANSITION_MS = 200;
 // Crossfade du glyphe (duration-150) : plus court que le badge -- c'est une simple
@@ -22,6 +21,10 @@ interface AnimationOverlayProps {
    * avoir le même sens (une oreille sur SessionStart n'aurait aucun sens). Absent = pas de
    * badge icône pour ce hook (idle, working générique...). */
   icon?: BadgeIcon;
+  /** Couleur du body de l'avatar courant, ajustée pour rester lisible sur le fond blanc
+   * du badge (cf. avatarDefinition.ensureReadableOnWhite) -- dépend de l'avatar
+   * sélectionné, donc passée en prop plutôt qu'importée en dur. */
+  badgeIconColor: string;
 }
 
 const RISE: Keyframe[] = [
@@ -51,6 +54,7 @@ export function AnimationOverlay({
   enabled,
   avatarSize,
   icon: Icon,
+  badgeIconColor,
 }: AnimationOverlayProps) {
   const confettiRef = useRef<HTMLDivElement>(null);
   const zzzRef = useRef<HTMLSpanElement>(null);

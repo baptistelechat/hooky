@@ -1,11 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import {
-  AvatarEngine as AvatarPreview,
-  avatarFitScale,
-} from "@/components/avatarDefinition";
+import { getAvatarBundle } from "@/components/avatarDefinition";
 import type { AnimationMappingEntry } from "@/lib/animationCatalog";
 import { AnimationOverlay } from "@/components/AnimationOverlay";
 import { useAnimationEffects } from "@/hooks/useAnimationEffects";
+import { useSettings } from "@/hooks/useSettings";
 import { triggerPreview } from "@/lib/eventTrigger";
 
 const PREVIEW_SIZE = 56;
@@ -35,6 +33,12 @@ export function AnimationCard({ entry, isLive, onSelect }: AnimationCardProps) {
   const { label, animation, note, icon: Icon } = entry;
   const containerRef = useRef<HTMLDivElement>(null);
   const [revision, setRevision] = useState(0);
+  const [settings] = useSettings();
+  const {
+    AvatarEngine: AvatarPreview,
+    avatarFitScale,
+    badgeIconColor,
+  } = getAvatarBundle(settings.avatarId);
 
   useEffect(() => {
     const id = setInterval(() => setRevision((r) => r + 1), REPLAY_INTERVAL_MS);
@@ -58,7 +62,7 @@ export function AnimationCard({ entry, isLive, onSelect }: AnimationCardProps) {
     >
       <div
         ref={containerRef}
-        className="relative"
+        className="relative drop-shadow-[0_4px_6px_rgba(0,0,0,0.2)]"
         style={{ width: PREVIEW_SIZE, height: PREVIEW_SIZE }}
       >
         <AvatarPreview
@@ -79,6 +83,7 @@ export function AnimationCard({ entry, isLive, onSelect }: AnimationCardProps) {
           enabled
           avatarSize={PREVIEW_SIZE}
           icon={entry.icon}
+          badgeIconColor={badgeIconColor}
         />
       </div>
       <span className="font-mono text-xs font-medium break-all">{label}</span>

@@ -119,9 +119,9 @@ export function ConfigurationField({
                 Réinitialiser les paramètres ?
               </AlertDialogTitle>
               <AlertDialogDescription>
-                Taille de l'avatar, effets visuels et mode debug reviendront à
-                leurs valeurs par défaut. Les modifications actuelles seront
-                perdues.
+                Taille de l'avatar, avatar sélectionné, effets visuels et mode
+                debug reviendront à leurs valeurs par défaut. Les modifications
+                actuelles seront perdues.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
