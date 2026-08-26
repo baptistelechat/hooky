@@ -78,7 +78,7 @@ export function ConfigurationField({
       </FieldDescription>
       <div className="mt-1 flex flex-col gap-2 @md/field-group:flex-row @md/field-group:flex-wrap">
         <Button
-          className="w-full @md/field-group:w-auto"
+          responsive
           variant="outline"
           onClick={() => void exportSettings(settings)}
         >
@@ -86,7 +86,7 @@ export function ConfigurationField({
           Exporter
         </Button>
         <Button
-          className="w-full @md/field-group:w-auto"
+          responsive
           variant="outline"
           onClick={() => fileInputRef.current?.click()}
         >
@@ -103,12 +103,7 @@ export function ConfigurationField({
 
         <AlertDialog open={resetDialogOpen} onOpenChange={setResetDialogOpen}>
           <AlertDialogTrigger
-            render={
-              <Button
-                className="w-full @md/field-group:w-auto"
-                variant="destructive"
-              />
-            }
+            render={<Button responsive variant="destructive" />}
           >
             <RotateCcw data-icon="inline-start" />
             Réinitialiser

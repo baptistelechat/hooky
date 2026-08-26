@@ -1,11 +1,17 @@
 import { emit } from "@tauri-apps/api/event";
-import { DEFAULT_AVATAR_ID } from "../components/avatarDefinition";
+import {
+  DEFAULT_AVATAR_ID,
+  type AvatarColorOverride,
+} from "../components/avatarDefinition";
 
 export interface HookySettings {
   avatarSize: number;
   debugMode: boolean;
   effectsEnabled: boolean;
   avatarId: string;
+  // Couleurs éditées par avatar (id -> override) -- keyed par avatarId pour que changer
+  // d'avatar n'écrase pas l'édition d'un autre, et que revenir dessus la retrouve.
+  avatarColorOverrides: Record<string, AvatarColorOverride>;
 }
 
 export const DEFAULT_SETTINGS: HookySettings = {
@@ -13,6 +19,7 @@ export const DEFAULT_SETTINGS: HookySettings = {
   debugMode: false,
   effectsEnabled: true,
   avatarId: DEFAULT_AVATAR_ID,
+  avatarColorOverrides: {},
 };
 
 const STORAGE_KEY = "hooky-settings";

@@ -1,11 +1,12 @@
-import { useRef } from "react";
-import { getCurrentWindow } from "@tauri-apps/api/window";
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
-import { getAvatarBundle, type AnimationName } from "./avatarDefinition";
-import { useSettings } from "../hooks/useSettings";
+import { getCurrentWindow } from "@tauri-apps/api/window";
+import { useRef } from "react";
 import { useAnimationEffects } from "../hooks/useAnimationEffects";
+import { useAvatarBundle } from "../hooks/useAvatarBundle";
+import { useSettings } from "../hooks/useSettings";
 import { findMappingEntry } from "../lib/animationCatalog";
 import { AnimationOverlay } from "./AnimationOverlay";
+import { avatarBundleKey, type AnimationName } from "./avatarDefinition";
 
 export type { AnimationName };
 
@@ -45,13 +46,13 @@ async function openSettingsWindow(): Promise<void> {
   new WebviewWindow("settings", {
     title: "Hooky - Paramètres",
     width: 620,
-    height: 640,
+    height: 570,
     // max/min Width doivent être fournis en paire avec Height pour être pris en compte
     // (quirk de l'API Tauri, cf. LRN-012) -- généreux sur l'axe non contraint.
     maxWidth: 620,
     maxHeight: 1000,
     minWidth: 400,
-    minHeight: 550,
+    minHeight: 570,
     resizable: true,
     decorations: true,
     center: true,
@@ -77,8 +78,9 @@ export function PetAvatar({
   const [settings] = useSettings();
   const lastClickAtRef = useRef(0);
   const containerRef = useRef<HTMLDivElement>(null);
-  const { AvatarEngine, avatarFitScale, badgeIconColor } = getAvatarBundle(
+  const bundle = useAvatarBundle(
     settings.avatarId,
+    settings.avatarColorOverrides[settings.avatarId],
   );
 
   useAnimationEffects(
@@ -115,22 +117,25 @@ export function PetAvatar({
         }}
         onContextMenu={(e) => e.preventDefault()}
       >
-        {/* `key` sur l'id d'avatar : chaque bundle a son propre composant `AvatarEngine`
-            (cf. avatarDefinition.createAvatar) -- changer d'avatar remonte forcément le
-            SVG, pas de morph possible entre deux moteurs différents. `animate-in fade-in`
-            (tw-animate-css, déjà utilisé ailleurs dans l'app) adoucit ce remount plutôt que
-            de laisser le nouvel avatar apparaître d'un coup ; pas de fade-out symétrique de
-            l'ancien -- demanderait de garder les deux montés en parallèle le temps de la
-            transition, disproportionné pour un changement d'avatar rare et volontaire. */}
-        <AvatarEngine
-          key={settings.avatarId}
+        {/* `key` sur avatarId+couleurs (cf. avatarBundleKey) : chaque bundle a son propre
+            composant `AvatarEngine` (cf. avatarDefinition.createAvatar) -- changer d'avatar
+            OU de couleur éditée le reconstruit entièrement, pas de morph possible entre
+            deux moteurs différents. `animate-in fade-in` (tw-animate-css, déjà utilisé
+            ailleurs dans l'app) adoucit ce remount plutôt que de laisser le nouvel avatar
+            apparaître d'un coup ; pas de fade-out symétrique de l'ancien -- demanderait de
+            garder les deux montés en parallèle le temps de la transition, disproportionné
+            pour un changement rare et volontaire (avatar ou couleur). */}
+        <bundle.AvatarEngine
+          key={avatarBundleKey(bundle)}
           animation={animation}
           size={settings.avatarSize}
           className="animate-in fade-in duration-300"
           style={{
             transition: "width 300ms ease-out, height 300ms ease-out",
             transform:
-              avatarFitScale < 1 ? `scale(${avatarFitScale})` : undefined,
+              bundle.avatarFitScale < 1
+                ? `scale(${bundle.avatarFitScale})`
+                : undefined,
             transformOrigin: "center",
           }}
         />
@@ -151,7 +156,7 @@ export function PetAvatar({
         enabled={settings.effectsEnabled}
         avatarSize={settings.avatarSize}
         icon={mappingEntry?.icon}
-        badgeIconColor={badgeIconColor}
+        badgeIconColor={bundle.badgeIconColor}
       />
     </div>
   );

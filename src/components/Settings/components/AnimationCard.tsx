@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import { getAvatarBundle } from "@/components/avatarDefinition";
 import type { AnimationMappingEntry } from "@/lib/animationCatalog";
+import { avatarBundleKey } from "@/components/avatarDefinition";
 import { AnimationOverlay } from "@/components/AnimationOverlay";
 import { useAnimationEffects } from "@/hooks/useAnimationEffects";
+import { useAvatarBundle } from "@/hooks/useAvatarBundle";
 import { useSettings } from "@/hooks/useSettings";
 import { triggerPreview } from "@/lib/eventTrigger";
 
@@ -34,11 +35,10 @@ export function AnimationCard({ entry, isLive, onSelect }: AnimationCardProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [revision, setRevision] = useState(0);
   const [settings] = useSettings();
-  const {
-    AvatarEngine: AvatarPreview,
-    avatarFitScale,
-    badgeIconColor,
-  } = getAvatarBundle(settings.avatarId);
+  const bundle = useAvatarBundle(
+    settings.avatarId,
+    settings.avatarColorOverrides[settings.avatarId],
+  );
 
   useEffect(() => {
     const id = setInterval(() => setRevision((r) => r + 1), REPLAY_INTERVAL_MS);
@@ -65,13 +65,15 @@ export function AnimationCard({ entry, isLive, onSelect }: AnimationCardProps) {
         className="relative drop-shadow-[0_4px_6px_rgba(0,0,0,0.2)]"
         style={{ width: PREVIEW_SIZE, height: PREVIEW_SIZE }}
       >
-        <AvatarPreview
+        <bundle.AvatarEngine
+          key={avatarBundleKey(bundle)}
           animation={animation}
           size={PREVIEW_SIZE}
+          className="animate-in fade-in duration-300"
           style={
-            avatarFitScale < 1
+            bundle.avatarFitScale < 1
               ? {
-                  transform: `scale(${avatarFitScale})`,
+                  transform: `scale(${bundle.avatarFitScale})`,
                   transformOrigin: "center",
                 }
               : undefined
@@ -83,7 +85,7 @@ export function AnimationCard({ entry, isLive, onSelect }: AnimationCardProps) {
           enabled
           avatarSize={PREVIEW_SIZE}
           icon={entry.icon}
-          badgeIconColor={badgeIconColor}
+          badgeIconColor={bundle.badgeIconColor}
         />
       </div>
       <span className="font-mono text-xs font-medium break-all">{label}</span>

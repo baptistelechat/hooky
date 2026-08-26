@@ -267,11 +267,45 @@ export const avatarRegistry: Record<string, AvatarBundle> = Object.fromEntries(
 export const avatarIds = Object.keys(avatarRegistry);
 export const DEFAULT_AVATAR_ID = avatarIds[0];
 
+/** Clé de remount pour `<bundle.AvatarEngine key={...}>` -- avatarId + couleurs résolues
+ * (donc l'override éventuel inclus), pour que React remonte le SVG (et rejoue son
+ * `animate-in fade-in`, cf. Avatar.tsx) sur un changement d'avatar OU de couleur, jamais
+ * sur autre chose (animation, taille...). Même traitement pour les deux cas -- pas de
+ * transition dédiée "changement de couleur" séparée, complexité qui s'est avérée non
+ * désirée à l'usage. */
+export function avatarBundleKey(bundle: AvatarBundle): string {
+  return `${bundle.id}:${bundle.definition.colors.body}:${bundle.definition.colors.eyes}`;
+}
+
+export type AvatarColorOverride = Partial<{ body: string; eyes: string }>;
+
 /** Résout un id d'avatar vers son bundle ; retombe sur le premier avatar disponible si
  * l'id stocké (settings persistés) ne correspond plus à un fichier présent -- cas d'un
- * avatar retiré de ./avatars/ après avoir été sélectionné. */
-export function getAvatarBundle(id: string): AvatarBundle {
-  return avatarRegistry[id] ?? avatarRegistry[DEFAULT_AVATAR_ID];
+ * avatar retiré de ./avatars/ après avoir été sélectionné. Un `colorOverride` reconstruit
+ * le bundle à la volée (nouveau `createAvatar`, donc remount du SVG -- acceptable, ne se
+ * déclenche que sur une action volontaire dans le color picker des settings) plutôt que
+ * de muter le registre figé au chargement : `badgeIconColor` reste ainsi recalculé en
+ * cohérence avec la couleur éditée. */
+export function getAvatarBundle(
+  id: string,
+  colorOverride?: AvatarColorOverride,
+): AvatarBundle {
+  const base = avatarRegistry[id] ?? avatarRegistry[DEFAULT_AVATAR_ID];
+  if (!colorOverride?.body && !colorOverride?.eyes) return base;
+
+  // Ne merger que les clés réellement définies -- un override partiel (ex. `{ body:
+  // "#fff", eyes: undefined }`, cas d'un seul des deux inputs édité) écraserait sinon la
+  // couleur non éditée par `undefined` via le spread, faisant échouer la validation
+  // ajv du schéma runtime (colors.eyes requis en string) : `createAvatar` throw
+  // synchrone au montage sans error boundary -> fenêtre transparente vide (cf. LRN-013).
+  const colors = { ...base.definition.colors };
+  if (colorOverride?.body) colors.body = colorOverride.body;
+  if (colorOverride?.eyes) colors.eyes = colorOverride.eyes;
+
+  return buildAvatarBundle(base.id, {
+    ...base.definition,
+    colors,
+  });
 }
 
 // Set d'animations = contrat fixe du moteur (state machine partagée par tous les
