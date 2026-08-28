@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { AnimationMappingEntry } from "@/lib/animationCatalog";
 import { avatarBundleKey } from "@/components/avatarDefinition";
 import { AnimationOverlay } from "@/components/AnimationOverlay";
+import { FittedAvatarEngine } from "@/components/FittedAvatarEngine";
 import { useAnimationEffects } from "@/hooks/useAnimationEffects";
 import { useAvatarBundle } from "@/hooks/useAvatarBundle";
 import { useSettings } from "@/hooks/useSettings";
@@ -65,19 +66,12 @@ export function AnimationCard({ entry, isLive, onSelect }: AnimationCardProps) {
         className="relative drop-shadow-[0_4px_6px_rgba(0,0,0,0.2)]"
         style={{ width: PREVIEW_SIZE, height: PREVIEW_SIZE }}
       >
-        <bundle.AvatarEngine
+        <FittedAvatarEngine
           key={avatarBundleKey(bundle)}
+          bundle={bundle}
           animation={animation}
           size={PREVIEW_SIZE}
           className="animate-in fade-in duration-300"
-          style={
-            bundle.avatarFitScale < 1
-              ? {
-                  transform: `scale(${bundle.avatarFitScale})`,
-                  transformOrigin: "center",
-                }
-              : undefined
-          }
         />
         <AnimationOverlay
           animation={animation}

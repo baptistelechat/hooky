@@ -46,7 +46,7 @@ interface BodyNode extends Record<string, unknown> {
 // surchargé pour narrower `animation`/`expression` sur les clés littérales de ce type
 // (cf. dist/createAvatar.d.ts du package) -- garder un type concret ici (plutôt que
 // `unknown`) préserve ce narrowing pour tous les avatars, pas seulement le premier.
-type RawAvatarDefinition = typeof cubeeDefinition;
+export type RawAvatarDefinition = typeof cubeeDefinition;
 
 // Générique (et non `(def: RawAvatarDefinition): RawAvatarDefinition`) : `nodes: []` dans
 // cubee.json s'infère en `never[]`, un retour non-générique contre ce type concret rejette
@@ -101,8 +101,9 @@ function computeFitScale(def: RawAvatarDefinition): number {
     surface: { width: number; height: number };
     position?: [number, number, number];
   }>;
-  if (nodes.length === 0) return 1;
-
+  // Pas de court-circuit sur `nodes` vide : `primary` seul peut déjà déborder du viewBox
+  // (aucun avatar du repo ne le fait, mais un JSON custom importé par l'utilisateur n'a
+  // pas cette garantie -- cf. crop constaté sur un avatar communautaire sans nodes).
   const primary = def.body.primary as { width: number; height: number };
   const extents = [
     halfExtent(primary),
@@ -239,7 +240,7 @@ export interface AvatarBundle {
   badgeIconColor: string;
 }
 
-function buildAvatarBundle(
+export function buildAvatarBundle(
   id: string,
   rawDefinition: RawAvatarDefinition,
 ): AvatarBundle {
@@ -265,7 +266,10 @@ export const avatarRegistry: Record<string, AvatarBundle> = Object.fromEntries(
 );
 
 export const avatarIds = Object.keys(avatarRegistry);
-export const DEFAULT_AVATAR_ID = avatarIds[0];
+// "cubee" explicite -- `avatarIds[0]` dépendait de l'ordre de résolution du glob (Vite
+// résout ./avatars/*.json par ordre alphabétique de chemin, donc "citrus" passait avant
+// "cubee"), un ordre incident plutôt qu'un choix. Cubee est la mascotte du repo.
+export const DEFAULT_AVATAR_ID = "cubee";
 
 /** Clé de remount pour `<bundle.AvatarEngine key={...}>` -- avatarId + couleurs résolues
  * (donc l'override éventuel inclus), pour que React remonte le SVG (et rejoue son
@@ -289,8 +293,14 @@ export type AvatarColorOverride = Partial<{ body: string; eyes: string }>;
 export function getAvatarBundle(
   id: string,
   colorOverride?: AvatarColorOverride,
+  customRegistry?: Record<string, RawAvatarDefinition>,
 ): AvatarBundle {
-  const base = avatarRegistry[id] ?? avatarRegistry[DEFAULT_AVATAR_ID];
+  const customDefinition = customRegistry?.[id];
+  const base = avatarRegistry[id]
+    ? avatarRegistry[id]
+    : customDefinition
+      ? buildAvatarBundle(id, customDefinition)
+      : avatarRegistry[DEFAULT_AVATAR_ID];
   if (!colorOverride?.body && !colorOverride?.eyes) return base;
 
   // Ne merger que les clés réellement définies -- un override partiel (ex. `{ body:

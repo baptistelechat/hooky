@@ -1,10 +1,12 @@
 import {
   avatarBundleKey,
   avatarRegistry,
+  buildAvatarBundle,
   DEFAULT_AVATAR_ID,
   type AnimationName,
   type AvatarBundle,
   type AvatarColorOverride,
+  type RawAvatarDefinition,
 } from "@/components/avatarDefinition";
 import {
   AlertDialog,
@@ -26,11 +28,16 @@ import {
   FieldTitle,
 } from "@/components/ui/field";
 import { Separator } from "@/components/ui/separator";
+import { FittedAvatarEngine } from "@/components/FittedAvatarEngine";
 import { useAvatarBundle } from "@/hooks/useAvatarBundle";
+import { useCustomAvatars } from "@/hooks/useCustomAvatars";
 import { useSettings } from "@/hooks/useSettings";
 import { cn } from "@/lib/utils";
-import { Palette, RotateCcw } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { openUrl } from "@tauri-apps/plugin-opener";
+import { ExternalLink, Palette, Plus, RotateCcw, Trash2 } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+
+const COMMUNITY_URL = "https://avatars.bible-strong.app/";
 
 const PREVIEW_SIZE = 56;
 
@@ -61,9 +68,11 @@ function animationCycleDuration(
 interface AvatarPickerCardProps {
   bundle: AvatarBundle;
   isSelected: boolean;
+  isCustom: boolean;
   colorOverride: AvatarColorOverride | undefined;
   onSelect: () => void;
   onResetColors: () => void;
+  onDelete?: () => void;
 }
 
 // Chaque carte pioche indépendamment (Math.random() propre à son instance) et relance une
@@ -72,15 +81,18 @@ interface AvatarPickerCardProps {
 function AvatarPickerCard({
   bundle,
   isSelected,
+  isCustom,
   colorOverride,
   onSelect,
   onResetColors,
+  onDelete,
 }: AvatarPickerCardProps) {
   const animationOrder = bundle.definition.animationOrder as AnimationName[];
   const [animation, setAnimation] = useState<AnimationName>(() =>
     pickRandomAnimation(animationOrder),
   );
   const [resetDialogOpen, setResetDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   // Reflète l'override couleur de CET avatar (pas seulement le sélectionné) -- même hook
   // que le pet flottant et la grille d'animation, pour une couleur cohérente partout.
   const liveBundle = useAvatarBundle(bundle.id, colorOverride);
@@ -109,23 +121,60 @@ function AvatarPickerCard({
           className="relative drop-shadow-[0_4px_6px_rgba(0,0,0,0.2)]"
           style={{ width: PREVIEW_SIZE, height: PREVIEW_SIZE }}
         >
-          <liveBundle.AvatarEngine
+          <FittedAvatarEngine
             key={avatarBundleKey(liveBundle)}
+            bundle={liveBundle}
             animation={animation}
             size={PREVIEW_SIZE}
             className="animate-in fade-in duration-300"
-            style={
-              liveBundle.avatarFitScale < 1
-                ? {
-                    transform: `scale(${liveBundle.avatarFitScale})`,
-                    transformOrigin: "center",
-                  }
-                : undefined
-            }
           />
         </div>
         <span className="text-xs font-medium">{bundle.name}</span>
       </button>
+
+      {/* Suppression réservée aux avatars custom (les avatars par défaut viennent du repo, pas
+          retirables) -- coin haut-gauche pour ne pas collisionner avec le reset couleur
+          (haut-droit). Confirmation requise, même garde que le reset (cf. LRN-110). */}
+      {isCustom && (
+        <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+          <AlertDialogTrigger
+            render={
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-xs"
+                className="absolute top-1 left-1 rounded-full bg-background/80 backdrop-blur-sm"
+                onClick={(e) => e.stopPropagation()}
+                aria-label={`Supprimer ${bundle.name}`}
+              />
+            }
+          >
+            <Trash2 className="size-3" />
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Supprimer {bundle.name} ?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Cet avatar sera définitivement retiré de la liste. Si c'est
+                l'avatar en cours, l'avatar par défaut sera sélectionné à la
+                place.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Annuler</AlertDialogCancel>
+              <AlertDialogAction
+                variant="destructive"
+                onClick={() => {
+                  onDelete?.();
+                  setDeleteDialogOpen(false);
+                }}
+              >
+                Supprimer
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
 
       {/* Reset au niveau de la carte de l'avatar édité (pas seulement celui sélectionné) --
           n'importe quel avatar avec des couleurs éditées peut être réinitialisé depuis sa
@@ -173,6 +222,41 @@ function AvatarPickerCard({
         </AlertDialog>
       )}
     </div>
+  );
+}
+
+interface AddCustomAvatarCardProps {
+  onFileSelected: (file: File) => void;
+}
+
+/** Carte "+" en fin de grille -- déclenche un `<input type="file">` natif caché plutôt
+ * qu'un plugin Tauri fs/dialog : le webview lit le fichier directement via `file.text()`,
+ * aucune nouvelle capability requise. Même gabarit que AvatarPickerCard pour rester aligné
+ * dans la grille. */
+function AddCustomAvatarCard({ onFileSelected }: AddCustomAvatarCardProps) {
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  return (
+    <button
+      type="button"
+      onClick={() => inputRef.current?.click()}
+      className="flex w-full cursor-pointer flex-col items-center justify-center gap-1.5 rounded-lg border border-dashed border-border bg-muted/30 p-3 text-center text-muted-foreground transition-colors hover:bg-muted/60"
+      style={{ minHeight: PREVIEW_SIZE + 44 }}
+    >
+      <input
+        ref={inputRef}
+        type="file"
+        accept="application/json,.json"
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          e.target.value = "";
+          if (file) onFileSelected(file);
+        }}
+      />
+      <Plus className="size-6" />
+      <span className="text-xs font-medium">Ajouter un avatar</span>
+    </button>
   );
 }
 
@@ -296,10 +380,24 @@ function ResetButtons({
  * (avec AlertDialog, cf. LRN-110 : action qui efface un travail d'édition, guard bloquant). */
 export function AvatarPicker() {
   const [settings, setSettings] = useSettings();
+  const [customAvatars, setCustomAvatars] = useCustomAvatars();
   const [resetCurrentDialogOpen, setResetCurrentDialogOpen] = useState(false);
   const [resetAllDialogOpen, setResetAllDialogOpen] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
+
+  // Recalculé seulement quand les customs changent (comme avatarRegistry, figé au
+  // chargement pour les défauts) -- évite de rappeler `createAvatar` à chaque render.
+  const customBundles = useMemo(
+    () =>
+      Object.entries(customAvatars).map(([id, definition]) =>
+        buildAvatarBundle(id, definition),
+      ),
+    [customAvatars],
+  );
   const selectedBundle =
-    avatarRegistry[settings.avatarId] ?? avatarRegistry[DEFAULT_AVATAR_ID];
+    avatarRegistry[settings.avatarId] ??
+    customBundles.find((bundle) => bundle.id === settings.avatarId) ??
+    avatarRegistry[DEFAULT_AVATAR_ID];
   const override = settings.avatarColorOverrides[selectedBundle.id];
   const bodyColor = override?.body ?? selectedBundle.definition.colors.body;
   const eyesColor = override?.eyes ?? selectedBundle.definition.colors.eyes;
@@ -328,20 +426,103 @@ export function AvatarPicker() {
     setSettings({ ...settings, avatarColorOverrides: {} });
   }
 
+  // Validation à l'import, pas au rendu : `buildAvatarBundle` appelle `createAvatar`
+  // (moteur bible-strong), qui throw de façon synchrone si la structure est invalide --
+  // aucun error boundary autour du montage (cf. avatarDefinition.ts), donc un JSON
+  // douteux qui atteindrait la grille viderait la fenêtre. On catch ici, avant tout ajout.
+  async function handleFileSelected(file: File) {
+    setImportError(null);
+    let raw: unknown;
+    try {
+      raw = JSON.parse(await file.text());
+    } catch {
+      setImportError(`"${file.name}" n'est pas un JSON valide.`);
+      return;
+    }
+
+    // Id généré (pas le nom de fichier) : évite toute collision avec un id par défaut
+    // (cubee, sunee...) si un utilisateur recharge un JSON du même nom.
+    const id = crypto.randomUUID();
+    try {
+      buildAvatarBundle(id, raw as RawAvatarDefinition);
+    } catch (e) {
+      setImportError(
+        `"${file.name}" n'est pas un avatar valide. Veuillez vérifier la structure du fichier et réessayer.`,
+      );
+      console.error("Avatar import error:", e);
+      return;
+    }
+
+    setCustomAvatars({
+      ...customAvatars,
+      [id]: raw as RawAvatarDefinition,
+    });
+    // Bascule directement sur le pet qu'on vient d'ajouter -- sinon rien à l'écran ne
+    // confirme visuellement que l'import a fonctionné tant qu'on ne clique pas sa carte.
+    setSettings({ ...settings, avatarId: id });
+  }
+
+  function deleteCustomAvatar(id: string) {
+    const rest = { ...customAvatars };
+    delete rest[id];
+    setCustomAvatars(rest);
+
+    const overrides = { ...settings.avatarColorOverrides };
+    const hadOverride = id in overrides;
+    delete overrides[id];
+
+    if (settings.avatarId === id) {
+      setSettings({
+        ...settings,
+        avatarId: DEFAULT_AVATAR_ID,
+        avatarColorOverrides: overrides,
+      });
+    } else if (hadOverride) {
+      setSettings({ ...settings, avatarColorOverrides: overrides });
+    }
+  }
+
   return (
     <div className="flex flex-1 flex-col gap-3 overflow-hidden">
+      <button
+        type="button"
+        onClick={() => void openUrl(COMMUNITY_URL)}
+        className="flex items-center gap-1.5 self-start text-xs text-muted-foreground transition-colors hover:text-foreground"
+      >
+        <ExternalLink className="size-3" />
+        Créer ou télécharger un avatar
+      </button>
+
       <div className="grid min-h-0 flex-1 grid-cols-[repeat(auto-fill,minmax(120px,1fr))] content-start gap-2 overflow-y-auto pr-1">
         {Object.values(avatarRegistry).map((bundle) => (
           <AvatarPickerCard
             key={bundle.id}
             bundle={bundle}
             isSelected={bundle.id === settings.avatarId}
+            isCustom={false}
             colorOverride={settings.avatarColorOverrides[bundle.id]}
             onSelect={() => setSettings({ ...settings, avatarId: bundle.id })}
             onResetColors={() => resetColors(bundle.id)}
           />
         ))}
+        {customBundles.map((bundle) => (
+          <AvatarPickerCard
+            key={bundle.id}
+            bundle={bundle}
+            isSelected={bundle.id === settings.avatarId}
+            isCustom
+            colorOverride={settings.avatarColorOverrides[bundle.id]}
+            onSelect={() => setSettings({ ...settings, avatarId: bundle.id })}
+            onResetColors={() => resetColors(bundle.id)}
+            onDelete={() => deleteCustomAvatar(bundle.id)}
+          />
+        ))}
+        <AddCustomAvatarCard
+          onFileSelected={(file) => void handleFileSelected(file)}
+        />
       </div>
+
+      {importError && <p className="text-xs text-destructive">{importError}</p>}
 
       <Separator />
 

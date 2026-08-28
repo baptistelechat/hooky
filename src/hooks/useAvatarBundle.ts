@@ -4,6 +4,7 @@ import {
   type AvatarBundle,
   type AvatarColorOverride,
 } from "@/components/avatarDefinition";
+import { useCustomAvatars } from "@/hooks/useCustomAvatars";
 
 /** Bundle live d'un avatar, override couleur appliqué (persisté par avatarId dans
  * `avatarColorOverrides`, cf. settings.ts). Mémoïsé sur les valeurs primitives body/eyes
@@ -16,10 +17,11 @@ export function useAvatarBundle(
   avatarId: string,
   colorOverride: AvatarColorOverride | undefined,
 ): AvatarBundle {
+  const [customAvatars] = useCustomAvatars();
   const body = colorOverride?.body;
   const eyes = colorOverride?.eyes;
   return useMemo(
-    () => getAvatarBundle(avatarId, { body, eyes }),
-    [avatarId, body, eyes],
+    () => getAvatarBundle(avatarId, { body, eyes }, customAvatars),
+    [avatarId, body, eyes, customAvatars],
   );
 }

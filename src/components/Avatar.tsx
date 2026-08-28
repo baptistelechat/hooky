@@ -7,6 +7,7 @@ import { useSettings } from "../hooks/useSettings";
 import { findMappingEntry } from "../lib/animationCatalog";
 import { AnimationOverlay } from "./AnimationOverlay";
 import { avatarBundleKey, type AnimationName } from "./avatarDefinition";
+import { FittedAvatarEngine } from "./FittedAvatarEngine";
 
 export type { AnimationName };
 
@@ -125,19 +126,13 @@ export function PetAvatar({
             apparaître d'un coup ; pas de fade-out symétrique de l'ancien -- demanderait de
             garder les deux montés en parallèle le temps de la transition, disproportionné
             pour un changement rare et volontaire (avatar ou couleur). */}
-        <bundle.AvatarEngine
+        <FittedAvatarEngine
           key={avatarBundleKey(bundle)}
+          bundle={bundle}
           animation={animation}
           size={settings.avatarSize}
           className="animate-in fade-in duration-300"
-          style={{
-            transition: "width 300ms ease-out, height 300ms ease-out",
-            transform:
-              bundle.avatarFitScale < 1
-                ? `scale(${bundle.avatarFitScale})`
-                : undefined,
-            transformOrigin: "center",
-          }}
+          style={{ transition: "width 300ms ease-out, height 300ms ease-out" }}
         />
         <pre
           className={`pointer-events-none absolute top-1 left-1 m-0 font-mono text-xs leading-[1.3] whitespace-pre-wrap text-white opacity-0 [text-shadow:0_0_2px_#000] transition-opacity duration-300 ${settings.debugMode ? "opacity-100" : ""}`}
