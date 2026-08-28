@@ -8,6 +8,7 @@ export interface HookySettings {
   avatarSize: number;
   debugMode: boolean;
   effectsEnabled: boolean;
+  notificationsEnabled: boolean;
   avatarId: string;
   // Couleurs éditées par avatar (id -> override) -- keyed par avatarId pour que changer
   // d'avatar n'écrase pas l'édition d'un autre, et que revenir dessus la retrouve.
@@ -18,6 +19,7 @@ export const DEFAULT_SETTINGS: HookySettings = {
   avatarSize: 240,
   debugMode: false,
   effectsEnabled: true,
+  notificationsEnabled: true,
   avatarId: DEFAULT_AVATAR_ID,
   avatarColorOverrides: {},
 };

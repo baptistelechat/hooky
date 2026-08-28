@@ -21,6 +21,20 @@
         "alwaysOnTop": true,
         "resizable": false,
         "skipTaskbar": true
+      },
+      {
+        "label": "bubble",
+        "title": "Hooky - Notification",
+        "width": 300,
+        "height": 90,
+        "transparent": true,
+        "decorations": false,
+        "shadow": false,
+        "alwaysOnTop": true,
+        "resizable": false,
+        "skipTaskbar": true,
+        "visible": false,
+        "focus": false
       }
     ],
     "security": {

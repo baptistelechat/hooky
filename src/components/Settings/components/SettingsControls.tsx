@@ -1,4 +1,4 @@
-import { Bug, Ruler, Sparkles } from "lucide-react";
+import { Bell, Bug, Ruler, Sparkles } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -55,6 +55,26 @@ export function SettingsControls() {
             checked={settings.effectsEnabled}
             onCheckedChange={(checked) =>
               setSettings({ ...settings, effectsEnabled: checked })
+            }
+          />
+        </Field>
+
+        <FieldSeparator />
+
+        <Field orientation="horizontal">
+          <FieldContent>
+            <FieldTitle>
+              <Bell className="size-4" />
+              Notifications
+            </FieldTitle>
+            <FieldDescription>
+              Bulle de message + son quand Claude a besoin de toi ou a terminé.
+            </FieldDescription>
+          </FieldContent>
+          <Switch
+            checked={settings.notificationsEnabled}
+            onCheckedChange={(checked) =>
+              setSettings({ ...settings, notificationsEnabled: checked })
             }
           />
         </Field>
