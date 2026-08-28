@@ -247,6 +247,14 @@ async fn on_event(State(state): State<ServerState>, Json(payload): Json<Value>) 
         .get("agent_id")
         .and_then(Value::as_str)
         .map(str::to_string);
+    let agent_type = payload.get("agent_type").and_then(Value::as_str);
+    // Un fork système invisible (recap, auto-mémoire, suggestion -- cf. LRN-023) partage le
+    // session_id/agent_id d'un vrai sous-agent mais garde agent_type vide (""), contrairement
+    // à un sous-agent explicite (Task/Explore/...) qui porte un type nommé. Sans ce filtre,
+    // le SubagentStop d'un recap ravive last_event_at du groupe avec "idle" -- prioritaire sur
+    // "bored" dans STATE_PRIORITY -- masquant le `celebrate` du Stop parent le temps que cette
+    // entrée fantôme décroisse à son tour, et retarde `sleeping` de tout ce délai.
+    let is_invisible_fork = agent_id.is_some() && agent_type.is_none_or(str::is_empty);
     let key = (session_id.clone(), agent_id);
 
     let (resolved, source_event, source_tool, source_notification) = {
@@ -262,6 +270,8 @@ async fn on_event(State(state): State<ServerState>, Json(payload): Json<Value>) 
             // sous-agents (SessionEnd n'a lui-même pas d'agent_id) -- sinon une entrée
             // sous-agent orpheline continuerait à peser sur l'agrégat jusqu'à IDLE_TIMEOUT.
             sessions.retain(|(sid, _), _| sid != &session_id);
+        } else if is_invisible_fork {
+            // ponytail: rien à faire, l'event est simplement ignoré (ni insertion ni maj).
         } else if let Some(animation) = animation_for_event(event_name, tool_name, notification_type) {
             sessions.insert(
                 key,

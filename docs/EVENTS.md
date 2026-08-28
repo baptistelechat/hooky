@@ -54,6 +54,19 @@ patterns"), toutes couvertes explicitement — pas de valeur laissée au repli g
 | `auth_success`               | `idle`      | Succès ponctuel isolé, pas la conclusion d'une tâche (contrairement à `Stop`) — `idle` reste le bon choix ici                                                                       |
 | autre / absent (futur)       | `listening` | Repli — comportement générique conservé pour une valeur pas encore mappée ici                                                                                                       |
 
+## Forks système invisibles ignorés (recap, auto-mémoire, suggestion)
+
+Un fork système (recap de fin de tâche, consolidation mémoire, suggestion...) partage le
+`session_id` de la session parente et porte un `agent_id`, exactement comme un sous-agent
+explicite (Task/Explore/...) — mais son `agent_type` reste vide (`""`), alors qu'un
+sous-agent explicite porte un type nommé. N'importe quel event reçu avec `agent_id` présent
+et `agent_type` vide/absent est ignoré (ni inséré ni mis à jour dans la map de sessions).
+
+Sans ce filtre, un `SubagentStop` de recap ravive `last_event_at` du groupe de session avec
+`idle` — prioritaire sur `bored` dans `STATE_PRIORITY` — ce qui masque le `celebrate` du
+`Stop` parent tant que cette entrée fantôme n'a pas elle-même décrû, et retarde `sleeping`
+de tout ce délai.
+
 ## `celebrate` sur `Stop`
 
 `Stop` est le seul event qui marque une vraie fin de tâche (le pendant de la notification
