@@ -41,3 +41,7 @@ register: learnings
 | [LRN-033](learnings/LRN-033.md) | 2026-08-26 | Découpler AlertDialog de son Trigger pour piloter 2 boutons responsive          | #react #alert-dialog #base-ui #controlled-component #responsive #dialog               |
 | [LRN-034](learnings/LRN-034.md) | 2026-08-26 | `run_in_background:true` + `&` en fin de commande = process zombie              | #bash-tool #run-in-background #zombie-process #tooling #port-conflict                 |
 | [LRN-035](learnings/LRN-035.md) | 2026-08-26 | Vérifier une fenêtre Tauri native via interop Win32 direct sans harness e2e     | #tauri #desktop-testing #win32 #powershell #screenshot #e2e-fallback                  |
+| [LRN-036](learnings/LRN-036.md) | 2026-08-28 | GDI screenshot ne capture pas fiablement les fenêtres transparentes WebView2    | #tauri #webview2 #screenshot #gdi #powershell #directcomposition #debugging           |
+| [LRN-037](learnings/LRN-037.md) | 2026-08-28 | Tauri `monitorFromPoint` vs `currentMonitor`                                    | #tauri #tauri2 #webviewwindow #monitor #multi-window #api-quirk                       |
+| [LRN-038](learnings/LRN-038.md) | 2026-08-28 | `Edit` refuse d'écrire à travers un symlink                                     | #settings-json #symlink #edit-tool #dotfiles #windows #powershell                     |
+| [LRN-039](learnings/LRN-039.md) | 2026-08-28 | Contenu collé au bord plutôt que centré dans un conteneur surdimensionné        | #css #flexbox #layout #ui-technique #oversized-container                              |

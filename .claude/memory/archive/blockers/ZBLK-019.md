@@ -1,5 +1,5 @@
 ---
-id: BLK-019
+id: ZBLK-019
 type: blocker
 date: 2026-08-26
 tags: [tauri, dev-server, zombie-process, port-conflict, run-in-background]
@@ -13,4 +13,4 @@ tags: [tauri, dev-server, zombie-process, port-conflict, run-in-background]
 
 ## Références
 
-- [LRN-034](../learnings/LRN-034.md) — pattern extrait (ne pas combiner `run_in_background` et `&`)
+- [LRN-034](../../learnings/LRN-034.md) — pattern extrait (ne pas combiner `run_in_background` et `&`)

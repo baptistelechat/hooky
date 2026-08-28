@@ -1,5 +1,5 @@
 ---
-id: BLK-018
+id: ZBLK-018
 type: blocker
 date: 2026-08-26
 tags: [css, container-query, tailwind, field-group, button]
@@ -13,5 +13,5 @@ tags: [css, container-query, tailwind, field-group, button]
 
 ## Références
 
-- [LRN-035](../learnings/LRN-035.md) — technique ayant permis la confirmation visuelle
-- [BDR-034](../decisions/BDR-034.md) — évolution ultérieure du même composant
+- [LRN-035](../../learnings/LRN-035.md) — technique ayant permis la confirmation visuelle
+- [BDR-034](../../decisions/BDR-034.md) — évolution ultérieure du même composant

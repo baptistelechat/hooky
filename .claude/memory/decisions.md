@@ -38,3 +38,5 @@ register: decisions
 | [BDR-032](decisions/BDR-032.md) | 2026-08-26 | Variante `responsive` (cva) sur Button plutôt que className dupliqué         | #shadcn #button #cva #variant #container-query #dedup                         | actif  |
 | [BDR-033](decisions/BDR-033.md) | 2026-08-26 | Transition couleur = même mécanisme que le changement d'avatar               | #avatar #transition #animate-in #remount #avatarbundlekey #simplification     | actif  |
 | [BDR-034](decisions/BDR-034.md) | 2026-08-26 | Boutons reset dupliqués (ResetButtons) plutôt que déplacés                   | #avatar #reset #css #field-group #container-query #duplication #responsive    | actif  |
+| [BDR-035](decisions/BDR-035.md) | 2026-08-28 | Bulle de notification : fenêtre Tauri statique et autonome                   | #tauri #webviewwindow #multi-window #notification #capabilities #architecture | actif  |
+| [BDR-036](decisions/BDR-036.md) | 2026-08-28 | Hooks "notify" PS1 purgés du settings.json global                            | #settings-json #hooks #notify #powershell #burnttoast #cleanup                | actif  |

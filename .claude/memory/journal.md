@@ -313,7 +313,7 @@ Itération UI ensuite, pilotée par plusieurs retours visuels successifs de Bapt
 
 Tentative ratée de "métamorphose" : composant `AvatarEngineView` dédié (fade-out séquencé → swap → fade-in) construit pour animer le changement de couleur comme une transformation douce. Baptiste a signalé que le pet flottant n'avait plus AUCUNE transition (contrairement aux cartes settings) et jugé l'implémentation trop complexe par rapport à l'existant — diagnostic : un `style.transition` explicite passé au composant écrasait la classe `transition-opacity` du crossfade. Composant entièrement retiré, remplacé par l'extension du mécanisme déjà en place (`avatarBundleKey` = avatarId+couleurs comme clé de remount, même `animate-in fade-in` que le changement d'avatar) — cf. [BDR-033](decisions/BDR-033.md)/[LRN-032](learnings/LRN-032.md).
 
-Enfin, à la demande explicite de Baptiste, extraction d'une variante `responsive` (cva) dans `ui/button.tsx` pour remplacer le `className="w-full @md/field-group:w-auto"` dupliqué 5 fois entre `ConfigurationField` et `AvatarPicker` (cf. [BDR-032](decisions/BDR-032.md)). Un bug résiduel de layout (boutons reset toujours en pleine largeur, contrairement à Réglages) a été traité en restructurant vers le vrai composant `FieldGroup` ancêtre (au lieu d'un `@container/field-group` posé à la main) — CSS généré vérifié correct dans le build, mais non reconfirmé visuellement par Baptiste en fin de session (cf. [BLK-018](blockers/BLK-018.md), resté ouvert).
+Enfin, à la demande explicite de Baptiste, extraction d'une variante `responsive` (cva) dans `ui/button.tsx` pour remplacer le `className="w-full @md/field-group:w-auto"` dupliqué 5 fois entre `ConfigurationField` et `AvatarPicker` (cf. [BDR-032](decisions/BDR-032.md)). Un bug résiduel de layout (boutons reset toujours en pleine largeur, contrairement à Réglages) a été traité en restructurant vers le vrai composant `FieldGroup` ancêtre (au lieu d'un `@container/field-group` posé à la main) — CSS généré vérifié correct dans le build, mais non reconfirmé visuellement par Baptiste en fin de session (cf. [ZBLK-018](archive/blockers/ZBLK-018.md), resté ouvert).
 
 **Entrées clés :**
 
@@ -324,20 +324,38 @@ Enfin, à la demande explicite de Baptiste, extraction d'une variante `responsiv
 - [ZBLK-015](archive/blockers/ZBLK-015.md) — color pickers lents, résolu
 - [ZBLK-016](archive/blockers/ZBLK-016.md) — avatar disparaît sur override partiel, résolu
 - [ZBLK-017](archive/blockers/ZBLK-017.md) — crossfade custom cassait la transition existante, résolu
-- [BLK-018](blockers/BLK-018.md) — boutons reset toujours full-width, ouvert (non reconfirmé)
+- [ZBLK-018](archive/blockers/ZBLK-018.md) — boutons reset toujours full-width, ouvert (non reconfirmé)
 - [LRN-029](learnings/LRN-029.md), [LRN-030](learnings/LRN-030.md), [LRN-031](learnings/LRN-031.md), [LRN-032](learnings/LRN-032.md) — patterns extraits des blocages ci-dessus
 
 ---
 
 Demande de Baptiste : repositionner les 2 boutons de reset couleurs sous la description "Personnalise le corps et les yeux..." en fenêtre large, sans toucher au rendu en fenêtre étroite (déjà validé). Diagnostic : les deux positions appartiennent à deux conteneurs flex distincts (l'un imbriqué dans `FieldContent`, l'autre sibling du `Field` principal) — `order` CSS seul ne permet pas de déplacer un élément entre deux conteneurs flex différents. Solution retenue : composant `ResetButtons` partagé, rendu deux fois avec des classes de visibilité responsive opposées (`hidden @md/field-group:flex` / `@md/field-group:hidden`), et les deux `AlertDialog` de confirmation découplés de leur `AlertDialogTrigger` (state contrôlé, boutons appelant `setOpen(true)` directement) pour éviter de dupliquer le dialog lui-même (cf. [BDR-034](decisions/BDR-034.md)/[LRN-033](learnings/LRN-033.md)).
 
-Vérification visuelle faite dans la vraie app Tauri (pas seulement lecture de code), via interop Win32 direct en PowerShell (EnumWindows pour localiser les fenêtres, double-clic simulé pour ouvrir les settings, redimensionnement + screenshot GDI pour chaque largeur) — confirme au passage [BLK-018](blockers/BLK-018.md) (resté ouvert en fin de session précédente faute de confirmation visuelle), désormais résolu et archivé. Nouveau blocage rencontré et résolu en cours de route : un premier lancement de `tauri dev` combinant `run_in_background` et `&` sortait immédiatement sans réellement lancer le serveur, laissant un process zombie sur le port 1420 qui bloquait la relance (cf. [BLK-019](blockers/BLK-019.md)/[LRN-034](learnings/LRN-034.md)).
+Vérification visuelle faite dans la vraie app Tauri (pas seulement lecture de code), via interop Win32 direct en PowerShell (EnumWindows pour localiser les fenêtres, double-clic simulé pour ouvrir les settings, redimensionnement + screenshot GDI pour chaque largeur) — confirme au passage [ZBLK-018](archive/blockers/ZBLK-018.md) (resté ouvert en fin de session précédente faute de confirmation visuelle), désormais résolu et archivé. Nouveau blocage rencontré et résolu en cours de route : un premier lancement de `tauri dev` combinant `run_in_background` et `&` sortait immédiatement sans réellement lancer le serveur, laissant un process zombie sur le port 1420 qui bloquait la relance (cf. [ZBLK-019](archive/blockers/ZBLK-019.md)/[LRN-034](learnings/LRN-034.md)).
 
 Ménage mémoire en fin de session : archivage de 3 blockers résolus non encore archivés ([ZBLK-015](archive/blockers/ZBLK-015.md), [ZBLK-016](archive/blockers/ZBLK-016.md), [ZBLK-017](archive/blockers/ZBLK-017.md)) avec mise à jour de toutes les références croisées.
 
 **Entrées clés :**
 
 - [BDR-034](decisions/BDR-034.md) — boutons reset dupliqués plutôt que déplacés en CSS pur
-- [BLK-018](blockers/BLK-018.md) — full-width des boutons reset, enfin confirmé résolu
-- [BLK-019](blockers/BLK-019.md) — process zombie `tauri dev` sur le port 1420
+- [ZBLK-018](archive/blockers/ZBLK-018.md) — full-width des boutons reset, enfin confirmé résolu
+- [ZBLK-019](archive/blockers/ZBLK-019.md) — process zombie `tauri dev` sur le port 1420
 - [LRN-033](learnings/LRN-033.md), [LRN-034](learnings/LRN-034.md), [LRN-035](learnings/LRN-035.md) — patterns extraits (dialog découplé, run_in_background+&, vérif Tauri via Win32)
+
+## 2026-08-28
+
+Demande de Baptiste : intégrer le système de notification Windows natif (PowerShell + BurntToast, `hooks/notify/`) dans Hooky, avec une contrainte explicite — soit du natif OS partout, soit un système custom avec sa propre DA. Recommandation retenue : bulle custom ancrée au pet plutôt qu'un toast OS générique, cross-platform gratuit en React. Point dur identifié avec Baptiste avant tout code : la fenêtre du pet (240×240, `decorations:false`) ne peut pas absorber un contenu plus grand sans clipping — solution retenue, une 2e fenêtre Tauri dédiée, statique et autonome (cf. [BDR-035](decisions/BDR-035.md)).
+
+Implémentation : fenêtre `bubble` (300×90, transparente, `alwaysOnTop`), capability dédiée, pool de messages FR/humour porté tel quel depuis `messages.ps1` (Stop + 12 `notification_type` + repli), sons `notification.wav`/`stop.wav` réutilisés via `Audio` natif, toggle "Notifications" ajouté aux Settings (même pattern que `effectsEnabled`), positionnement calculé dynamiquement (au-dessus/en-dessous du pet, clampé au moniteur) pour gérer le drag et le multi-écran.
+
+Vérification laborieuse : lint/build passaient, mais la bulle restait invisible sur 4 captures PowerShell successives malgré une instrumentation confirmant que toute la chaîne (position, `setPosition()`/`show()`, `isVisible()=true`) fonctionnait sans erreur — cause identifiée après coup : capture GDI classique incompatible avec le rendu matériel WebView2/DirectComposition, pas un bug applicatif (cf. [BLK-020](blockers/BLK-020.md)/[LRN-036](learnings/LRN-036.md)). Baptiste a confirmé visuellement que la bulle s'affichait correctement, juste avec un gap trop large avec le pet — corrigé en collant le contenu au bord concerné plutôt qu'en centrant dans la fenêtre volontairement surdimensionnée (cf. [LRN-039](learnings/LRN-039.md)).
+
+À la demande de Baptiste, purge des hooks `notify` (command PowerShell) dans `~/.claude/settings.json` global — Hooky remplaçant désormais ce système, seules les entrées `http` vers Hooky restent (cf. [BDR-036](decisions/BDR-036.md)). Blocage inattendu : `Edit` a refusé d'écrire dans ce fichier, Baptiste s'attendant à devoir lever une protection ReadOnly comme lors d'un blocage similaire archivé ([ZBLK-001](archive/blockers/ZBLK-001.md)) — cause réelle différente cette fois, le fichier est devenu un symlink vers le dotfiles repo entre-temps (cf. [BLK-021](blockers/BLK-021.md)/[LRN-038](learnings/LRN-038.md)).
+
+**Entrées clés :**
+
+- [BDR-035](decisions/BDR-035.md) — bulle de notification : fenêtre statique et autonome
+- [BDR-036](decisions/BDR-036.md) — hooks notify PS1 purgés du settings.json global
+- [BLK-020](blockers/BLK-020.md) — screenshot GDI invisible sur fenêtre WebView2, résolu
+- [BLK-021](blockers/BLK-021.md) — édition settings.json bloquée, fausse piste ReadOnly, résolu
+- [LRN-036](learnings/LRN-036.md), [LRN-037](learnings/LRN-037.md), [LRN-038](learnings/LRN-038.md), [LRN-039](learnings/LRN-039.md) — patterns extraits (GDI/WebView2, monitorFromPoint, Edit+symlink, contenu collé au bord)

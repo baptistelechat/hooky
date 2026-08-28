@@ -23,3 +23,5 @@ register: archive_blockers
 | [ZBLK-015](blockers/ZBLK-015.md) | 2026-08-26 | Color pickers lents/lag lors de l'édition de couleur                       | #avatar #performance #lag #usememo #ipc #color-picker                                     | résolu |
 | [ZBLK-016](blockers/ZBLK-016.md) | 2026-08-26 | Avatar disparaît en réglant une seule couleur                              | #avatar #crash #undefined #schema-validation #partial-override                            | résolu |
 | [ZBLK-017](blockers/ZBLK-017.md) | 2026-08-26 | Transition crossfade custom cassait la transition existante                | #avatar #transition #css #regression #over-engineering #revert                            | résolu |
+| [ZBLK-018](blockers/ZBLK-018.md) | 2026-08-26 | Boutons reset restent full-width malgré la largeur de fenêtre              | #css #container-query #tailwind #field-group #button                                      | résolu |
+| [ZBLK-019](blockers/ZBLK-019.md) | 2026-08-26 | `tauri dev` laissait un process zombie sur le port 1420                    | #tauri #dev-server #zombie-process #port-conflict #run-in-background                      | résolu |
