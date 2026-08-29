@@ -77,6 +77,7 @@ export function NotificationBubble() {
       style={{ bottom: bubbleBottomOffset(settings.avatarSize) }}
     >
       <div
+        data-drag-handle
         className={`max-w-full cursor-grab rounded-2xl border bg-popover px-4 py-3 text-center text-sm text-popover-foreground shadow-lg transition-[opacity,transform] duration-200 ease-out active:cursor-grabbing ${
           text
             ? "pointer-events-auto translate-y-0 opacity-100"

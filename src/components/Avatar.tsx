@@ -77,6 +77,12 @@ async function openSettingsWindow(): Promise<void> {
  * planned"), la restriction ne faisait que casser le drag/double-clic pour un bénéfice nul
  * -- retour au comportement simple d'origine, cf. mémoire projet.
  *
+ * Le guard `[data-drag-handle]` ci-dessous est différent de cette tentative-là : il ne
+ * touche pas au `pointer-events` (donc aucun risque de casser le click-through), il ignore
+ * juste le mousedown en JS quand la cible n'est ni l'avatar ni la bulle -- évite de faire
+ * bouger la fenêtre depuis une zone transparente sans rien dessus (ex: la bande réservée à
+ * la bulle quand elle n'affiche rien, ou les marges autour d'un avatar réduit).
+ *
  * Double-clic (uniquement) ouvre la fenêtre de paramètres (taille, mode debug...).
  * En mode debug : fond semi-opaque + overlay texte (animation courante + hook déclencheur).
  */
@@ -106,8 +112,15 @@ export function PetAvatar({
 
   return (
     <div
-      className="relative flex h-full w-full cursor-grab flex-col items-center justify-end overflow-hidden active:cursor-grabbing"
-      onMouseDown={() => {
+      className="relative flex h-full w-full flex-col items-center justify-end overflow-hidden"
+      onMouseDown={(e) => {
+        if (
+          !(e.target instanceof Element) ||
+          !e.target.closest("[data-drag-handle]")
+        ) {
+          return;
+        }
+
         const now = performance.now();
         const isDoubleClick =
           now - lastClickAtRef.current < DOUBLE_CLICK_WINDOW_MS;
@@ -130,7 +143,8 @@ export function PetAvatar({
       >
         <div
           ref={containerRef}
-          className="relative flex items-center justify-center drop-shadow-[0_4px_6px_rgba(0,0,0,0.2)] transition-[width,height,background-color,scale,rotate,filter] duration-300 ease-out hover:-rotate-5 hover:scale-100 active:drop-shadow-[0_8px_10px_rgba(0,0,0,0.4)] active:scale-105"
+          data-drag-handle
+          className="relative flex cursor-grab items-center justify-center drop-shadow-[0_4px_6px_rgba(0,0,0,0.2)] transition-[width,height,background-color,scale,rotate,filter] duration-300 ease-out hover:-rotate-5 hover:scale-100 active:cursor-grabbing active:drop-shadow-[0_8px_10px_rgba(0,0,0,0.4)] active:scale-105"
           style={{
             width: settings.avatarSize,
             height: settings.avatarSize,

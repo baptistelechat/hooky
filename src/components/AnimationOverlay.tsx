@@ -216,7 +216,8 @@ export function AnimationOverlay({
         >
           {containerMounted && (
             <span
-              className={`pointer-events-auto absolute flex items-center justify-center rounded-full bg-white/90 shadow-sm transition-[opacity,transform] duration-200 ease-out ${
+              data-drag-handle
+              className={`pointer-events-auto absolute flex cursor-grab items-center justify-center rounded-full bg-white/90 shadow-sm transition-[opacity,transform] duration-200 ease-out active:cursor-grabbing ${
                 containerVisible
                   ? "scale-100 opacity-100"
                   : "scale-75 opacity-0"
