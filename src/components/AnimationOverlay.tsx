@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { BadgeIcon } from "../lib/animationCatalog";
 import type { AnimationName } from "./Avatar";
 import { useWaapi } from "../hooks/useWaapi";
+import { debugZoneClass } from "../lib/debugZone";
 // Doit correspondre à la durée de transition Tailwind utilisée sur le badge (duration-200).
 const BADGE_TRANSITION_MS = 200;
 // Crossfade du glyphe (duration-150) : plus court que le badge -- c'est une simple
@@ -25,6 +26,11 @@ interface AnimationOverlayProps {
    * du badge (cf. avatarDefinition.ensureReadableOnWhite) -- dépend de l'avatar
    * sélectionné, donc passée en prop plutôt qu'importée en dur. */
   badgeIconColor: string;
+  /** Contour + étiquette de zone debug sur le badge (cf. src/lib/debugZone.ts) -- prop
+   * explicite plutôt qu'un `useSettings()` interne : ce composant est aussi rendu dans les
+   * cartes de preview des Settings (cf. AnimationCard.tsx), qui ne doivent jamais hériter
+   * du mode debug de la fenêtre pet. Défaut `false`. */
+  showDebugZone?: boolean;
 }
 
 const RISE: Keyframe[] = [
@@ -55,6 +61,7 @@ export function AnimationOverlay({
   avatarSize,
   icon: Icon,
   badgeIconColor,
+  showDebugZone = false,
 }: AnimationOverlayProps) {
   const confettiRef = useRef<HTMLDivElement>(null);
   const zzzRef = useRef<HTMLSpanElement>(null);
@@ -207,8 +214,8 @@ export function AnimationOverlay({
       <div ref={confettiRef} className="absolute inset-0" />
 
       {/* Badges (icône, "zZz") : carré recentré sur la taille réelle de l'avatar, sinon
-          `top-1 right-1` s'ancre au coin de la fenêtre (240px fixe) et flotte loin de
-          l'avatar dès que celui-ci est réduit via le slider de taille. */}
+          `top-1 right-1` s'ancre au coin de la fenêtre et flotte loin de l'avatar dès que
+          celui-ci est réduit via le slider de taille. */}
       <div className="absolute inset-0 flex items-center justify-center">
         <div
           className="relative"
@@ -217,11 +224,12 @@ export function AnimationOverlay({
           {containerMounted && (
             <span
               data-drag-handle
+              data-zone="badge"
               className={`pointer-events-auto absolute flex cursor-grab items-center justify-center rounded-full bg-white/90 shadow-sm transition-[opacity,transform] duration-200 ease-out active:cursor-grabbing ${
                 containerVisible
                   ? "scale-100 opacity-100"
                   : "scale-75 opacity-0"
-              }`}
+              } ${debugZoneClass(showDebugZone, "badge")}`}
               style={{
                 ...badgeStyle,
                 width: badgeSize,
