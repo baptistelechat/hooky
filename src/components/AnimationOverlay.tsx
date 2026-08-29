@@ -216,7 +216,7 @@ export function AnimationOverlay({
         >
           {containerMounted && (
             <span
-              className={`absolute flex items-center justify-center rounded-full bg-white/90 shadow-sm transition-[opacity,transform] duration-200 ease-out ${
+              className={`pointer-events-auto absolute flex items-center justify-center rounded-full bg-white/90 shadow-sm transition-[opacity,transform] duration-200 ease-out ${
                 containerVisible
                   ? "scale-100 opacity-100"
                   : "scale-75 opacity-0"

@@ -1,6 +1,7 @@
 // Port direct de baptistelechat-setup/settings/Claude/hooks/notify/src/messages.ps1
 // (Stop + les notification_type de Notification, contenu FR/humour repris tel quel).
-// "Start" non repris : hors périmètre, Hooky ne déclenche pas de bulle sur SessionStart.
+// "Start" non repris ici : Hooky ne déclenche pas de bulle sur SessionStart (juste le son,
+// cf. NotificationBubble/index.tsx), pas besoin du pool de phrases.
 export const NOTIFICATION_MESSAGES: Record<string, string[]> = {
   stop: [
     "C'est fait Baptiste ! 🎉",

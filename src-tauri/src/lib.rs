@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
@@ -17,6 +18,32 @@ const NO_SESSION_KEY: &str = "_no_session";
 const IDLE_TIMEOUT: Duration = Duration::from_secs(300);
 const BORED_TIMEOUT: Duration = Duration::from_secs(90);
 const REAPER_INTERVAL: Duration = Duration::from_secs(10);
+// Deux hooks distincts peuvent représenter la MÊME intention côté Claude Code (ex:
+// "Notification" notification_type=elicitation_dialog ET l'event "Elicitation", cf.
+// docs/EVENTS.md "même intention que l'event Elicitation") et arriver quasi simultanément
+// -- sans ce garde-fou, chacun réémet indépendamment `hooky-state` avec EXACTEMENT le même
+// resolved/lastEvent/notificationType, ce qui rejoue l'animation (bounce/confettis, cf.
+// useAnimationEffects) deux fois pour un seul événement perçu. Une vraie répétition (ex:
+// deux `Stop` réels à quelques secondes d'écart) reste hors de cette fenêtre et continue
+// de rejouer normalement -- ponytail: fenêtre fixe, pas de config exposée pour ce cas rare.
+const DUPLICATE_EMIT_WINDOW: Duration = Duration::from_millis(500);
+
+// Numéro de séquence joint à chaque émission `hooky-state` -- côté front (useHookyState),
+// `revision` reflète directement cette valeur au lieu d'un `prev.revision + 1` local.
+// React.StrictMode double-invoque le setup de l'effet `listen()` (mount -> cleanup ->
+// remount) : le cleanup ne peut désabonner le PREMIER listener qu'après résolution de sa
+// promesse, laissant une brève fenêtre où deux listeners réels sont actifs. Si UNE seule
+// émission Rust arrive dans cette fenêtre, elle est reçue deux fois côté JS -- avec un
+// compteur local (`+1`), ça produisait deux valeurs `revision` DIFFÉRENTES (deux rendus,
+// donc deux sons/bulles pour un seul Stop réel, confirmé par le log `[hooky-debug]` --
+// un seul `Stop` reçu ici). Avec un numéro de séquence fourni par le backend, les deux
+// livraisons portent la MÊME valeur -- le front peut alors les dédupliquer (`prev` inchangé
+// -> pas de re-render).
+static EMIT_SEQUENCE: AtomicU64 = AtomicU64::new(0);
+
+fn next_sequence() -> u64 {
+    EMIT_SEQUENCE.fetch_add(1, Ordering::Relaxed) + 1
+}
 
 /// État d'une session Claude Code active, tel que vu par le dernier hook reçu.
 struct SessionState {
@@ -38,10 +65,15 @@ type SessionKey = (String, Option<String>);
 type SessionMap = HashMap<SessionKey, SessionState>;
 type Sessions = Arc<Mutex<SessionMap>>;
 
+// (state, lastEvent, toolName, notificationType) -- cf. DUPLICATE_EMIT_WINDOW.
+type EmissionSignature = (String, Option<String>, Option<String>, Option<String>);
+type LastEmission = Arc<Mutex<Option<(EmissionSignature, Instant)>>>;
+
 #[derive(Clone)]
 struct ServerState {
     app_handle: AppHandle,
     sessions: Sessions,
+    last_emission: LastEmission,
 }
 
 // Étape 6 : outils de recherche -> animation "searching" plutôt que "working" générique.
@@ -257,6 +289,13 @@ async fn on_event(State(state): State<ServerState>, Json(payload): Json<Value>) 
     let is_invisible_fork = agent_id.is_some() && agent_type.is_none_or(str::is_empty);
     let key = (session_id.clone(), agent_id);
 
+    // Vrai seulement si CETTE requête a réellement changé `sessions` (insertion ou purge
+    // qui retire au moins une entrée) -- cf. usage plus bas : sans ce flag, un event qui ne
+    // mute rien (fork invisible, écho de Stop) pouvait quand même redéclencher un emit dès
+    // que `should_emit` (fenêtre de 500ms) considérait assez de temps écoulé depuis la
+    // dernière émission du MÊME tuple resolved -- alors que rien de neuf ne s'était produit.
+    let mut mutated = false;
+
     let (resolved, source_event, source_tool, source_notification) = {
         // Mutex empoisonné (panic d'un autre thread pendant le lock) -> on récupère quand
         // même les données plutôt que de paniquer à notre tour dans le handler HTTP.
@@ -269,8 +308,29 @@ async fn on_event(State(state): State<ServerState>, Json(payload): Json<Value>) 
             // Purge toutes les entrées de ce session_id, y compris celles de ses
             // sous-agents (SessionEnd n'a lui-même pas d'agent_id) -- sinon une entrée
             // sous-agent orpheline continuerait à peser sur l'agrégat jusqu'à IDLE_TIMEOUT.
+            let before = sessions.len();
             sessions.retain(|(sid, _), _| sid != &session_id);
+            mutated = sessions.len() != before;
         } else if is_invisible_fork {
+            // ponytail: rien à faire, l'event est simplement ignoré (ni insertion ni maj).
+        } else if event_name == "Stop"
+            && sessions
+                .get(&key)
+                .is_some_and(|existing| existing.animation == "celebrate")
+        {
+            // Un "Stop" qui arrive alors que CETTE session (même session_id, même absence
+            // d'agent_id) est DÉJÀ en "celebrate" -- donc sans qu'aucun event réel
+            // (UserPromptSubmit/PreToolUse/PostToolUse/...) ne soit venu changer son
+            // animation entre les deux -- est très probablement l'écho d'un fork système
+            // invisible (mémoire auto, résumé, suggestion) qui partage le session_id du
+            // parent SANS agent_id du tout, donc indétectable par `is_invisible_fork`
+            // ci-dessus (qui ne sait filtrer que sur agent_id/agent_type). Constaté
+            // empiriquement (2026-08-29, cf. mémoire projet) : deux "Stop" consécutifs pour
+            // le même session_id sans rien entre les deux, causant un 2e son/bulle
+            // "celebrate" pour une seule tâche réellement terminée. Une vraie 2e complétion
+            // a TOUJOURS une activité réelle entre les deux Stop (elle fait forcément
+            // repasser `animation` par thinking/working/idle avant de revenir à celebrate),
+            // donc ce garde-fou ne bloque jamais un Stop légitime.
             // ponytail: rien à faire, l'event est simplement ignoré (ni insertion ni maj).
         } else if let Some(animation) = animation_for_event(event_name, tool_name, notification_type) {
             sessions.insert(
@@ -283,9 +343,32 @@ async fn on_event(State(state): State<ServerState>, Json(payload): Json<Value>) 
                     last_event_at: Instant::now(),
                 },
             );
+            mutated = true;
         }
 
         resolve_full_state(&sessions)
+    };
+
+    // `mutated` d'abord (cf. commentaire plus haut) : sans changement réel, pas d'emit,
+    // peu importe le temps écoulé. Puis DUPLICATE_EMIT_WINDOW -- deux hooks distincts pour
+    // la même intention (arrivés quasi simultanément, chacun mutant réellement la map) ne
+    // doivent réémettre qu'une fois.
+    let should_emit = mutated && {
+        let signature: EmissionSignature = (
+            resolved.to_string(),
+            source_event.clone(),
+            source_tool.clone(),
+            source_notification.clone(),
+        );
+        let mut last = state
+            .last_emission
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        let is_duplicate = last
+            .as_ref()
+            .is_some_and(|(sig, at)| *sig == signature && at.elapsed() < DUPLICATE_EMIT_WINDOW);
+        *last = Some((signature, Instant::now()));
+        !is_duplicate
     };
 
     // lastEvent/toolName/notificationType : identifient précisément le hook affiché (pas
@@ -294,15 +377,18 @@ async fn on_event(State(state): State<ServerState>, Json(payload): Json<Value>) 
     // hook de la session qui a produit l'état affiché (pas forcément celle de cette
     // requête, l'agrégat peut être dominé par une autre session), absents quand plus
     // aucune session (sleeping).
-    let _ = state.app_handle.emit(
-        "hooky-state",
-        serde_json::json!({
-            "state": resolved,
-            "lastEvent": source_event,
-            "toolName": source_tool,
-            "notificationType": source_notification,
-        }),
-    );
+    if should_emit {
+        let _ = state.app_handle.emit(
+            "hooky-state",
+            serde_json::json!({
+                "state": resolved,
+                "lastEvent": source_event,
+                "toolName": source_tool,
+                "notificationType": source_notification,
+                "sequence": next_sequence(),
+            }),
+        );
+    }
 
     // Les hooks "http" de Claude Code exigent un corps de réponse JSON valide
     // (un simple texte "ok" est rejeté : "must return JSON, but got non-JSON response").
@@ -333,10 +419,27 @@ fn recenter_window(app: &AppHandle) {
 /// implicite, couvre le cas d'une session qui ne renvoie jamais SessionEnd) et réémet
 /// l'état résolu dès qu'il change -- y compris la transition idle -> bored, qui ne
 /// change rien à la map elle-même (juste au temps écoulé).
-fn spawn_idle_reaper(sessions: Sessions, app_handle: AppHandle) {
+///
+/// Partage `last_emission` avec `on_event` (PAS un suivi local séparé, cf. bug ci-dessous)
+/// -- mais l'exploite différemment : ici, un signature IDENTIQUE au dernier annoncé est
+/// TOUJOURS ignoré, peu importe le temps écoulé (contrairement à `on_event`, qui tolère un
+/// signature identique après DUPLICATE_EMIT_WINDOW pour rejouer un vrai second Stop réel).
+/// Le reaper ne "sait" jamais qu'un nouvel event réel est survenu -- il ne fait que
+/// ré-observer l'agrégat périodiquement, donc un signature inchangé signifie littéralement
+/// que rien de neuf ne s'est produit depuis la dernière annonce (par lui-même OU par
+/// `on_event`), quel que soit l'écart de temps.
+///
+/// Avant ce partage, le reaper gardait son PROPRE `last_emitted: Option<String>` local,
+/// jamais synchronisé avec `state.last_emission` : dès qu'`on_event` annonçait un état (ex:
+/// "celebrate" sur un vrai Stop), le PROCHAIN tick du reaper (jusqu'à REAPER_INTERVAL
+/// après) le trouvait "nouveau" de SON propre point de vue et le réannonçait -- un
+/// deuxième "Stop"/son/bulle pour une seule tâche réellement terminée, invisible dans des
+/// logs consultés juste après le premier Stop (décalé de quelques secondes). Bug signalé
+/// et diagnostiqué le 2026-08-29 (cf. mémoire projet) -- survivait à toute correction côté
+/// `on_event` puisque le reaper ne passait jamais par ce chemin.
+fn spawn_idle_reaper(sessions: Sessions, app_handle: AppHandle, last_emission: LastEmission) {
     tauri::async_runtime::spawn(async move {
         let mut ticker = tokio::time::interval(REAPER_INTERVAL);
-        let mut last_emitted: Option<String> = None;
         loop {
             ticker.tick().await;
 
@@ -346,8 +449,24 @@ fn spawn_idle_reaper(sessions: Sessions, app_handle: AppHandle) {
                 resolve_full_state(&guard)
             };
 
-            if last_emitted.as_deref() != Some(resolved) {
-                last_emitted = Some(resolved.to_string());
+            let signature: EmissionSignature = (
+                resolved.to_string(),
+                event_name.clone(),
+                tool_name.clone(),
+                notification_type.clone(),
+            );
+            let should_emit = {
+                let mut last = last_emission
+                    .lock()
+                    .unwrap_or_else(|poisoned| poisoned.into_inner());
+                let is_duplicate = last.as_ref().is_some_and(|(sig, _)| *sig == signature);
+                if !is_duplicate {
+                    *last = Some((signature, Instant::now()));
+                }
+                !is_duplicate
+            };
+
+            if should_emit {
                 let _ = app_handle.emit(
                     "hooky-state",
                     serde_json::json!({
@@ -355,6 +474,7 @@ fn spawn_idle_reaper(sessions: Sessions, app_handle: AppHandle) {
                         "lastEvent": event_name,
                         "toolName": tool_name,
                         "notificationType": notification_type,
+                        "sequence": next_sequence(),
                     }),
                 );
             }
@@ -374,6 +494,7 @@ fn write_text_file(path: String, content: String) -> Result<(), String> {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let sessions: Sessions = Arc::new(Mutex::new(HashMap::new()));
+    let last_emission: LastEmission = Arc::new(Mutex::new(None));
 
     tauri::Builder::default()
         // Doit être le premier plugin enregistré (contrainte du plugin single-instance).
@@ -410,14 +531,17 @@ pub fn run() {
                 })
                 .build(app)?;
 
-            // Clones pris avant que `server_state` ne consomme `app_handle`/`sessions`.
+            // Clones pris avant que `server_state` ne consomme `app_handle`/`sessions`/
+            // `last_emission` -- ce dernier partagé avec le reaper (cf. spawn_idle_reaper).
             let reaper_sessions = sessions.clone();
             let reaper_handle = app_handle.clone();
+            let reaper_last_emission = last_emission.clone();
 
             // --- Serveur axum local : réceptionne les hooks Claude Code ---
             let server_state = ServerState {
                 app_handle,
                 sessions,
+                last_emission,
             };
             // CORS permissif : la fenêtre settings appelle /event en fetch() depuis son
             // propre webview (onglet Animation, clic sur une carte pour tester en live) --
@@ -446,7 +570,7 @@ pub fn run() {
             // --- Étape 4 : sessions inactives depuis IDLE_TIMEOUT -> retirées, comme un
             // SessionEnd implicite (couvre le cas d'une session qui ne renvoie jamais
             // SessionEnd, ex. terminal fermé brutalement).
-            spawn_idle_reaper(reaper_sessions, reaper_handle);
+            spawn_idle_reaper(reaper_sessions, reaper_handle, reaper_last_emission);
 
             Ok(())
         })

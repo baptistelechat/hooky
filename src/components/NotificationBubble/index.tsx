@@ -1,118 +1,89 @@
-import { useEffect, useMemo, useState } from "react";
-import { PhysicalPosition } from "@tauri-apps/api/dpi";
-import { getCurrentWindow, monitorFromPoint } from "@tauri-apps/api/window";
-import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
+import { useEffect, useRef, useState } from "react";
 import notificationSoundUrl from "../../assets/sounds/notification.wav";
+import startSoundUrl from "../../assets/sounds/start.wav";
 import stopSoundUrl from "../../assets/sounds/stop.wav";
 import { useHookyState } from "../../hooks/useHookyState";
 import { useSettings } from "../../hooks/useSettings";
 import { pickNotificationMessage } from "../../lib/notificationMessages";
+import { bubbleBottomOffset } from "../../lib/layout";
 
 const DISPLAY_DURATION_MS = 6000;
-const GAP_PX = 4;
 
 /**
- * Fenêtre dédiée (label "bubble", statique dans tauri.conf.json) : entièrement
- * autonome, pas pilotée par la fenêtre "main". Écoute le même event Tauri "hooky-state"
- * que le pet (useHookyState) pour choisir un message (Stop/Notification uniquement,
- * cf. pickNotificationMessage), se positionne au-dessus du pet en lisant sa position
- * live via WebviewWindow.getByLabel("main") -- gère le cas où le pet a été dragué --,
- * puis se show()/hide() elle-même. Taille de fenêtre fixe et généreuse (300x90,
- * tauri.conf.json) : pas de mesure de contenu ni de resize dynamique à gérer (les
- * messages restent courts, comme le pool PS1 d'origine) -- le fond transparent en trop
- * est masqué en collant le contenu au bord qui touche le pet (cf. `placement`).
+ * Rendue dans la fenêtre "main" (au-dessus de l'avatar, cf. Avatar.tsx) -- plus une
+ * fenêtre Tauri séparée (ancienne archi, cf. BDR-035 en mémoire projet). Purement
+ * synchrone : `revision` (useHookyState) déclenche directement le show/hide en state
+ * React, sans jamais passer par une position de fenêtre à recalculer -- élimine du même
+ * coup la race qui laissait parfois une bulle vide affichée indéfiniment (l'ancien effet
+ * async pouvait terminer -- et appeler `show()`/rejouer le son -- après avoir déjà été
+ * "annulé" par un event suivant, faute d'un check juste avant l'appel final).
  */
 export function NotificationBubble() {
   const { lastEvent, notificationType, revision } = useHookyState();
   const [settings] = useSettings();
+  const [text, setText] = useState<string | null>(null);
+  const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // React.StrictMode (main.tsx) double-invoque volontairement CHAQUE effet en dev (mount ->
+  // cleanup -> remount, cf. doc React) -- sans cleanup ici (setText/play() ne s'annulent
+  // pas comme une animation WAAPI), les deux invocations rejouaient le son et pouvaient
+  // afficher deux phrases différentes (pickNotificationMessage tire au hasard). Ce ref
+  // retient le dernier `revision` déjà traité pour ignorer la 2e invocation immédiate.
+  const handledRevisionRef = useRef<number | null>(null);
 
-  // Objet (pas juste la string) pour que sa référence change à CHAQUE `revision`, même
-  // si le pool random retombe deux fois de suite sur la même phrase -- sinon l'effet
-  // ci-dessous, qui dépend de ce résultat, ne se redéclencherait pas pour deux
-  // notifications identiques consécutives (deux `idle_prompt` de suite, par ex).
-  const notification = useMemo(() => {
-    const text = pickNotificationMessage(lastEvent, notificationType);
-    return text ? { text, revision } : null;
-  }, [lastEvent, notificationType, revision]);
-
-  // La fenêtre (300x90) reste plus grande que le contenu réel -- le contenu est collé au
-  // bord qui touche le pet (au lieu d'être centré) pour que le fond transparent en trop
-  // ne se voie pas comme un espace vide entre la bulle et le pet.
-  const [placement, setPlacement] = useState<"above" | "below">("above");
-
+  // Dépend uniquement de `revision` : incrémenté à CHAQUE event backend (cf.
+  // useHookyState), donc `lastEvent`/`notificationType` sont déjà à jour dans le même
+  // render -- pas besoin de les lister, et ça évite de rejouer l'effet sur un simple
+  // changement de `settings` (ex: toggle du réglage pendant qu'une bulle est affichée).
   useEffect(() => {
-    if (!settings.notificationsEnabled || !notification) return;
+    if (handledRevisionRef.current === revision) return;
+    handledRevisionRef.current = revision;
 
-    let cancelled = false;
-    void (async () => {
-      const mainWindow = await WebviewWindow.getByLabel("main");
-      if (!mainWindow) return;
+    if (!settings.notificationsEnabled) return;
 
-      const self = getCurrentWindow();
-      const [mainPos, mainSize, selfSize] = await Promise.all([
-        mainWindow.outerPosition(),
-        mainWindow.outerSize(),
-        self.outerSize(),
-      ]);
-      if (cancelled) return;
+    // SessionStart : son seul, pas de bulle (cf. pickNotificationMessage -- hors périmètre).
+    if (lastEvent === "SessionStart") {
+      void new Audio(startSoundUrl).play().catch(() => {});
+      return;
+    }
 
-      // Moniteur sous le pet (pas forcément celui de la bulle avant repositionnement) --
-      // gère aussi le cas multi-écrans.
-      const monitor = await monitorFromPoint(
-        mainPos.x + mainSize.width / 2,
-        mainPos.y + mainSize.height / 2,
-      );
-      if (cancelled) return;
+    const message = pickNotificationMessage(lastEvent, notificationType);
+    if (!message) return;
 
-      let x = mainPos.x + mainSize.width / 2 - selfSize.width / 2;
-      let y = mainPos.y - selfSize.height - GAP_PX;
-      let nextPlacement: "above" | "below" = "above";
+    // Réagit à un event externe (revision, IPC Tauri via useHookyState) -- pas un dérivé
+    // de state React local, cf. règle react-hooks/set-state-in-effect.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setText(message);
+    const soundUrl = lastEvent === "Stop" ? stopSoundUrl : notificationSoundUrl;
+    void new Audio(soundUrl).play().catch(() => {});
 
-      if (monitor) {
-        const minX = monitor.position.x;
-        const maxX = monitor.position.x + monitor.size.width - selfSize.width;
-        const minY = monitor.position.y;
-        const maxY = monitor.position.y + monitor.size.height - selfSize.height;
+    if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+    hideTimerRef.current = setTimeout(() => setText(null), DISPLAY_DURATION_MS);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [revision]);
 
-        // Pas assez de place au-dessus du pet (proche du bord haut de l'écran) ->
-        // affiche la bulle en dessous à la place.
-        if (y < minY) {
-          y = mainPos.y + mainSize.height + GAP_PX;
-          nextPlacement = "below";
-        }
-        x = Math.min(Math.max(x, minX), maxX);
-        y = Math.min(Math.max(y, minY), maxY);
-      }
+  useEffect(
+    () => () => {
+      if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+    },
+    [],
+  );
 
-      setPlacement(nextPlacement);
-      await self.setPosition(
-        new PhysicalPosition(Math.round(x), Math.round(y)),
-      );
-      await self.show();
-
-      const soundUrl =
-        lastEvent === "Stop" ? stopSoundUrl : notificationSoundUrl;
-      void new Audio(soundUrl).play().catch(() => {});
-    })();
-
-    const timer = setTimeout(() => {
-      void getCurrentWindow().hide();
-    }, DISPLAY_DURATION_MS);
-
-    return () => {
-      cancelled = true;
-      clearTimeout(timer);
-    };
-  }, [notification, lastEvent, settings.notificationsEnabled]);
-
+  // Ancrée au bord RÉEL du haut de l'avatar (dépend de `avatarSize`, qui varie via
+  // Settings), pas au bord d'un slot fixe -- sinon un avatar réduit laisse un vide entre
+  // la bulle et l'avatar (l'avatar reste centré dans son carré fixe, cf. Avatar.tsx).
   return (
     <div
-      className={`flex h-full w-full justify-center p-1 ${
-        placement === "above" ? "items-end" : "items-start"
-      }`}
+      className="pointer-events-none absolute inset-x-0 flex justify-center px-2"
+      style={{ bottom: bubbleBottomOffset(settings.avatarSize) }}
     >
-      <div className="max-w-full rounded-2xl border bg-popover px-4 py-3 text-center text-sm text-popover-foreground shadow-lg">
-        {notification?.text}
+      <div
+        className={`max-w-full cursor-grab rounded-2xl border bg-popover px-4 py-3 text-center text-sm text-popover-foreground shadow-lg transition-[opacity,transform] duration-200 ease-out active:cursor-grabbing ${
+          text
+            ? "pointer-events-auto translate-y-0 opacity-100"
+            : "pointer-events-none translate-y-1 opacity-0"
+        }`}
+      >
+        {text}
       </div>
     </div>
   );
