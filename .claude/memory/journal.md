@@ -348,14 +348,108 @@ Demande de Baptiste : intégrer le système de notification Windows natif (Power
 
 Implémentation : fenêtre `bubble` (300×90, transparente, `alwaysOnTop`), capability dédiée, pool de messages FR/humour porté tel quel depuis `messages.ps1` (Stop + 12 `notification_type` + repli), sons `notification.wav`/`stop.wav` réutilisés via `Audio` natif, toggle "Notifications" ajouté aux Settings (même pattern que `effectsEnabled`), positionnement calculé dynamiquement (au-dessus/en-dessous du pet, clampé au moniteur) pour gérer le drag et le multi-écran.
 
-Vérification laborieuse : lint/build passaient, mais la bulle restait invisible sur 4 captures PowerShell successives malgré une instrumentation confirmant que toute la chaîne (position, `setPosition()`/`show()`, `isVisible()=true`) fonctionnait sans erreur — cause identifiée après coup : capture GDI classique incompatible avec le rendu matériel WebView2/DirectComposition, pas un bug applicatif (cf. [BLK-020](blockers/BLK-020.md)/[LRN-036](learnings/LRN-036.md)). Baptiste a confirmé visuellement que la bulle s'affichait correctement, juste avec un gap trop large avec le pet — corrigé en collant le contenu au bord concerné plutôt qu'en centrant dans la fenêtre volontairement surdimensionnée (cf. [LRN-039](learnings/LRN-039.md)).
+Vérification laborieuse : lint/build passaient, mais la bulle restait invisible sur 4 captures PowerShell successives malgré une instrumentation confirmant que toute la chaîne (position, `setPosition()`/`show()`, `isVisible()=true`) fonctionnait sans erreur — cause identifiée après coup : capture GDI classique incompatible avec le rendu matériel WebView2/DirectComposition, pas un bug applicatif (cf. [ZBLK-020](archive/blockers/ZBLK-020.md)/[LRN-036](learnings/LRN-036.md)). Baptiste a confirmé visuellement que la bulle s'affichait correctement, juste avec un gap trop large avec le pet — corrigé en collant le contenu au bord concerné plutôt qu'en centrant dans la fenêtre volontairement surdimensionnée (cf. [LRN-039](learnings/LRN-039.md)).
 
-À la demande de Baptiste, purge des hooks `notify` (command PowerShell) dans `~/.claude/settings.json` global — Hooky remplaçant désormais ce système, seules les entrées `http` vers Hooky restent (cf. [BDR-036](decisions/BDR-036.md)). Blocage inattendu : `Edit` a refusé d'écrire dans ce fichier, Baptiste s'attendant à devoir lever une protection ReadOnly comme lors d'un blocage similaire archivé ([ZBLK-001](archive/blockers/ZBLK-001.md)) — cause réelle différente cette fois, le fichier est devenu un symlink vers le dotfiles repo entre-temps (cf. [BLK-021](blockers/BLK-021.md)/[LRN-038](learnings/LRN-038.md)).
+À la demande de Baptiste, purge des hooks `notify` (command PowerShell) dans `~/.claude/settings.json` global — Hooky remplaçant désormais ce système, seules les entrées `http` vers Hooky restent (cf. [BDR-036](decisions/BDR-036.md)). Blocage inattendu : `Edit` a refusé d'écrire dans ce fichier, Baptiste s'attendant à devoir lever une protection ReadOnly comme lors d'un blocage similaire archivé ([ZBLK-001](archive/blockers/ZBLK-001.md)) — cause réelle différente cette fois, le fichier est devenu un symlink vers le dotfiles repo entre-temps (cf. [ZBLK-021](archive/blockers/ZBLK-021.md)/[LRN-038](learnings/LRN-038.md)).
 
 **Entrées clés :**
 
 - [BDR-035](decisions/BDR-035.md) — bulle de notification : fenêtre statique et autonome
 - [BDR-036](decisions/BDR-036.md) — hooks notify PS1 purgés du settings.json global
-- [BLK-020](blockers/BLK-020.md) — screenshot GDI invisible sur fenêtre WebView2, résolu
-- [BLK-021](blockers/BLK-021.md) — édition settings.json bloquée, fausse piste ReadOnly, résolu
+- [ZBLK-020](archive/blockers/ZBLK-020.md) — screenshot GDI invisible sur fenêtre WebView2, résolu
+- [ZBLK-021](archive/blockers/ZBLK-021.md) — édition settings.json bloquée, fausse piste ReadOnly, résolu
 - [LRN-036](learnings/LRN-036.md), [LRN-037](learnings/LRN-037.md), [LRN-038](learnings/LRN-038.md), [LRN-039](learnings/LRN-039.md) — patterns extraits (GDI/WebView2, monitorFromPoint, Edit+symlink, contenu collé au bord)
+
+## 2026-08-29
+
+Session longue partie d'une demande UI (bulle qui ne colle pas à l'avatar quand `avatarSize < 240`, zones transparentes qui draguent encore, curseur de drag manquant sur la bulle) et qui a dérivé vers un bug backend de duplication de notifications. Fusion de la fenêtre `bubble` (BDR-035) dans `main` : la bulle est maintenant rendue directement dans la fenêtre du pet, ancrée au bord réel du haut de l'avatar via `bubbleBottomOffset()` (dépend d'`avatarSize`, cf. [BDR-037](decisions/BDR-037.md)) — élimine tout le calcul cross-fenêtre à l'origine du gap. Tentative de restreindre le drag aux seules zones peintes (SVG/badge/bulle) pour permettre un click-through vers l'application derrière : cassée une première fois par une mauvaise valeur `pointer-events` (cf. [LRN-041](learnings/LRN-041.md)), corrigée, puis abandonnée entièrement une fois confirmé que `setIgnoreCursorEvents` ne fonctionne pas sur Windows/WebView2 (bug Tauri connu, cf. [LRN-043](learnings/LRN-043.md)) — retour au drag simple sur toute la fenêtre (cf. [BDR-038](decisions/BDR-038.md)).
+
+Investigation plus longue sur un `Stop` réel jouant son son/bulle en double (parfois triple) malgré plusieurs corrections successives : dédoublonnage par numéro de séquence backend (fixe une vraie race React StrictMode sur l'abonnement `listen()`, cf. [LRN-042](learnings/LRN-042.md)), garde-fou sur un `Stop` en écho sans activité réelle entre les deux, hypothèse de fork système invisible sans `agent_id`, hypothèse cross-session (écartée par le timing). Cause réelle trouvée en instrumentant exhaustivement `/event` (avec les champs officiels `stop_hook_active`/`prompt_id`, cf. [LRN-044](learnings/LRN-044.md)) : le reaper périodique (`spawn_idle_reaper`) gardait son propre suivi de dédoublonnage jamais synchronisé avec le handler principal — récidive d'un pattern déjà documenté début de projet ([LRN-017](learnings/LRN-017.md)) dont le fix précédent n'avait couvert que le contenu du payload, pas le suivi lui-même (cf. [LRN-040](learnings/LRN-040.md), [ZBLK-022](archive/blockers/ZBLK-022.md)). Confirmé résolu par Baptiste après plusieurs tests successifs.
+
+Constat méta sur cette session : le rituel mémoire (CLAUDE.md) ne se déclenche qu'au tout début, sur la 1ère demande — n'a pas été re-consulté au moment où l'investigation a dérivé vers ce bug backend, alors que [LRN-017](learnings/LRN-017.md) documentait déjà exactement ce pattern. Ajout d'une section au rituel CLAUDE.md global demandant un re-`Grep` ciblé à chaque dérive de sous-domaine technique en cours de session (cf. [LRN-040](learnings/LRN-040.md)).
+
+Archivage de deux blockers résolus de la session précédente ([ZBLK-020](archive/blockers/ZBLK-020.md), [ZBLK-021](archive/blockers/ZBLK-021.md), déjà faits en cours de session) pendant le rituel de fermeture.
+
+**Entrées clés :**
+
+- [BDR-037](decisions/BDR-037.md) — fusion de la fenêtre bulle dans main, révise [BDR-035](decisions/BDR-035.md)
+- [BDR-038](decisions/BDR-038.md) — abandon du drag restreint aux zones peintes
+- [ZBLK-022](archive/blockers/ZBLK-022.md) — double Stop/son, plusieurs fausses pistes avant la vraie cause (reaper)
+- [LRN-040](learnings/LRN-040.md), [LRN-041](learnings/LRN-041.md), [LRN-042](learnings/LRN-042.md), [LRN-043](learnings/LRN-043.md), [LRN-044](learnings/LRN-044.md) — patterns extraits (récidive reaper + méta rituel mémoire, pointer-events/SVG, StrictMode+async listen, Tauri click-through, champs hooks Stop)
+
+---
+
+Session courte, en parallèle d'une autre session (`hooky-c0`) travaillant sur la fusion bulle/dédup dans le même fichier `NotificationBubble/index.tsx` (cf. sections ci-dessus) : Baptiste avait remarqué que le son manquait au démarrage de session. Port de `start.wav` (déjà présent dans `hooks/notify/assets/`, mais jamais réellement câblé au son manquant côté Hooky) — joué sans bulle sur `SessionStart`, complétant le pool `Stop`/`Notification` déjà repris. En creusant le hook notify.ps1 d'origine, trouvé que `session-start-context.ps1` (câblé sur `SessionStart` dans `settings.json`) appelait encore directement `Send-ClaudeNotification` avec ce même `start.wav`, indépendamment de `main.ps1` — dernier vestige de notify.ps1 resté actif après la purge Stop/Notification de [BDR-036](decisions/BDR-036.md). Retiré (cf. [BDR-039](decisions/BDR-039.md)) : le hook `http` vers Hooky déjà présent sur `SessionStart` ([BDR-010](decisions/BDR-010.md)) le remplace intégralement.
+
+Coordination avec `hooky-c0` via message cross-session (elle éditait le même fichier en parallèle) : confirmation mutuelle qu'aucun conflit n'était en cours (diff additif isolé d'un côté, pas de trafic déclenché sur le port 4242 partagé de l'autre).
+
+Ménage mémoire en fin de session : archivage du blocker résolu [ZBLK-022](archive/blockers/ZBLK-022.md) (`BLK-022`) avec mise à jour de ses références croisées.
+
+**Entrées clés :**
+
+- [BDR-039](decisions/BDR-039.md) — son SessionStart porté, notify.ps1 totalement retiré
+
+---
+
+Nouvelle session, retour visuel de Baptiste sur la fenêtre 300×330 (élargie pour la bulle, cf. [BDR-037](decisions/BDR-037.md)) : capture d'écran montrant un bandeau vide de 90px au-dessus de l'avatar et des marges gauche/droite qui restent draguables même quand rien n'y est affiché. Diagnostic : le handler `mousedown` (drag de fenêtre) est posé sur tout le wrapper racine sans distinction de contenu — comportement inchangé depuis l'abandon de la restriction par `pointer-events` en début de journée (cf. [BDR-038](decisions/BDR-038.md)). Fix par une technique différente, ne retombant pas dans l'écueil de BDR-038 : `data-drag-handle` posé sur les éléments réellement affichés (box de l'avatar, bulle visible) + hit-test `e.target.closest()` dans le handler, sans toucher à `pointer-events` (donc aucun risque de casser le SVG hérité ni de dépendre du click-through non fonctionnel sur Windows/WebView2). Premier passage incomplet : le badge d'icône Lucide de `AnimationOverlay.tsx` (rendu en sibling de la box de l'avatar, pas en descendant) avait été oublié, repéré par Baptiste et corrigé dans la foulée. Lint + build passants après chaque itération. Baptiste a explicitement classé les deux learnings extraits en local plutôt que global.
+
+**Entrées clés :**
+
+- [BDR-040](decisions/BDR-040.md) — drag restreint via data-drag-handle + closest(), révise BDR-038
+- [LRN-045](learnings/LRN-045.md) — technique data-attribute + closest() pour scoper un mousedown délégué
+- [LRN-046](learnings/LRN-046.md) — auditer tous les pointer-events-auto avant de scoper un hit-test
+
+---
+
+Nouvelle session, polish visuel de `NotificationBubble` à la demande de Baptiste. Point de départ : pourquoi une bulle custom plutôt qu'une lib de toast (Sonner, Goey) ? Réponse argumentée (ancrage dynamique sur l'avatar, instance unique, state machine événementiel existant — la valeur des libs toast ne s'applique pas ici, cf. [BDR-041](decisions/BDR-041.md)), puis implémentation : effet de frappe caractère par caractère façon streaming chatbot (hide-timer différé à la fin de la frappe, cf. [LRN-049](learnings/LRN-049.md)), animation d'entrée "pop" (cubic-bezier overshoot) et sortie fade-in ease-in, police mono/medium, pause du hide-timer au survol/drag de la bulle.
+
+Deux itérations sur l'usage de la couleur de l'avatar, guidées par le retour direct de Baptiste : une bordure gauche colorée d'abord, jugée "de l'AI slop de base" (cf. [LRN-048](learnings/LRN-048.md)) — remplacée par une pointe de bulle de BD pointant vers l'avatar. Premier essai de pointe ratée (elle flottait devant la bulle au lieu de s'y fondre) : cause réelle, un enfant absolu d'un parent `transform` se peint par-dessus le fond de ce parent par défaut, corrigé avec un `z-index` négatif + même fond/bordure que la bulle (cf. [LRN-047](learnings/LRN-047.md)). Essai supplémentaire de texte teinté avec la couleur de l'avatar (nouveau seuil de contraste AA 4.5:1 pour le texte, distinct du seuil badge 3:1) : rejeté par Baptiste au profit du texte neutre d'origine — code mort (`textAccentColor`, `useAvatarBundle` dans la bulle) entièrement retiré après le revert plutôt que laissé en place.
+
+**Entrées clés :**
+
+- [BDR-041](decisions/BDR-041.md) — pas de lib toast/animation pour la bulle, tout en CSS/JS natif
+- [LRN-047](learnings/LRN-047.md), [LRN-048](learnings/LRN-048.md), [LRN-049](learnings/LRN-049.md) — patterns extraits (z-index/stacking context, accent color "AI slop", timer post-frappe)
+
+---
+
+Suite de session, demande explicite de Baptiste d'améliorer le mode debug : plus d'informations affichées et visualisation de toutes les zones qui composent la fenêtre "main". Enrichissement du panneau texte (`revision`, `avatarSize`, layout écran `flipped`/`shiftX`, `toolName`/`notificationType` séparés). Première version de la visualisation des zones en CSS brut (`[data-debug] [data-zone]` dans `index.css`) : bug immédiat signalé par Baptiste sur capture d'écran — badge d'icône et bulle de notification téléportés hors position, cause racine identifiée : la règle CSS forçait `position: relative` sur toutes les zones, y compris celles déjà en `absolute` (cf. [LRN-050](learnings/LRN-050.md)). Baptiste a aussi objecté sur le fond — pourquoi du CSS brut plutôt que du Tailwind, alors que le fond du mode debug avait toujours été fait en className conditionnel — réécrit intégralement en helper Tailwind (`src/lib/debugZone.ts`), sans jamais toucher `position`, étiquette via `before:content-[attr(data-zone)]` (cf. [BDR-042](decisions/BDR-042.md)). Texte de debug déplacé du coin haut-gauche vers le bas (chevauchait le badge d'état).
+
+Itérations suivantes sur retours successifs de Baptiste : une couleur distincte par zone (window/slot/avatar/bubble-zone/bubble/badge), puis fond retiré sur bulle et badge (doivent rester visuellement blancs, contour seul), puis `slot` repassé d'orange à bleu. Dernier bug trouvé par Baptiste : l'étiquette "badge" apparaissait aussi dans les cartes de preview d'animation des Settings — cause racine, `AnimationOverlay` lisait `settings.debugMode` globalement via `useSettings()` plutôt que de le recevoir en prop, fuitant le mode debug de la fenêtre pet vers tout autre contexte de rendu du composant ; fixé par un prop `showDebugZone` explicite (cf. [BDR-043](decisions/BDR-043.md)/[LRN-051](learnings/LRN-051.md)). Au passage, pattern Tailwind capturé pour éviter une classe candidate construite par interpolation de variable, jamais générée silencieusement (cf. [LRN-052](learnings/LRN-052.md)). Lint + build vérifiés après chaque itération.
+
+**Entrées clés :**
+
+- [BDR-042](decisions/BDR-042.md) — zones du mode debug en Tailwind, couleur par zone, bulle/badge sans fond
+- [BDR-043](decisions/BDR-043.md) — `AnimationOverlay` reçoit `showDebugZone` en prop
+- [LRN-050](learnings/LRN-050.md), [LRN-051](learnings/LRN-051.md), [LRN-052](learnings/LRN-052.md) — patterns extraits (position:relative écrase absolute, state globale fuit dans un composant partagé, classes Tailwind jamais interpolées)
+
+---
+
+Session parallèle, très longue itération sur le drag/positionnement de l'avatar suite au flip haut/bas livré plus tôt : permission Tauri manquante découverte (fusionnée dans [[GLRN-256]] global plutôt que dupliquée), abandon de `startDragging()` natif au profit d'un drag manuel piloté à la main (cf. [BDR-044](decisions/BDR-044.md)) après avoir confirmé que sa promesse résout au lancement, pas à la fin ([LRN-053](learnings/LRN-053.md)). Fenêtre élargie puis passage en layout flex normal (`order`+`justify-content`) pour rendre le chevauchement bulle/avatar structurellement impossible après plusieurs échecs de calcul de position absolue (cf. [BDR-045](decisions/BDR-045.md)). Hauteur du slot avatar liée à `avatarSize` pour atteindre le bord réel de l'écran (cf. [BDR-046](decisions/BDR-046.md)). Réintroduction de Motion (déjà dépendance du projet) pour une transition fluide du flip, mais scopée à `bubble-zone` seulement -- animer aussi le slot avatar le faisait glisser hors de sous le curseur au relâchement (cf. [BDR-047](decisions/BDR-047.md)/[LRN-054](learnings/LRN-054.md)). Bug le plus coûteux de la session : l'avatar se désynchronisait du curseur, voire se retrouvait bloqué hors écran, pendant un drag qui traverse le seuil de flip -- cause racine à deux niveaux (clamp vertical basé sur toute la fenêtre au lieu du bord réel de l'avatar, et absence de gel du flip pendant le drag), résolu par gel/commit du flip + re-clamp si le flip commité diffère du gelé (cf. [BDR-048](decisions/BDR-048.md), [BLK-023](blockers/BLK-023.md)). Épisode annexe : notifications silencieuses faussement suspectées d'être cassées par une session concurrente, en réalité un toggle Settings désactivé (cf. [BLK-024](blockers/BLK-024.md)). Une AUTRE session Claude Code active en parallèle sur ce même repo pendant toute cette session (visualisation de zones debug, cf. section précédente) -- vigilance nécessaire en fin de session, des fichiers partagés (`useAvatarScreenLayout.ts`, `layout.ts`, `Avatar.tsx`) ont été modifiés sur disque par cette autre session pendant la rédaction de ce rituel de clôture.
+
+**Entrées clés :**
+
+- [BDR-044](decisions/BDR-044.md) — drag manuel plutôt que `startDragging()` natif
+- [BDR-047](decisions/BDR-047.md) — Motion `layout` scopé à bubble-zone seulement
+- [BDR-048](decisions/BDR-048.md) — flip gelé pendant le drag, commité + re-clampé au relâchement
+- [ZBLK-023](archive/blockers/ZBLK-023.md) — avatar désynchronisé du curseur / bloqué hors écran (résolu)
+- [ZBLK-024](archive/blockers/ZBLK-024.md) — fausse piste session concurrente sur les notifications (résolu)
+
+## 2026-08-30
+
+Suite directe de la session précédente (même chantier drag/flip, à cheval sur le changement de date) : le flip fonctionnait enfin (avatar sous le curseur, seuil correct), mais un flash bref persistait à chaque bascule -- décrit par Baptiste comme "l'avatar qui pop en haut puis revient à sa place", parfois perçu comme deux avatars rendus en simultané tant c'était rapide.
+
+Cause trouvée en deux temps. D'abord une vraie course d'état : `flippedRef` (introduite en fin de session précédente pour que le calcul de flip utilise l'état réel courant plutôt qu'une hypothèse figée) était synchronisée via un `useEffect` séparé -- un cycle de rendu complet de retard sur `setFlipped()`, exploité à chaque `onMoved` déclenché par les propres `setPosition()` de l'app pendant un drag (cf. [LRN-059](learnings/LRN-059.md)). Corrigé par une fonction unique mettant à jour la ref ET l'état dans le même appel synchrone -- mais le flash a persisté malgré ce fix ET malgré le retrait complet de toute animation (Motion, puis fondu CSS), preuve que ce n'était pas un problème de transition visuelle.
+
+La vraie cause, plus profonde : l'offset de l'avatar dans la fenêtre dépendait de `flipped` (flush à un bord ou à l'autre selon le côté) -- chaque flip devait donc repositionner la FENÊTRE elle-même (`setPosition()`, IPC Tauri asynchrone) en compensation du changement CSS (`order`/`justify-content`, synchrone). Ces deux mises à jour ne pouvaient jamais être parfaitement atomiques : le CSS peint la frame suivante, la fenêtre rattrape sa position un peu plus tard -- d'où le flash, quelle que soit la précision de la synchronisation côté state React (cf. [LRN-057](learnings/LRN-057.md)). Baptiste a demandé une refonte structurelle plutôt qu'un nouveau patch, après plusieurs rounds infructueux sur la même zone.
+
+Refonte (cf. [BDR-049](decisions/BDR-049.md), [BDR-050](decisions/BDR-050.md)) : l'avatar reste désormais TOUJOURS centré dans la fenêtre (offset constant, indépendant de `flipped`) -- un flip ne déplace plus jamais l'avatar ni la fenêtre, seule la bulle bascule en CSS pur (position absolue `top`/`transform`). Fenêtre passée de 330 à 420px de haut pour réserver l'espace bulle des deux côtés de l'avatar désormais centré. Motion (`layout`), introduit plus tôt pour la transition de flip, entièrement abandonné. Une fois la base validée par Baptiste ("enfin !"), transition fluide réintroduite en CSS pur : `bubble-zone` toujours ancrée par `top`, `translateY(-100%)` pour le sens "vers le haut" -- résolu par le navigateur à partir du rendu réel, sans jamais mesurer la hauteur de la bulle en JS (cf. [LRN-058](learnings/LRN-058.md), élimine la classe de bugs qui avait nécessité plusieurs rounds de correction plus tôt dans le projet, V10-V13).
+
+Lint + build vérifiés après chaque itération (une dizaine sur cette seule session). `/gen-commit` lancé en fin de session pour préparer le commit de l'ensemble du chantier drag/flip (non encore commité au moment de ce rituel).
+
+**Entrées clés :**
+
+- [BLK-025](blockers/BLK-025.md) — flash de l'avatar au flip, 6 rounds avant la refonte (résolu)
+- [BDR-049](decisions/BDR-049.md) — position d'avatar en direct pendant le drag, fin du gel/commit
+- [BDR-050](decisions/BDR-050.md) — avatar centré fixe, bulle en position absolue (révise [BDR-045](decisions/BDR-045.md)/[BDR-047](decisions/BDR-047.md)/[BDR-048](decisions/BDR-048.md))
+- [LRN-057](learnings/LRN-057.md) — CSS synchrone vs repositionnement fenêtre OS asynchrone
+- [LRN-059](learnings/LRN-059.md) — ref miroir de state, synchronisation au call site

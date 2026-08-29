@@ -1,12 +1,12 @@
 ---
-id: BLK-020
+id: ZBLK-020
 type: blocker
 date: 2026-08-28
 tags:
   [tauri, webview2, screenshot, gdi, powershell, directcomposition, debugging]
 ---
 
-# BLK-020 — Vérification visuelle de la bulle bloquée par le screenshot GDI
+# ZBLK-020 — Vérification visuelle de la bulle bloquée par le screenshot GDI
 
 | Friction                                                                                                                                                                                                              | Cause réelle                                                                                                                                                                                                                                                                                                                           | Solution                                                                                                   | Statut |
 | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- | ------ |
@@ -14,5 +14,5 @@ tags:
 
 ## Références
 
-- [LRN-036](../learnings/LRN-036.md) — pattern extrait
-- [BDR-035](../decisions/BDR-035.md) — fenêtre concernée
+- [LRN-036](../../learnings/LRN-036.md) — pattern extrait
+- [BDR-035](../../decisions/BDR-035.md) — fenêtre concernée
