@@ -13,6 +13,11 @@ export interface HookySettings {
   // Couleurs éditées par avatar (id -> override) -- keyed par avatarId pour que changer
   // d'avatar n'écrase pas l'édition d'un autre, et que revenir dessus la retrouve.
   avatarColorOverrides: Record<string, AvatarColorOverride>;
+  // Prénom/pseudo inséré dans les bulles de notification (cf. notificationMessages.ts,
+  // jeton `{name}`) -- vide par défaut : les messages restent génériques, adressables à
+  // n'importe qui, plutôt que de coder un prénom en dur (Hooky est destiné à être
+  // partagé publiquement, cf. CLAUDE.md).
+  callName: string;
 }
 
 export const DEFAULT_SETTINGS: HookySettings = {
@@ -22,6 +27,7 @@ export const DEFAULT_SETTINGS: HookySettings = {
   notificationsEnabled: true,
   avatarId: DEFAULT_AVATAR_ID,
   avatarColorOverrides: {},
+  callName: "",
 };
 
 const STORAGE_KEY = "hooky-settings";

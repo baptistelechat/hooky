@@ -67,13 +67,11 @@ export function NotificationBubble({
 
     if (!settings.notificationsEnabled) return;
 
-    // SessionStart : son seul, pas de bulle (cf. pickNotificationMessage -- hors périmètre).
-    if (lastEvent === "SessionStart") {
-      void new Audio(startSoundUrl).play().catch(() => {});
-      return;
-    }
-
-    const message = pickNotificationMessage(lastEvent, notificationType);
+    const message = pickNotificationMessage(
+      lastEvent,
+      notificationType,
+      settings.callName,
+    );
     if (!message) return;
 
     // Réagit à un event externe (revision, IPC Tauri via useHookyState) -- pas un dérivé
@@ -81,7 +79,12 @@ export function NotificationBubble({
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setFullText(message);
     setDisplayedText("");
-    const soundUrl = lastEvent === "Stop" ? stopSoundUrl : notificationSoundUrl;
+    const soundUrl =
+      lastEvent === "Stop"
+        ? stopSoundUrl
+        : lastEvent === "SessionStart"
+          ? startSoundUrl
+          : notificationSoundUrl;
     void new Audio(soundUrl).play().catch(() => {});
 
     if (hideTimerRef.current) clearTimeout(hideTimerRef.current);

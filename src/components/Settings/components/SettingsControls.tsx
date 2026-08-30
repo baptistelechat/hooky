@@ -1,4 +1,5 @@
-import { Bell, Bug, Ruler, Sparkles } from "lucide-react";
+import { Bell, Bug, Ruler, Sparkles, UserRound } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -40,6 +41,24 @@ export function SettingsControls() {
             step={10}
           />
         </Field>
+
+        <Field>
+          <FieldLabel htmlFor="call-name" className="items-center">
+            <UserRound className="size-4" />
+            Comment dois-je t'appeler ?
+          </FieldLabel>
+          <Input
+            id="call-name"
+            value={settings.callName}
+            onChange={(event) =>
+              setSettings({ ...settings, callName: event.target.value })
+            }
+            placeholder="John Doe (Optionnel)"
+            maxLength={30}
+          />
+        </Field>
+
+        <FieldSeparator />
 
         <Field orientation="horizontal">
           <FieldContent>
