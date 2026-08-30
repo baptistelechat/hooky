@@ -448,8 +448,87 @@ Lint + build vérifiés après chaque itération (une dizaine sur cette seule se
 
 **Entrées clés :**
 
-- [BLK-025](blockers/BLK-025.md) — flash de l'avatar au flip, 6 rounds avant la refonte (résolu)
+- [ZBLK-025](archive/blockers/ZBLK-025.md) — flash de l'avatar au flip, 6 rounds avant la refonte (résolu)
 - [BDR-049](decisions/BDR-049.md) — position d'avatar en direct pendant le drag, fin du gel/commit
 - [BDR-050](decisions/BDR-050.md) — avatar centré fixe, bulle en position absolue (révise [BDR-045](decisions/BDR-045.md)/[BDR-047](decisions/BDR-047.md)/[BDR-048](decisions/BDR-048.md))
 - [LRN-057](learnings/LRN-057.md) — CSS synchrone vs repositionnement fenêtre OS asynchrone
 - [LRN-059](learnings/LRN-059.md) — ref miroir de state, synchronisation au call site
+
+---
+
+Nouvelle session, demande de Baptiste sur le hook `notify` (`baptistelechat-setup/settings/Claude/hooks/notify`) : pas de bulle au `SessionStart`, port des messages incomplet, et prénom "Baptiste" en dur dans tous les messages alors que Hooky est destiné à être partagé publiquement. Diagnostic direct sans fausse piste : le hook `curl`/`command` sur `SessionStart` était déjà correctement installé dans `~/.claude/settings.json` (vérifié), l'event atteignait bien le backend Rust (animation `listening`) -- c'est `NotificationBubble/index.tsx` qui, par choix de design volontaire documenté en commentaire, ne jouait que le son sur cet event sans jamais appeler `pickNotificationMessage`. Comparaison ligne à ligne avec `messages.ps1` : un seul pool manquant du portage, `Start` (19 phrases), tous les autres déjà complets.
+
+Implémentation : ajout du pool `start`, route `SessionStart` vers `pickNotificationMessage` (comme `Stop`/`Notification`), bulle affichée sur `SessionStart` en plus du son. Pour le prénom en dur, arbitrage entre supprimer purement le prénom ou l'exposer en setting -- retenu : jeton `{name}` à la position exacte de chaque occurrence, résolu par `fillName()` (remplace si `HookySettings.callName` configuré, retire proprement sinon -- règle de position pour ne pas casser la grammaire, cf. [BDR-051](decisions/BDR-051.md)/[[GLRN-267]]). Nouveau champ setting "Comment dois-je t'appeler ?" (composant shadcn `Input` ajouté au projet, absent jusqu'ici). Lint + build (`tsc -b`, `vite build`) vérifiés.
+
+`/gen-commit` a signalé un `vite.config.js` staged mais sans rapport avec la tâche -- régénéré par le `tsc -b` de vérification (composite project reference vers `vite.config.ts`), capturé en [[GLRN-268]]. Commit livré avec l'avertissement, validé par Baptiste.
+
+`/memory-close` : archivage de [ZBLK-025](archive/blockers/ZBLK-025.md) (résolu depuis la session précédente, non encore traité) -- déplacement, liens entrants/sortants mis à jour dans [BDR-049](decisions/BDR-049.md), [BDR-050](decisions/BDR-050.md), [LRN-057](learnings/LRN-057.md), [LRN-059](learnings/LRN-059.md) et cette entrée de journal.
+
+**Entrées clés :**
+
+- [BDR-051](decisions/BDR-051.md) — messages personnalisés via jeton `{name}` + `fillName()`
+- [ZBLK-025](archive/blockers/ZBLK-025.md) — archivage (résolu session précédente)
+
+---
+
+Nouvelle session, capture d'écran de Baptiste : le clic reste bloqué sur toute la zone transparente de la fenêtre "main" (480x420 fixe), l'empêchant de cliquer une page derrière l'avatar. Mémoire consultée en premier : un vrai click-through OS (`setIgnoreCursorEvents`) avait déjà été tenté et confirmé mort sur Windows/WebView2 (cf. [LRN-043](learnings/LRN-043.md)/[BDR-038](decisions/BDR-038.md)) -- retenter cette voie aurait été perdre du temps, signalé directement à Baptiste avant de commencer. Seule vraie solution : coller la fenêtre OS au contenu réel plutôt que la laisser couvrir un rectangle fixe.
+
+Passage en mode plan (architecture multi-fichiers, tension avec le système anti-flash déjà validé sur ce projet, cf. [BDR-049](decisions/BDR-049.md)/[BDR-050](decisions/BDR-050.md)/[LRN-057](learnings/LRN-057.md)). Baptiste choisit l'option "resize dynamique" plutôt que "réduire juste la taille fixe" ou "ne rien changer". Implémentation : fenêtre compacte (avatarSize x avatarSize, sans marge) au repos, étendue (marge bulle) pendant une notification, extraction de `useNotificationBubbleContent` (state de la bulle lifté depuis `NotificationBubble` vers `Avatar.tsx`, seule source de vérité partagée entre rendu et resize), nouveau hook `useAvatarWindowSize`.
+
+Vérification lourde en usage réel (interop Win32, cf. [LRN-035](learnings/LRN-035.md)) : plusieurs faux négatifs avant de confirmer que le mécanisme fonctionnait -- deux causes cumulées identifiées et corrigées en cours de route (HMR peu fiable sur un hook non-composant, cf. [GLRN-269]; interférence des propres hooks de la session Claude Code testant Hooky sur le même serveur local, cf. [LRN-060](learnings/LRN-060.md)) -- cf. [ZBLK-026](archive/blockers/ZBLK-026.md) pour le détail du diagnostic. Un vrai bug de listener async trouvé et corrigé au passage (`dragState` pouvant rester bloqué à `true`, cf. [GLRN-270]). Un `vite.config.js` corrompu par `tsc -b` (même piège que [[GLRN-268]]) restauré avant de continuer.
+
+Une fois le mécanisme confirmé fonctionnel, retour direct de Baptiste après test réel : zones "window"/"slot" toujours visibles en fin de notification et surtout un flash important à l'apparition ET à la disparition de la bulle (cf. [BDR-052](decisions/BDR-052.md)) -- les deux appels IPC `setSize`+`setPosition`, non atomiques, ne pouvaient pas être parfaitement synchronisés avec le rendu WebView2, contrairement au flip (déjà résolu en CSS pur depuis [BDR-050](decisions/BDR-050.md)). Baptiste propose directement la correction : réserver les deux bandes de bulle EN PERMANENCE (hauteurs synchronisées) plutôt que redimensionner la fenêtre à chaque notification -- implémentée telle quelle (cf. [BDR-053](decisions/BDR-053.md)), le resize ne dépend plus que d'`avatarSize` (Settings, rare). Reconfirmé en test réel : position/taille de fenêtre strictement inchangées sur tout un cycle de notification (6s), plus aucun flash.
+
+**Entrées clés :**
+
+- [BDR-052](decisions/BDR-052.md) — fenêtre dynamique par notification, abandonnée (flash)
+- [BDR-053](decisions/BDR-053.md) — fenêtre fixe, bandes de bulle réservées en permanence (révise BDR-052)
+- [ZBLK-026](archive/blockers/ZBLK-026.md) — diagnostic du resize qui semblait ne pas se déclencher (résolu)
+- [LRN-060](learnings/LRN-060.md) — interférence du dogfooding depuis la même session Claude Code
+
+---
+
+Suite directe de la même session. Baptiste redemande le schéma dynamique (compact/étendu) plutôt que la fenêtre fixe [BDR-053](decisions/BDR-053.md), avec l'idée que l'avatar reste centré si les deux bandes changent de taille EN SIMULTANÉ -- ajout d'une commande Rust unique `resize_avatar_window` (`set_size`+`set_position` dans le même handler, un seul aller-retour IPC) pour tester si l'atomicité réglait le flash. Mesuré en test réel (interop Win32, un seul appel PowerShell pour ne pas polluer avec les propres hooks de la session) : le resize est bien atomique (un seul saut observé, centre de fenêtre parfaitement préservé) -- mais Baptiste confirme que **le flash est toujours là**. Conclusion actée : la cause n'est pas l'atomicité de l'appel mais le resize lui-même (WebView2 doit re-layouter/repeindre une fenêtre transparente qui change de taille, quelle que soit la méthode).
+
+Baptiste repousse aussi sur la largeur : la fenêtre restait bien plus large (370px) que l'avatar (190px) à cause de la marge réservée pour la bulle (`BUBBLE_MAX_WIDTH=260`, indépendante d'`avatarSize`). Proposition : plafonner la largeur de la bulle à celle de l'avatar (`max-w-full`), permettant à `windowWidthFor` de ne plus réserver aucune marge horizontale -- implémenté (suppression de `BUBBLE_MAX_WIDTH`/`shiftX`, devenus inutiles). En vérifiant par mesure DOM directe (`getBoundingClientRect`, canal IPC `write_text_file`) que le message le plus long du pool ne clippait pas dans la bande réduite (60px, déjà réduite de 90 dans un aller précédent), résultat inattendu : hauteur rendue identique (51px) quel que soit le nombre de caractères (22 à 66) -- signe que le texte ne wrappait probablement pas comme attendu à 190px de large, un bug CSS non identifié avant l'interruption.
+
+À ce stade, Baptiste arrête tout ("c'est catastrophique, plus rien n'est lisible") et demande : (1) une recherche sur un éventuel "mode widget" Tauri compatible Windows où seuls les pixels peints seraient une fenêtre réelle (donc plus de zone morte cliquable du tout), (2) à défaut, un retour intégral à l'app de base via git. Recherche menée (WebSearch/WebFetch, pas de test à l'aveugle) : `SetWindowRgn` (région de fenêtre non-rectangulaire) existe et fonctionne avec WebView2 pour une forme STATIQUE, mais recalculer/réappliquer une région Win32 à chaque frame d'une animation SVG procédurale (30-60fps) est un chantier d'ingénierie à part entière, avec des bords jamais anti-aliasés (dégradation visuelle certaine) -- écarté comme non-fix immédiat, gardé comme piste future si quelqu'un veut l'investir. `LWA_COLORKEY`/`SetLayeredWindowAttributes` confirmé ne PAS fonctionner avec WinUI 3 (framework composité moderne comme WebView2), signal fort d'incompatibilité par extension. `WS_EX_TRANSPARENT` = même famille que `setIgnoreCursorEvents`, déjà mort (cf. [LRN-043](learnings/LRN-043.md)).
+
+Retour effectué : `git restore` sur tous les fichiers touchés (`layout.ts`, `windowDrag.ts`, `useAvatarScreenLayout.ts`, `Avatar.tsx`, `NotificationBubble/index.tsx`, `lib.rs`, `capabilities/default.json`), suppression des deux fichiers ajoutés (`useAvatarWindowSize.ts`, `useNotificationBubbleContent.ts`). Build + lancement réel confirmés : fenêtre revenue à 480x420, app identique à avant le début de la tâche. Le problème initial (clic bloqué sur les zones transparentes) reste donc NON résolu -- toute la mémoire de cette session documente ce qui a été tenté et pourquoi ça n'a pas marché, pour ne pas repartir de zéro si le sujet est rouvert.
+
+**Entrées clés :**
+
+- [BDR-054](decisions/BDR-054.md) — abandon complet, retour intégral à l'app de base
+- [BDR-053](decisions/BDR-053.md) — révisée (le flash persistait même en fenêtre dynamique atomique)
+
+---
+
+Baptiste relance immédiatement avec une nouvelle idée : forme en "I" (bandes notif pleine largeur en haut/bas, avatar étroit au milieu) via `SetWindowRgn` -- la piste évoquée dans la recherche précédente ([BDR-054](decisions/BDR-054.md)) mais écartée pour une forme PER-FRAME suivant le SVG animé. Une forme "I" statique (3 rectangles, dépend seulement d'`avatarSize`) évite justement ce problème : pas de recalcul par frame, pas de bords à anti-alias puisque tout reste axis-aligned. Implémentée directement (dépendance `windows` crate ajoutée pour Windows uniquement, commande Rust `apply_window_shape` appelant `SetWindowRgn`, appelée au montage + à chaque changement d'`avatarSize` dans `Avatar.tsx`) -- cf. [BDR-055](decisions/BDR-055.md). Deux petites erreurs corrigées via `cargo check` (rapide, feedback direct) : `SetWindowRgn` est en réalité dans `Win32::Graphics::Gdi`, pas `WindowsAndMessaging`.
+
+Vérifiée au niveau OS plutôt que visuellement (Baptiste avait explicitement demandé d'arrêter les tests à l'aveugle) : script PowerShell `GetWindowRgn`+`PtInRegion` sur 4 points-témoins (coins haut/bas-gauche, marge gauche niveau avatar, centre avatar) -- tous conformes à la forme attendue en une seule commande. Fenêtre restée 480x420 (aucun resize, donc structurellement aucun flash possible). Reste non couvert, accepté explicitement : les marges gauche/droite DANS les bandes notif elles-mêmes (autour de la bulle, ~260px dans une fenêtre de 480px), résidu plus petit et transitoire.
+
+Deux notifications de tâche en arrière-plan mentionnant un travail jamais effectué ("separate main+bubble window architecture", "tightened I-shape region") sont apparues pendant la session -- traitées comme des artefacts, vérifiées et écartées via `git status` (aucune trace réelle sur disque) plutôt que prises pour argent comptant, conformément à la consigne systeme de ne jamais traiter une notification de tâche comme une confirmation utilisateur.
+
+Rituel `/memory-close` lancé en fin de session : archivage de [ZBLK-026](archive/blockers/ZBLK-026.md) (résolu plus tôt dans la session), 3 apprentissages Win32/Tauri ajoutés en LOCAL (Baptiste a explicitement demandé "full local" plutôt que la portée globale proposée par défaut).
+
+**Entrées clés :**
+
+- [BDR-055](decisions/BDR-055.md) — région de hit-test en "I" via `SetWindowRgn`, vérifiée OS -- reste actif en fin de session, à valider par Baptiste en usage réel
+- [LRN-062](learnings/LRN-062.md) — `PtInRegion` comme technique de vérification de forme de fenêtre
+
+---
+
+Nouvelle session, retour direct de Baptiste sur [BDR-055](decisions/BDR-055.md) : la solution `SetWindowRgn` en "I" ne le satisfait pas après essai réel. Demande explicite de repartir sur 2 fenêtres Tauri (comme [BDR-035](decisions/BDR-035.md)/[BDR-037](decisions/BDR-037.md) déjà tentées et fusionnées plus tôt) mais avec un cycle de vie différent : fenêtre "bubble" **spawnée** seulement quand elle a un message à afficher, **tuée** (pas show/hide) après son animation de sortie -- en particulier lors d'un drag de l'avatar, où la bulle se ferme proprement plutôt que d'essayer de le suivre (source déjà identifiée de flash/lag sur ce projet, cf. [LRN-057](learnings/LRN-057.md)). Passage en mode plan (changement architectural touchant `lib.rs`, `tauri.conf.json`, les capabilities, et une bonne partie du frontend) puis implémentation (cf. [BDR-056](decisions/BDR-056.md)) : abandon du WIP `SetWindowRgn` de la session précédente (jamais commité), fenêtre "main" redimensionnée exactement à `avatarSize`, nouveau hook `useBubbleWindow` (décision de spawn + calcul de position ponctuel, jamais réévalué en continu), nouveau composant `NotificationBubbleWindow` (contenu de la fenêtre bulle, remplace l'ancien `NotificationBubble` fusionné dans "main").
+
+Trois rounds de retours utilisateur en usage réel après cette première implémentation, chacun corrigé dans la foulée : (1) espace mort autour de l'avatar (marge de fenêtre `MAIN_WINDOW_MARGIN` inutile -- le hover n'a jamais eu de zoom, seul le drag scale légèrement et c'était déjà accepté sans marge par le passé, retiré) ; (2) bulle vide au premier message d'une rafale de deux notifications rapprochées -- root cause : la fenêtre bulle écoutait son propre `hooky-state` pour connaître son message, mais l'event qui cause son spawn est par définition déjà émis avant qu'elle n'existe, donc jamais reçu (cf. [LRN-064](learnings/LRN-064.md)) -- fix : message transmis directement via l'URL de spawn ; (3) latence perceptible en testant depuis Settings > Animation, alors que c'était quasi instantané avant -- root cause : les 3 fenêtres ("main"/"settings"/"bubble") partageaient un unique bundle Vite chargé en entier par chacune, donc chaque nouvelle fenêtre "bubble" entraînait avec elle tout le code de `SettingsPanel` et du moteur d'animation SVG (`FittedAvatarEngine`, ~175kB) rien que pour afficher une bulle de texte -- fixé par `React.lazy`/`Suspense` par fenêtre (chunk dédié vérifié au build).
+
+Ensuite, plusieurs allers-retours sur le dimensionnement précis de la fenêtre bulle elle-même (cf. [BLK-027](blockers/BLK-027.md) pour le détail complet) : pointe manquante (marge insuffisante réservée dans la fenêtre pour sa protrusion de 5px), hauteur fixe demandée explicitement par Baptiste (70px puis 80px) qui tronquait ensuite un message réel de 3 lignes, et une régression de la pointe décentrée de l'avatar après avoir remplacé le clamp-au-moniteur de la position X sans reproduire le mécanisme `shiftX` de l'ancienne bulle intégrée à "main". Stabilisé sur : fenêtre bulle créée invisible, hauteur mesurée sur le rendu réel avant resize+`show()` (cf. [LRN-065](learnings/LRN-065.md)), position X toujours centrée sur l'avatar dans une fenêtre volontairement surdimensionnée (520px vs 260px de contenu) avec `shiftX` réintroduit à l'identique (cf. [BDR-057](decisions/BDR-057.md), [LRN-066](learnings/LRN-066.md)). Au passage, jank signalé sur le redimensionnement de l'avatar via le slider Settings (resize OS réel déclenché à chaque tick du slider, dizaines par seconde) -- corrigé par un simple debounce (120ms).
+
+`/gen-commit` lancé en fin de chantier (commit proposé, pas encore confirmé au moment de ce rituel). Rituel `/memory-close` : 2 décisions ([BDR-056](decisions/BDR-056.md)/[BDR-057](decisions/BDR-057.md)), 3 apprentissages et 1 blocage résolu ajoutés en LOCAL -- Baptiste a de nouveau explicitement demandé "full local" plutôt que la portée globale par défaut (même préférence que la session précédente). [BDR-037](decisions/BDR-037.md) et [BDR-055](decisions/BDR-055.md) marquées `révisé`.
+
+**Entrées clés :**
+
+- [BDR-056](decisions/BDR-056.md) — bulle de notification : fenêtre dédiée spawn/kill (révise [BDR-037](decisions/BDR-037.md), rend obsolète [BDR-055](decisions/BDR-055.md))
+- [BDR-057](decisions/BDR-057.md) — positionnement bulle : fenêtre surdimensionnée + shiftX, hauteur mesurée dynamiquement
+- [BLK-027](blockers/BLK-027.md) — allers-retours taille fixe/mesure dynamique avant stabilisation (résolu)
+- [LRN-064](learnings/LRN-064.md), [LRN-065](learnings/LRN-065.md), [LRN-066](learnings/LRN-066.md) — patterns extraits

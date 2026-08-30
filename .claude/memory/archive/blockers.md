@@ -30,3 +30,5 @@ register: archive_blockers
 | [ZBLK-022](blockers/ZBLK-022.md) | 2026-08-29 | Double Stop/son/notification : plusieurs fausses pistes avant la vraie cause | #rust #axum #reaper #desync #duplicate-events #debugging #misdiagnosis                    | résolu |
 | [ZBLK-023](blockers/ZBLK-023.md) | 2026-08-29 | Avatar désynchronisé du curseur / hors écran pendant un drag qui flip        | #drag-drop #flip #cursor-sync #screen-edge #ux #debugging                                 | résolu |
 | [ZBLK-024](blockers/ZBLK-024.md) | 2026-08-29 | Notifications silencieuses : fausse piste session concurrente                | #notification #settings #debugging #misdiagnosis #false-lead                              | résolu |
+| [ZBLK-025](blockers/ZBLK-025.md) | 2026-08-30 | Flash de l'avatar au flip : 6 rounds avant la refonte architecturale         | #drag-drop #flip #flash #screen-edge #architecture #debugging                             | résolu |
+| [ZBLK-026](blockers/ZBLK-026.md) | 2026-08-30 | Notif ne redimensionnait pas la fenêtre : HMR + interférence du dogfooding   | #notification #window-resize #hmr #react-batching #debugging #misdiagnosis                | résolu |
