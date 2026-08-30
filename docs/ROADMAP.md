@@ -329,3 +329,36 @@ Double-clic confirmé fonctionnel par Baptiste. Trois nouveaux retours traités 
   4242 (redémarrée au moins une fois entre-temps par son propre `tauri:dev` suite aux
   changements `src-tauri`, comportement normal cf.
   [LRN-004](../.claude/memory/learnings/LRN-004.md)).
+
+### Bulle de notification : retour à 2 fenêtres (spawn/kill plutôt que fusion)
+
+Après plusieurs itérations dans la même session (fusion de la bulle dans "main", puis
+tentative de région de hit-test `SetWindowRgn` en forme de "I" pour éliminer la zone morte
+autour de l'avatar) jugées insatisfaisantes par Baptiste, retour à une architecture 2
+fenêtres -- mais avec un cycle de vie différent de la première tentative (`BDR-035`,
+fenêtre statique show/hide) :
+
+- **Fenêtre "main"** : ne contient plus que l'avatar + badge, dimensionnée à
+  `avatarSize + MAIN_WINDOW_MARGIN` (`src/lib/layout.ts`) au lieu d'une taille fixe
+  480×420 -- redimensionnée (`setSize`) uniquement quand `avatarSize` change dans
+  Settings (rare, délibéré), jamais par notification. Plus de zone morte cliquable à
+  masquer, donc abandon du WIP `SetWindowRgn` du même jour (commande Rust
+  `apply_window_shape`, dépendance `windows` retirée de `Cargo.toml`).
+- **Fenêtre "bubble"** : plus de déclaration statique dans `tauri.conf.json` -- **spawnée**
+  à la demande (`new WebviewWindow("bubble", ...)`, même pattern que la fenêtre
+  "settings") uniquement quand un message doit s'afficher (`src/hooks/useBubbleWindow.ts`),
+  et **tuée** (`getCurrentWindow().close()`) après son animation de sortie CSS, que ce
+  soit après le hold timer normal ou suite à un drag de l'avatar (event
+  `hooky-bubble-dismiss`, émis par `windowDrag.ts` au début du drag). Jamais de tentative
+  de la faire suivre l'avatar en direct pendant un drag -- root cause déjà identifiée du
+  flash/lag structurel (CSS synchrone vs repositionnement fenêtre OS asynchrone) sur ce
+  projet. Sa position est calculée une seule fois au spawn (lecture ponctuelle
+  `outerPosition`/`currentMonitor`, pas d'écouteur continu), avec le flag d'orientation
+  (`flipped`) transmis via l'URL de la fenêtre (`?bubbleFlipped=1|0`).
+- `src/hooks/useAvatarScreenLayout.ts` (calcul de flip en continu via `onMoved`) supprimé
+  -- devenu un calcul ponctuel dans `useBubbleWindow`.
+- Nouvelle capability `src-tauri/capabilities/bubble.json` (`core:default` +
+  `core:window:allow-close`) ; `core:window:allow-set-size` ajouté à `default.json` pour
+  le resize de "main".
+- Vérifié : `pnpm lint`, `pnpm build`, `cargo check` passent tous. Pas de test visuel réel
+  de ce round.

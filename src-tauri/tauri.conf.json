@@ -13,8 +13,8 @@
     "windows": [
       {
         "title": "Hooky",
-        "width": 480,
-        "height": 420,
+        "width": 240,
+        "height": 240,
         "transparent": true,
         "decorations": false,
         "shadow": false,
