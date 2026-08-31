@@ -18,10 +18,8 @@ import { EDGE_PADDING } from "./layout";
  * planned"). En pilotant nous-mêmes chaque mise à jour de position, il n'existe plus de
  * boucle OS concurrente à écraser.
  *
- * L'avatar remplit désormais EXACTEMENT toute la fenêtre "main" (plus de marge -- la
- * position de la fenêtre EST la position de l'avatar) -- il n'y a plus de bulle à faire
- * basculer dans cette fenêtre (elle vit dans sa propre fenêtre Tauri, cf. useBubbleWindow),
- * donc plus de calcul de flip ici. Un événement
+ * Il n'y a plus de bulle à faire basculer dans cette fenêtre (elle vit dans sa propre
+ * fenêtre Tauri, cf. useBubbleWindow), donc plus de calcul de flip ici. Un événement
  * `hooky-bubble-dismiss` est émis une seule fois au tout début du drag pour que la fenêtre
  * bulle (si une existe) se ferme proprement plutôt que de tenter de la faire suivre l'avatar
  * en direct -- une fenêtre séparée qui suit en continu une autre fenêtre en cours de
@@ -31,7 +29,7 @@ import { EDGE_PADDING } from "./layout";
 export function startClampedDrag(
   startScreenX: number,
   startScreenY: number,
-  avatarSize: number,
+  windowSize: number,
 ): void {
   void emit("hooky-bubble-dismiss");
 
@@ -72,13 +70,14 @@ export function startClampedDrag(
       virtualMaxY = Math.max(virtualMaxY, pos.y + size.height);
     }
 
-    // Bornes sur la position de la fenêtre (= position de l'avatar) : le bord réel du bureau
-    // virtuel moins `avatarSize`, avec `EDGE_PADDING` (cf. layout.ts) pour ne jamais coller
-    // l'avatar pile contre le bord de l'écran.
+    // Bornes sur la position de la fenêtre : le bord réel du bureau virtuel moins
+    // `windowSize` (taille réelle de la fenêtre "main", cf. layout.ts `avatarWindowSize` --
+    // plus grande que l'avatar lui-même depuis l'ajout d'`AVATAR_SHADOW_GAP`), avec
+    // `EDGE_PADDING` pour ne jamais coller la fenêtre pile contre le bord de l'écran.
     const avatarMinX = virtualMinX + EDGE_PADDING;
-    const avatarMaxX = virtualMaxX - avatarSize - EDGE_PADDING;
+    const avatarMaxX = virtualMaxX - windowSize - EDGE_PADDING;
     const avatarMinY = virtualMinY + EDGE_PADDING;
-    const avatarMaxY = virtualMaxY - avatarSize - EDGE_PADDING;
+    const avatarMaxY = virtualMaxY - windowSize - EDGE_PADDING;
 
     let rafId: number | null = null;
     let pendingX = startWin.x;

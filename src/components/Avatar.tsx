@@ -1,13 +1,14 @@
 import { LogicalSize } from "@tauri-apps/api/dpi";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAnimationEffects } from "../hooks/useAnimationEffects";
 import { useAvatarBundle } from "../hooks/useAvatarBundle";
 import { useBubbleWindow } from "../hooks/useBubbleWindow";
 import { useSettings } from "../hooks/useSettings";
 import { findMappingEntry } from "../lib/animationCatalog";
 import { debugZoneClass } from "../lib/debugZone";
+import { avatarWindowSize } from "../lib/layout";
 import { startClampedDrag } from "../lib/windowDrag";
 import { AnimationOverlay } from "./AnimationOverlay";
 import { avatarBundleKey, type AnimationName } from "./avatarDefinition";
@@ -68,9 +69,9 @@ async function openSettingsWindow(): Promise<void> {
  * Avatar + badge, seuls occupants de la fenêtre "main" -- la bulle de notification vit
  * désormais dans sa propre fenêtre Tauri, spawnée à la demande (cf. useBubbleWindow,
  * NotificationBubbleWindow), plus fusionnée ici (cf. mémoire projet, révise cette fusion).
- * La fenêtre "main" est dimensionnée EXACTEMENT à `avatarSize` (aucune marge, l'avatar
- * occupe toute la fenêtre) -- redimensionnée uniquement quand `avatarSize` change
- * (Settings, rare et délibéré), jamais par notification.
+ * La fenêtre "main" est dimensionnée sur `avatarSize` (+ marge `AVATAR_SHADOW_GAP`, cf.
+ * layout.ts) -- redimensionnée uniquement quand `avatarSize` change (Settings, rare et
+ * délibéré), jamais par notification.
  *
  * La fenêtre n'a pas de barre de titre (decorations: false côté backend) -- le déplacement
  * est piloté à la main (`startClampedDrag`, cf. src/lib/windowDrag.ts) plutôt que via
@@ -92,20 +93,25 @@ export function PetAvatar({
 }: PetAvatarProps) {
   const [settings] = useSettings();
 
-  // Fenêtre "main" dimensionnée EXACTEMENT à `avatarSize` (aucune marge -- l'avatar occupe
-  // toute la fenêtre, comme avant la fusion de la bulle, cf. mémoire projet) -- jamais
-  // déclenché par une notification (cf. mémoire projet : le resize par notification a été
-  // abandonné pour cause de flash), uniquement par le slider Settings. Débouncé : contrairement
-  // à `setPosition()` pendant un drag (cf. windowDrag.ts), un vrai resize OS re-layoute toute
-  // la surface WebView2 -- l'appeler à chaque tick du slider (qui en émet des dizaines par
-  // seconde pendant qu'on le fait glisser) est visible et saccadé. La transition CSS déjà en
-  // place sur l'avatar (`transition-[width,height,...]`) donne l'illusion de fluidité pendant
-  // le drag du slider ; ce debounce ne fait rattraper la vraie taille de fenêtre qu'une fois
-  // la valeur stabilisée.
+  // Taille RÉELLEMENT appliquée à l'avatar/fenêtre "main", distincte de `settings.avatarSize`
+  // (qui change à chaque tick du slider Settings, plusieurs fois par seconde pendant un
+  // drag). Si le CSS de l'avatar suivait `settings.avatarSize` directement, il grandirait
+  // instantanément au-delà de la fenêtre OS -- encore à son ancienne taille tant que le
+  // `setSize()` ci-dessous (débouncé) n'a pas eu lieu -- et serait rogné par son bord tout
+  // du long du drag. En le faisant suivre `renderedAvatarSize` à la place, mis à jour dans
+  // le MÊME timeout que le resize OS, le CSS et la fenêtre changent toujours ensemble :
+  // rien ne bouge dans la fenêtre "main" pendant le drag du slider, puis les deux sautent
+  // à la nouvelle taille au même instant une fois la valeur stabilisée.
+  const [renderedAvatarSize, setRenderedAvatarSize] = useState(
+    settings.avatarSize,
+  );
+
   useEffect(() => {
     const timeout = setTimeout(() => {
+      setRenderedAvatarSize(settings.avatarSize);
+      const windowSize = avatarWindowSize(settings.avatarSize);
       void getCurrentWindow()
-        .setSize(new LogicalSize(settings.avatarSize, settings.avatarSize))
+        .setSize(new LogicalSize(windowSize, windowSize))
         .catch((error: unknown) =>
           console.error("[PetAvatar] setSize échoué", error),
         );
@@ -117,7 +123,7 @@ export function PetAvatar({
     lastEvent,
     notificationType,
     revision,
-    avatarSize: settings.avatarSize,
+    avatarSize: renderedAvatarSize,
     notificationsEnabled: settings.notificationsEnabled,
     callName: settings.callName,
   });
@@ -141,7 +147,7 @@ export function PetAvatar({
   return (
     <div
       data-zone="window"
-      className={`relative flex h-full w-full items-center justify-center overflow-hidden ${debugZoneClass(settings.debugMode, "window")}`}
+      className={`relative flex h-full w-full items-center justify-center ${debugZoneClass(settings.debugMode, "window")}`}
       onMouseDown={(e) => {
         if (
           !(e.target instanceof Element) ||
@@ -164,71 +170,66 @@ export function PetAvatar({
           return;
         }
 
-        startClampedDrag(e.screenX, e.screenY, settings.avatarSize);
+        startClampedDrag(
+          e.screenX,
+          e.screenY,
+          avatarWindowSize(renderedAvatarSize),
+        );
       }}
       onContextMenu={(e) => e.preventDefault()}
     >
       <div
-        data-zone="slot"
-        className={`relative flex items-center justify-center ${debugZoneClass(settings.debugMode, "slot")}`}
+        ref={containerRef}
+        data-drag-handle
+        data-zone="avatar"
+        className={`relative flex cursor-grab items-center justify-center drop-shadow-[0_4px_6px_rgba(0,0,0,0.2)] transition-[width,height,background-color,scale,rotate,filter] duration-300 ease-out hover:-rotate-5 hover:scale-100 active:cursor-grabbing active:drop-shadow-[0_8px_10px_rgba(0,0,0,0.4)] active:scale-105 ${debugZoneClass(settings.debugMode, "avatar")}`}
         style={{
-          width: settings.avatarSize,
-          height: settings.avatarSize,
+          width: renderedAvatarSize,
+          height: renderedAvatarSize,
         }}
       >
-        <div
-          ref={containerRef}
-          data-drag-handle
-          data-zone="avatar"
-          className={`relative flex cursor-grab items-center justify-center drop-shadow-[0_4px_6px_rgba(0,0,0,0.2)] transition-[width,height,background-color,scale,rotate,filter] duration-300 ease-out hover:-rotate-5 hover:scale-100 active:cursor-grabbing active:drop-shadow-[0_8px_10px_rgba(0,0,0,0.4)] active:scale-105 ${debugZoneClass(settings.debugMode, "avatar")}`}
-          style={{
-            width: settings.avatarSize,
-            height: settings.avatarSize,
-          }}
-        >
-          {/* `key` sur avatarId+couleurs (cf. avatarBundleKey) : chaque bundle a son propre
-              composant `AvatarEngine` (cf. avatarDefinition.createAvatar) -- changer d'avatar
-              OU de couleur éditée le reconstruit entièrement, pas de morph possible entre
-              deux moteurs différents. `animate-in fade-in` (tw-animate-css, déjà utilisé
-              ailleurs dans l'app) adoucit ce remount plutôt que de laisser le nouvel avatar
-              apparaître d'un coup ; pas de fade-out symétrique de l'ancien -- demanderait de
-              garder les deux montés en parallèle le temps de la transition, disproportionné
-              pour un changement rare et volontaire (avatar ou couleur). */}
-          <FittedAvatarEngine
-            key={avatarBundleKey(bundle)}
-            bundle={bundle}
-            animation={animation}
-            size={settings.avatarSize}
-            className="animate-in fade-in duration-300"
-            style={{
-              transition: "width 300ms ease-out, height 300ms ease-out",
-            }}
-          />
-          {/* En bas (pas en haut) : le badge d'état occupe le coin haut-droit (cf.
-              AnimationOverlay, BADGE_INSET_PCT) -- un panneau texte en haut s'y superposait. */}
-          <pre
-            className={`pointer-events-none absolute bottom-1 left-1 z-50 m-0 font-mono text-[10px] leading-[1.3] whitespace-pre-wrap text-white opacity-0 [text-shadow:0_0_2px_#000] transition-opacity duration-300 ${settings.debugMode ? "opacity-100" : ""}`}
-          >
-            {[
-              `animation: ${animation} (rev ${revision})`,
-              `hook: ${lastEvent ?? "-"}${
-                toolName ? ` tool=${toolName}` : ""
-              }${notificationType ? ` type=${notificationType}` : ""}`,
-              `avatarSize: ${settings.avatarSize}px`,
-            ].join("\n")}
-          </pre>
-        </div>
-
-        <AnimationOverlay
+        {/* `key` sur avatarId+couleurs (cf. avatarBundleKey) : chaque bundle a son propre
+            composant `AvatarEngine` (cf. avatarDefinition.createAvatar) -- changer d'avatar
+            OU de couleur éditée le reconstruit entièrement, pas de morph possible entre
+            deux moteurs différents. `animate-in fade-in` (tw-animate-css, déjà utilisé
+            ailleurs dans l'app) adoucit ce remount plutôt que de laisser le nouvel avatar
+            apparaître d'un coup ; pas de fade-out symétrique de l'ancien -- demanderait de
+            garder les deux montés en parallèle le temps de la transition, disproportionné
+            pour un changement rare et volontaire (avatar ou couleur). */}
+        <FittedAvatarEngine
+          key={avatarBundleKey(bundle)}
+          bundle={bundle}
           animation={animation}
-          revision={revision}
-          enabled={settings.effectsEnabled}
-          avatarSize={settings.avatarSize}
-          icon={mappingEntry?.icon}
-          badgeIconColor={bundle.badgeIconColor}
-          showDebugZone={settings.debugMode}
+          size={renderedAvatarSize}
+          className="animate-in fade-in duration-300"
+          style={{
+            transition: "width 300ms ease-out, height 300ms ease-out",
+          }}
         />
+        {/* En bas (pas en haut) : le badge d'état occupe le coin haut-droit (cf.
+            AnimationOverlay, BADGE_INSET_PCT) -- un panneau texte en haut s'y superposait. */}
+        <pre
+          className={`pointer-events-none absolute bottom-1 left-1 z-50 m-0 font-mono text-[10px] leading-[1.3] whitespace-pre-wrap text-white opacity-0 [text-shadow:0_0_2px_#000] transition-opacity duration-300 ${settings.debugMode ? "opacity-100" : ""}`}
+        >
+          {[
+            `animation: ${animation} (rev ${revision})`,
+            `hook: ${lastEvent ?? "-"}${
+              toolName ? ` tool=${toolName}` : ""
+            }${notificationType ? ` type=${notificationType}` : ""}`,
+            `avatarSize: ${renderedAvatarSize}px`,
+          ].join("\n")}
+        </pre>
       </div>
+
+      <AnimationOverlay
+        animation={animation}
+        revision={revision}
+        enabled={settings.effectsEnabled}
+        avatarSize={renderedAvatarSize}
+        icon={mappingEntry?.icon}
+        badgeIconColor={bundle.badgeIconColor}
+        showDebugZone={settings.debugMode}
+      />
     </div>
   );
 }
