@@ -10,8 +10,10 @@ import { useSettings } from "../hooks/useSettings";
 import { debugZoneClass } from "../lib/debugZone";
 import {
   BUBBLE_MAX_WIDTH,
+  BUBBLE_SHADOW_GAP,
   BUBBLE_TAIL_GAP,
   BUBBLE_WINDOW_WIDTH,
+  EDGE_PADDING,
 } from "../lib/layout";
 import { pickNotificationMessage } from "../lib/notificationMessages";
 
@@ -129,17 +131,32 @@ export function NotificationBubbleWindow() {
       return;
     }
     const params = new URLSearchParams(window.location.search);
-    const newHeight =
-      Math.ceil(bubbleRef.current.getBoundingClientRect().height) +
-      BUBBLE_TAIL_GAP;
-    const avatarTop = Number(params.get("avatarTop"));
-    const avatarBottom = Number(params.get("avatarBottom"));
-    const monitorTop = Number(params.get("monitorTop"));
-    const bubbleX = Number(params.get("bubbleX"));
-    const nextFlipped = avatarTop - monitorTop < newHeight;
-    const y = nextFlipped ? avatarBottom : avatarTop - newHeight;
 
     void (async () => {
+      // Le texte utilise une police web custom (Geist Mono) -- si elle n'est pas encore
+      // chargée au moment de la mesure, le fallback système peut faire retomber le texte sur
+      // moins de lignes que la police finale, sous-dimensionnant la fenêtre (le vrai rendu,
+      // plus haut une fois la police chargée, déborde alors du haut). Attendre son chargement
+      // avant de mesurer élimine cette course.
+      await document.fonts.ready;
+      if (!bubbleRef.current) return;
+
+      // `offsetHeight` (pas `getBoundingClientRect()`) : pendant "measuring", la bulle porte
+      // encore sa classe `scale-95` (état caché avant révélation, cf. plus bas) --
+      // `getBoundingClientRect()` inclut les transforms CSS et mesurerait donc 95% de la
+      // vraie taille, sous-dimensionnant la fenêtre. `offsetHeight` ignore les transforms
+      // (taille de layout réelle), déjà rogné du contenu une fois passé à `scale-100`.
+      const newHeight =
+        bubbleRef.current.offsetHeight + BUBBLE_TAIL_GAP + BUBBLE_SHADOW_GAP;
+      const avatarTop = Number(params.get("avatarTop"));
+      const avatarBottom = Number(params.get("avatarBottom"));
+      const monitorTop = Number(params.get("monitorTop"));
+      const bubbleX = Number(params.get("bubbleX"));
+      // `EDGE_PADDING` (cf. layout.ts) : la bulle ne doit pas non plus coller pile contre le
+      // bord haut de l'écran quand elle passe au-dessus de l'avatar.
+      const nextFlipped = avatarTop - monitorTop - EDGE_PADDING < newHeight;
+      const y = nextFlipped ? avatarBottom : avatarTop - newHeight;
+
       const win = getCurrentWindow();
       await win
         .setSize(new LogicalSize(BUBBLE_WINDOW_WIDTH, newHeight))
@@ -296,7 +313,7 @@ export function NotificationBubbleWindow() {
             maxWidth: BUBBLE_MAX_WIDTH,
           } as CSSProperties
         }
-        className={`relative rounded-2xl border bg-popover px-4 py-3 text-center font-mono text-sm font-medium text-popover-foreground shadow-lg transition-all ${
+        className={`relative rounded-2xl border bg-popover px-4 py-5 text-center font-mono text-sm font-medium text-popover-foreground shadow-lg transition-all ${
           flipped ? "origin-top" : "origin-bottom"
         } ${
           phase === "revealing" && fullText

@@ -1,7 +1,11 @@
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { currentMonitor, getCurrentWindow } from "@tauri-apps/api/window";
 import { useEffect, useRef } from "react";
-import { BUBBLE_MAX_WIDTH, BUBBLE_WINDOW_WIDTH } from "../lib/layout";
+import {
+  BUBBLE_MAX_WIDTH,
+  BUBBLE_WINDOW_WIDTH,
+  EDGE_PADDING,
+} from "../lib/layout";
 import { pickNotificationMessage } from "../lib/notificationMessages";
 
 interface BubbleWindowParams {
@@ -103,13 +107,17 @@ export function useBubbleWindow({
       // comme l'ancienne bulle intégrée à "main" (cf. mémoire projet).
       const bubbleX = avatarCenterX - BUBBLE_WINDOW_WIDTH / 2;
       const halfBubble = BUBBLE_MAX_WIDTH / 2;
+      // `EDGE_PADDING` (cf. layout.ts) : même marge de sécurité que le drag de l'avatar, pour
+      // que le corps de la bulle ne colle jamais pile contre le bord de l'écran non plus.
       const overflowLeft = Math.max(
         0,
-        monitorPos.x - (avatarCenterX - halfBubble),
+        monitorPos.x + EDGE_PADDING - (avatarCenterX - halfBubble),
       );
       const overflowRight = Math.max(
         0,
-        avatarCenterX + halfBubble - (monitorPos.x + monitorSize.width),
+        avatarCenterX +
+          halfBubble -
+          (monitorPos.x + monitorSize.width - EDGE_PADDING),
       );
       const shiftX = overflowLeft - overflowRight;
 
