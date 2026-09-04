@@ -31,8 +31,17 @@ export default defineConfig(async () => ({
         }
       : undefined,
     watch: {
-      // 3. tell Vite to ignore watching `src-tauri`
-      ignored: ["**/src-tauri/**", "**/.claude/**"],
+      // 3. tell Vite to ignore watching `src-tauri`, `.claude`, et la doc/README --
+      // ces derniers ne font partie d'aucun module du bundle mais restaient regardes par
+      // le watcher par defaut, et le plugin Tailwind v4 (scan large du repo pour detecter
+      // les classes utilisees) redeclenchait un full-reload CSS a chaque edition de
+      // README.md/docs/**, faisant clignoter/disparaitre l'avatar dans la fenetre "main".
+      ignored: [
+        "**/src-tauri/**",
+        "**/.claude/**",
+        "**/docs/**",
+        "**/README*.md",
+      ],
     },
   },
 }));

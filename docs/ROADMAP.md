@@ -155,6 +155,10 @@ additionnel. À reconsidérer si le moteur expose un jour ce type de hook.
       souris.**
 - [x] Étape 10 — Fenêtre de settings (taille avatar, mode debug, JSON, export/import) —
       voir section dédiée plus bas
+- [ ] Étape 11 — V0 partageable (icônes custom, tray simplifié, packaging NSIS,
+      auto-launch au 1er `SessionStart`, commande settings pour installer les
+      hooks, système de mise à jour, CI de release, LP optionnelle) — détail
+      complet dans [`docs/RELEASE.md`](RELEASE.md)
 - [x] **Découpage frontend.** `src/App.tsx` (orchestrateur fin) + `src/hooks/useHookyState.ts`
       (écoute l'event `hooky-state`) + `src/components/PetAvatar.tsx` (rendu + drag) —
       base réutilisable pour ajouter d'autres hooks/composants sans repartir d'un
