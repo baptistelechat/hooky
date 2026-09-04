@@ -477,11 +477,11 @@ Passage en mode plan (architecture multi-fichiers, tension avec le système anti
 
 Vérification lourde en usage réel (interop Win32, cf. [LRN-035](learnings/LRN-035.md)) : plusieurs faux négatifs avant de confirmer que le mécanisme fonctionnait -- deux causes cumulées identifiées et corrigées en cours de route (HMR peu fiable sur un hook non-composant, cf. [GLRN-269]; interférence des propres hooks de la session Claude Code testant Hooky sur le même serveur local, cf. [LRN-060](learnings/LRN-060.md)) -- cf. [ZBLK-026](archive/blockers/ZBLK-026.md) pour le détail du diagnostic. Un vrai bug de listener async trouvé et corrigé au passage (`dragState` pouvant rester bloqué à `true`, cf. [GLRN-270]). Un `vite.config.js` corrompu par `tsc -b` (même piège que [[GLRN-268]]) restauré avant de continuer.
 
-Une fois le mécanisme confirmé fonctionnel, retour direct de Baptiste après test réel : zones "window"/"slot" toujours visibles en fin de notification et surtout un flash important à l'apparition ET à la disparition de la bulle (cf. [BDR-052](decisions/BDR-052.md)) -- les deux appels IPC `setSize`+`setPosition`, non atomiques, ne pouvaient pas être parfaitement synchronisés avec le rendu WebView2, contrairement au flip (déjà résolu en CSS pur depuis [BDR-050](decisions/BDR-050.md)). Baptiste propose directement la correction : réserver les deux bandes de bulle EN PERMANENCE (hauteurs synchronisées) plutôt que redimensionner la fenêtre à chaque notification -- implémentée telle quelle (cf. [BDR-053](decisions/BDR-053.md)), le resize ne dépend plus que d'`avatarSize` (Settings, rare). Reconfirmé en test réel : position/taille de fenêtre strictement inchangées sur tout un cycle de notification (6s), plus aucun flash.
+Une fois le mécanisme confirmé fonctionnel, retour direct de Baptiste après test réel : zones "window"/"slot" toujours visibles en fin de notification et surtout un flash important à l'apparition ET à la disparition de la bulle (cf. [ZBDR-052](archive/decisions/ZBDR-052.md)) -- les deux appels IPC `setSize`+`setPosition`, non atomiques, ne pouvaient pas être parfaitement synchronisés avec le rendu WebView2, contrairement au flip (déjà résolu en CSS pur depuis [BDR-050](decisions/BDR-050.md)). Baptiste propose directement la correction : réserver les deux bandes de bulle EN PERMANENCE (hauteurs synchronisées) plutôt que redimensionner la fenêtre à chaque notification -- implémentée telle quelle (cf. [BDR-053](decisions/BDR-053.md)), le resize ne dépend plus que d'`avatarSize` (Settings, rare). Reconfirmé en test réel : position/taille de fenêtre strictement inchangées sur tout un cycle de notification (6s), plus aucun flash.
 
 **Entrées clés :**
 
-- [BDR-052](decisions/BDR-052.md) — fenêtre dynamique par notification, abandonnée (flash)
+- [ZBDR-052](archive/decisions/ZBDR-052.md) — fenêtre dynamique par notification, abandonnée (flash)
 - [BDR-053](decisions/BDR-053.md) — fenêtre fixe, bandes de bulle réservées en permanence (révise BDR-052)
 - [ZBLK-026](archive/blockers/ZBLK-026.md) — diagnostic du resize qui semblait ne pas se déclencher (résolu)
 - [LRN-060](learnings/LRN-060.md) — interférence du dogfooding depuis la même session Claude Code
@@ -533,25 +533,77 @@ Ensuite, plusieurs allers-retours sur le dimensionnement précis de la fenêtre 
 - [ZBLK-027](archive/blockers/ZBLK-027.md) — allers-retours taille fixe/mesure dynamique avant stabilisation (résolu)
 - [LRN-064](learnings/LRN-064.md), [LRN-065](learnings/LRN-065.md), [LRN-066](learnings/LRN-066.md) — patterns extraits
 
-## 2026-09-04
+## 2026-08-31
 
-Baptiste demande les étapes restantes avant une v0 partageable (icônes custom, distribution, tray, auto-launch, commande settings pour installer les hooks, LP, système de mise à jour). Réponse structurée validant sa liste et ajoutant 4 points manquants (packaging NSIS réel, CI de release, avertissement SmartScreen, sync de version) -- écrite dans un nouveau fichier dédié `docs/RELEASE.md` (même convention que `EVENTS.md`), avec une entrée résumée en Étape 11 de `ROADMAP.md` (cf. [BDR-058](decisions/BDR-058.md)). Décision notable sur le système de mise à jour : rejet du plugin `tauri-plugin-updater` officiel (signature ECDSA + `latest.json` à maintenir) au profit d'un simple check `fetch()` de l'API GitHub releases, cohérent avec le besoin réel (rediriger vers la release, pas installer en silence).
+Nouvelle session, retour direct de Baptiste sur un souci multi-écran non couvert jusqu'ici : le clamp de drag de l'avatar (`startClampedDrag`) bloquait l'avatar sur son écran principal, même sur son PC en double écran -- root cause identifiée directement (`currentMonitor()` ne renvoie que le moniteur où la fenêtre se trouve au moment de l'appel, pas le bureau virtuel entier), corrigée en calculant les bornes sur l'union de tous les moniteurs via `availableMonitors()` (cf. [BDR-058](decisions/BDR-058.md)).
 
-Baptiste valide et demande d'enchaîner sur un README complet + LICENSE, avec présentation du projet et tuto d'installation incluant le disclaimer SmartScreen Windows. Premier jet écrit, puis trois retours consécutifs : (1) trop de sauts de ligne inutiles, (2) besoin d'une version EN et FR, (3) besoin d'illustrations (captures du pet et des settings) pour que le README rende comme une mini landing page en attendant une vraie LP.
+Baptiste demande ensuite une marge de sécurité pour ne pas coller l'avatar pile au bord (`EDGE_PADDING`, 12px), puis signale que ce même traitement manquait à la bulle de notification -- appliqué aux DEUX mécaniques de positionnement avec la même constante partagée (cf. [BDR-059](decisions/BDR-059.md)).
 
-Chantier screenshots : capture de la fenêtre "Hooky - Paramètres" via un script PowerShell interop Win32 (`docs/assets/capture-window.ps1`, cf. déjà [LRN-035](learnings/LRN-035.md) pour la méthode générale). Plusieurs itérations sur un bug sournois -- dimensions de capture correctes mais contenu visuel erroné (VS Code au lieu de la fenêtre Hooky) -- diagnostiquées en comparant un screenshot de l'écran virtuel entier à la sous-région supposée : cause racine, `SetForegroundWindow` (et l'activation implicite de `ShowWindow(SW_RESTORE)`) bloqué silencieusement par la protection anti-focus-stealing de Windows quand appelé depuis un process PowerShell externe. Fix : `SetWindowPos(HWND_TOPMOST, SWP_NOACTIVATE)`, qui ne demande pas les mêmes droits (cf. [BLK-028](blockers/BLK-028.md), [LRN-067](learnings/LRN-067.md)). Tentative parallèle de capturer le pet via un navigateur classique (page blanche, l'app dépend de l'API Tauri au runtime, pas seulement au montage) -- abandonnée au profit de la capture native, une fois le bug résolu.
+Chantier le plus long de la session : la bulle de notification restait "coupée" (texte + `box-shadow` rognés en haut) malgré deux corrections successives (padding horizontal, puis `BUBBLE_SHADOW_GAP` pour l'espace du shadow) -- cf. [ZBLK-028](archive/blockers/ZBLK-028.md). Diagnostic final en deux temps, tous deux dans la MESURE de hauteur elle-même (pas dans l'espace réservé) : (1) `getBoundingClientRect()` mesurait la bulle pendant qu'elle portait encore sa classe `scale-95` (état pré-révélation), donc 95% de la vraie taille -- corrigé avec `offsetHeight`, qui ignore les transforms CSS (cf. [LRN-067](learnings/LRN-067.md)) ; (2) la police web custom (Geist Mono) pouvait ne pas être chargée au moment de la mesure, faisant retomber le texte sur le fallback système avec moins de lignes -- corrigé en attendant `document.fonts.ready` avant de mesurer (cf. [LRN-068](learnings/LRN-068.md)). Les deux fixes combinés (cf. [BDR-060](decisions/BDR-060.md)) ont résolu le blocage sans nécessiter de redémarrage serveur, contrairement à ce que Baptiste avait tenté entre-temps.
 
-Une fois l'outil fiable, Baptiste demande explicitement plusieurs captures d'animations (déclenchées en POSTant des events synthétiques sur le serveur local `127.0.0.1:4242/event`, même technique que [LRN-024](learnings/LRN-024.md)) et plusieurs skins d'avatar (forçage temporaire de `avatarId` dans `Avatar.tsx`, hot-reload Vite, capture, puis revert propre confirmé par `git diff` vide). 13 captures obtenues au total (6 animations Cubee, 4 skins, 3 onglets Settings). Skill `readme-writer` découvert et utilisé pour la réécriture finale (badges `shieldcn`, table stack technique, footer signature) -- `README.md` (EN, canonique) et `README.fr.md` réécrits avec ces captures intégrées façon mini-LP (cf. [BDR-059](decisions/BDR-059.md)).
-
-En fin de chantier, Baptiste signale que l'avatar disparaît pendant que le README est édité. Root cause trouvée directement (pas de fausse piste) : `@tailwindcss/vite` scanne tout le repo par défaut, et `vite.config.ts` n'excluait de son watch que `src-tauri`/`.claude` -- `docs/**`/`README*.md` restaient regardés, chaque edit y déclenchant un full-reload CSS de la fenêtre "main" (cf. [LRN-068](learnings/LRN-068.md)). Fix appliqué (`server.watch.ignored` étendu), nécessite un redémarrage de `pnpm tauri:dev` pour prendre effet.
-
-`/gen-commit` lancé (message proposé, pas encore confirmé au moment de ce rituel). Rituel `/memory-close` : archivage de [ZBLK-027](archive/blockers/ZBLK-027.md) (résolu depuis une session précédente, jamais archivé), 2 décisions et 2 apprentissages ajoutés en LOCAL (Baptiste a de nouveau explicitement demandé "full local"), 1 nouveau blocage résolu.
+`/gen-commit` lancé en cours de session (4 fichiers modifiés, commit proposé mais pas encore confirmé au moment de ce rituel). Rituel `/memory-close` : archivage de [ZBLK-027](archive/blockers/ZBLK-027.md) (résolu en fin de session précédente, pas encore archivé), 3 décisions et 2 apprentissages ajoutés en LOCAL (Baptiste confirme "full local", même préférence que les deux sessions précédentes), 1 nouveau blocage résolu.
 
 **Entrées clés :**
 
-- [BDR-058](decisions/BDR-058.md) — checklist V0 partageable (`docs/RELEASE.md`), MAJ via check API GitHub plutôt que le plugin Tauri Updater
-- [BDR-059](decisions/BDR-059.md) — README bilingue EN/FR façon mini-LP avec captures réelles
-- [BLK-028](blockers/BLK-028.md) — capture de fenêtre Hooky montrait le mauvais contenu malgré un rect correct (résolu)
-- [LRN-067](learnings/LRN-067.md) — `SetForegroundWindow` bloqué depuis un process externe, `SetWindowPos(TOPMOST)` fonctionne
-- [LRN-068](learnings/LRN-068.md) — `@tailwindcss/vite` scanne tout le repo, exclure la doc du watch Vite
-- [ZBLK-027](archive/blockers/ZBLK-027.md) — archivage tardif d'un blocage résolu lors d'une session précédente
+- [BDR-058](decisions/BDR-058.md) — clamp de drag sur l'union de tous les moniteurs (bug multi-écran)
+- [BDR-060](decisions/BDR-060.md) — bulle : `offsetHeight` + `document.fonts.ready`, root cause du rognage persistant
+- [ZBLK-028](archive/blockers/ZBLK-028.md) — bulle "encore coupée" après deux fixes ciblés, cause réelle ailleurs (résolu)
+- [LRN-067](learnings/LRN-067.md), [LRN-068](learnings/LRN-068.md) — patterns extraits
+
+---
+
+Nouvelle session le même jour, partie d'une capture d'écran de Baptiste montrant le shadow de l'avatar ET du badge rognés net par le bord de la fenêtre "main". Root cause identique à celle de [BDR-060](decisions/BDR-060.md) la veille, mais côté avatar cette fois : la fenêtre "main" était dimensionnée pile à `avatarSize` (aucune marge), donc le `drop-shadow` de l'avatar/badge ne pouvait physiquement pas déborder de ses propres bornes. Fix : nouvelle constante `AVATAR_SHADOW_GAP` (24px, réservée sur les 4 côtés contrairement à `BUBBLE_SHADOW_GAP` à sens unique) + helper `avatarWindowSize()`, répercutés dans le clamp de drag et le calcul de position de la bulle (cf. [BDR-061](decisions/BDR-061.md)) — pattern généralisé en [LRN-069](learnings/LRN-069.md).
+
+Baptiste a immédiatement précisé que la bulle, elle, n'était PAS corrigée malgré [BDR-060](decisions/BDR-060.md) de la veille ("tu n'as pas fait de modif pour bubble", "même comportement"). Re-diagnostic : `BUBBLE_SHADOW_GAP` avait été placé "du côté opposé à la pointe", hypothèse qui ne tient QUE par coïncidence en orientation flipped (le `box-shadow` Tailwind a un biais fixe vers le bas, indépendant de toute logique de flip) — en orientation par défaut (la plus courante), le gap tombait du mauvais côté (cf. [BLK-029](blockers/BLK-029.md)/[LRN-070](learnings/LRN-070.md)). Corrigé en réservant le gap toujours du côté où le shadow déborde réellement, avec recalcul de la position Y pour garder la pointe collée à l'avatar.
+
+Enfin, à la question de Baptiste ("`slot` est toujours utile ?"), vérification puis suppression : la div était devenue totalement redondante une fois la fenêtre agrandie au-delà d'`avatarSize` (cf. [BDR-062](decisions/BDR-062.md)) — `window` centre déjà le carré `avatarSize`, `AnimationOverlay` se recentre déjà lui-même en interne.
+
+Lint + build passants sur l'ensemble des changements. Aucun des deux fixes (avatar, bulle) n'a été revérifié visuellement par Baptiste au moment de ce rituel — `BLK-029` reste `ouvert` en conséquence.
+
+**Entrées clés :**
+
+- [BDR-061](decisions/BDR-061.md) — `AVATAR_SHADOW_GAP`, même mécanisme que la bulle appliqué à l'avatar
+- [BDR-062](decisions/BDR-062.md) — suppression de la div `slot`, devenue redondante
+- [BLK-029](blockers/BLK-029.md) — shadow bulle toujours rogné, gap placé du mauvais côté (ouvert)
+- [LRN-069](learnings/LRN-069.md), [LRN-070](learnings/LRN-070.md) — patterns extraits
+
+---
+
+Nouvelle session le même jour. Baptiste signale un nouveau symptôme sur le même resize d'avatar que [BDR-061](decisions/BDR-061.md) : le changement de taille via le slider Settings est saccadé, et pire à l'augmentation — l'avatar se fait rogner avant que la fenêtre "main" n'ait fini de se redimensionner. Diagnostic mené par archéologie git plutôt qu'en devinant (`git log -p` sur `Avatar.tsx`) : avant [ZBDR-052](archive/decisions/ZBDR-052.md), la fenêtre "main" était fixe (480×420, jamais redimensionnée par `avatarSize`), donc le CSS de l'avatar animait librement sans jamais heurter de bord — le `setSize()` OS actuel (introduit avec le passage à une fenêtre dynamique, débouncé 120ms pour éviter un resize par tick de slider) n'existait tout simplement pas dans cette ancienne architecture. Depuis, le CSS suivait `settings.avatarSize` en direct (change à chaque tick) pendant que la fenêtre attendait la fin du debounce — le contenu grandissait donc au-delà des bornes réelles de la fenêtre le temps que celle-ci rattrape, d'où le rognage à l'augmentation.
+
+Fix : nouveau state `renderedAvatarSize`, mis à jour dans le MÊME `setTimeout` que le `setSize()` OS plutôt que de laisser le CSS lire `settings.avatarSize` directement — le CSS et la fenêtre changent désormais toujours ensemble (cf. [BDR-063](decisions/BDR-063.md)/[LRN-071](learnings/LRN-071.md)). Lint + build passants ; correction pas encore revérifiée en usage réel par Baptiste au moment de ce rituel. `/gen-commit` lancé juste avant sur un ensemble plus large de fichiers stagged (dont ce fix), message proposé mais pas encore confirmé.
+
+**Entrées clés :**
+
+- [BDR-063](decisions/BDR-063.md) — taille CSS avatar synchronisée sur le resize OS débouncé
+- [LRN-071](learnings/LRN-071.md) — pattern extrait (état CSS live ne doit pas dépasser une action OS débouncée qui le borne)
+
+---
+
+Rituel de consolidation mémoire (scope local). 0 fusion, 1 archivage.
+
+**Entrées clés :**
+
+- [ZBDR-052](archive/decisions/ZBDR-052.md) — fenêtre dynamique par notification, abandonnée (flash), révisée par BDR-053
+
+## 2026-09-04
+
+Baptiste demande les étapes restantes avant une v0 partageable (icônes custom, distribution, tray, auto-launch, commande settings pour installer les hooks, LP, système de mise à jour). Réponse structurée validant sa liste et ajoutant 4 points manquants (packaging NSIS réel, CI de release, avertissement SmartScreen, sync de version) -- écrite dans un nouveau fichier dédié `docs/RELEASE.md` (même convention que `EVENTS.md`), avec une entrée résumée en Étape 11 de `ROADMAP.md` (cf. [BDR-064](decisions/BDR-064.md)). Décision notable sur le système de mise à jour : rejet du plugin `tauri-plugin-updater` officiel (signature ECDSA + `latest.json` à maintenir) au profit d'un simple check `fetch()` de l'API GitHub releases, cohérent avec le besoin réel (rediriger vers la release, pas installer en silence).
+
+Baptiste valide et demande d'enchaîner sur un README complet + LICENSE, avec présentation du projet et tuto d'installation incluant le disclaimer SmartScreen Windows. Premier jet écrit, puis trois retours consécutifs : (1) trop de sauts de ligne inutiles, (2) besoin d'une version EN et FR, (3) besoin d'illustrations (captures du pet et des settings) pour que le README rende comme une mini landing page en attendant une vraie LP.
+
+Chantier screenshots : capture de la fenêtre "Hooky - Paramètres" via un script PowerShell interop Win32 (`docs/assets/capture-window.ps1`, cf. déjà [LRN-035](learnings/LRN-035.md) pour la méthode générale). Plusieurs itérations sur un bug sournois -- dimensions de capture correctes mais contenu visuel erroné (VS Code au lieu de la fenêtre Hooky) -- diagnostiquées en comparant un screenshot de l'écran virtuel entier à la sous-région supposée : cause racine, `SetForegroundWindow` (et l'activation implicite de `ShowWindow(SW_RESTORE)`) bloqué silencieusement par la protection anti-focus-stealing de Windows quand appelé depuis un process PowerShell externe. Fix : `SetWindowPos(HWND_TOPMOST, SWP_NOACTIVATE)`, qui ne demande pas les mêmes droits (cf. [BLK-030](blockers/BLK-030.md), [LRN-072](learnings/LRN-072.md)). Tentative parallèle de capturer le pet via un navigateur classique (page blanche, l'app dépend de l'API Tauri au runtime, pas seulement au montage) -- abandonnée au profit de la capture native, une fois le bug résolu.
+
+Une fois l'outil fiable, Baptiste demande explicitement plusieurs captures d'animations (déclenchées en POSTant des events synthétiques sur le serveur local `127.0.0.1:4242/event`, même technique que [LRN-024](learnings/LRN-024.md)) et plusieurs skins d'avatar (forçage temporaire de `avatarId` dans `Avatar.tsx`, hot-reload Vite, capture, puis revert propre confirmé par `git diff` vide). 13 captures obtenues au total (6 animations Cubee, 4 skins, 3 onglets Settings). Skill `readme-writer` découvert et utilisé pour la réécriture finale (badges `shieldcn`, table stack technique, footer signature) -- `README.md` (EN, canonique) et `README.fr.md` réécrits avec ces captures intégrées façon mini-LP (cf. [BDR-065](decisions/BDR-065.md)).
+
+En fin de chantier, Baptiste signale que l'avatar disparaît pendant que le README est édité. Root cause trouvée directement (pas de fausse piste) : `@tailwindcss/vite` scanne tout le repo par défaut, et `vite.config.ts` n'excluait de son watch que `src-tauri`/`.claude` -- `docs/**`/`README*.md` restaient regardés, chaque edit y déclenchant un full-reload CSS de la fenêtre "main" (cf. [LRN-073](learnings/LRN-073.md)). Fix appliqué (`server.watch.ignored` étendu), nécessite un redémarrage de `pnpm tauri:dev` pour prendre effet.
+
+`/gen-commit` lancé (message proposé, pas encore confirmé au moment de ce rituel). Rituel `/memory-close` : archivage de [ZBLK-027](archive/blockers/ZBLK-027.md) (résolu depuis une session précédente, jamais archivé), 2 décisions et 2 apprentissages ajoutés en LOCAL (Baptiste a de nouveau explicitement demandé "full local"), 1 nouveau blocage résolu. **Conflit git détecté juste après** : un `git pull` non anticipé (travail en parallèle sur une autre machine, sessions non synchronisées) entrait en collision sur les mêmes ID mémoire (`BDR-058`/`BDR-059`, `LRN-067`/`LRN-068`, `BLK-028` vs `BLK-029`) -- résolu en renumérotant les entrées de cette session pour qu'elles se placent après celles de l'autre branche (chronologiquement antérieures, 2026-08-31) : `BDR-058`→`BDR-064`, `BDR-059`→`BDR-065`, `LRN-067`→`LRN-072`, `LRN-068`→`LRN-073`, `BLK-028`→`BLK-030`.
+
+**Entrées clés :**
+
+- [BDR-064](decisions/BDR-064.md) — checklist V0 partageable (`docs/RELEASE.md`), MAJ via check API GitHub plutôt que le plugin Tauri Updater
+- [BDR-065](decisions/BDR-065.md) — README bilingue EN/FR façon mini-LP avec captures réelles
+- [BLK-030](blockers/BLK-030.md) — capture de fenêtre Hooky montrait le mauvais contenu malgré un rect correct (résolu)
+- [LRN-072](learnings/LRN-072.md) — `SetForegroundWindow` bloqué depuis un process externe, `SetWindowPos(TOPMOST)` fonctionne
+- [LRN-073](learnings/LRN-073.md) — `@tailwindcss/vite` scanne tout le repo, exclure la doc du watch Vite

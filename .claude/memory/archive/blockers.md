@@ -33,3 +33,4 @@ register: archive_blockers
 | [ZBLK-025](blockers/ZBLK-025.md) | 2026-08-30 | Flash de l'avatar au flip : 6 rounds avant la refonte architecturale              | #drag-drop #flip #flash #screen-edge #architecture #debugging                             | résolu |
 | [ZBLK-026](blockers/ZBLK-026.md) | 2026-08-30 | Notif ne redimensionnait pas la fenêtre : HMR + interférence du dogfooding        | #notification #window-resize #hmr #react-batching #debugging #misdiagnosis                | résolu |
 | [ZBLK-027](blockers/ZBLK-027.md) | 2026-08-30 | Fenêtre bulle : allers-retours taille fixe / mesure dynamique avant stabilisation | #tauri #notification-bubble #window-resize #shiftx #iteration #ux                         | résolu |
+| [ZBLK-028](blockers/ZBLK-028.md) | 2026-08-31 | Bulle "encore coupée" après deux fixes ciblés, la vraie cause était la mesure     | #tauri #notification-bubble #window-resize #debugging #css-transform #web-fonts           | résolu |

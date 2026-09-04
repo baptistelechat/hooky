@@ -1,6 +1,11 @@
 import { LogicalPosition } from "@tauri-apps/api/dpi";
 import { emit } from "@tauri-apps/api/event";
-import { currentMonitor, getCurrentWindow } from "@tauri-apps/api/window";
+import {
+  availableMonitors,
+  currentMonitor,
+  getCurrentWindow,
+} from "@tauri-apps/api/window";
+import { EDGE_PADDING } from "./layout";
 
 /**
  * Déplace la fenêtre "main" à la main (mousemove/mouseup globaux + `setPosition()`) au lieu
@@ -13,10 +18,8 @@ import { currentMonitor, getCurrentWindow } from "@tauri-apps/api/window";
  * planned"). En pilotant nous-mêmes chaque mise à jour de position, il n'existe plus de
  * boucle OS concurrente à écraser.
  *
- * L'avatar remplit désormais EXACTEMENT toute la fenêtre "main" (plus de marge -- la
- * position de la fenêtre EST la position de l'avatar) -- il n'y a plus de bulle à faire
- * basculer dans cette fenêtre (elle vit dans sa propre fenêtre Tauri, cf. useBubbleWindow),
- * donc plus de calcul de flip ici. Un événement
+ * Il n'y a plus de bulle à faire basculer dans cette fenêtre (elle vit dans sa propre
+ * fenêtre Tauri, cf. useBubbleWindow), donc plus de calcul de flip ici. Un événement
  * `hooky-bubble-dismiss` est émis une seule fois au tout début du drag pour que la fenêtre
  * bulle (si une existe) se ferme proprement plutôt que de tenter de la faire suivre l'avatar
  * en direct -- une fenêtre séparée qui suit en continu une autre fenêtre en cours de
@@ -26,36 +29,55 @@ import { currentMonitor, getCurrentWindow } from "@tauri-apps/api/window";
 export function startClampedDrag(
   startScreenX: number,
   startScreenY: number,
-  avatarSize: number,
+  windowSize: number,
 ): void {
   void emit("hooky-bubble-dismiss");
 
   const win = getCurrentWindow();
 
   void (async () => {
-    const [startPosPhysical, monitor] = await Promise.all([
+    const [startPosPhysical, monitor, monitors] = await Promise.all([
       win.outerPosition(),
       currentMonitor(),
+      availableMonitors(),
     ]).catch((error: unknown) => {
       console.error(
         "[startClampedDrag] lecture position/moniteur échouée",
         error,
       );
-      return [null, null] as const;
+      return [null, null, null] as const;
     });
-    if (!startPosPhysical || !monitor) return;
+    if (!startPosPhysical || !monitor || !monitors) return;
 
     const scale = monitor.scaleFactor;
     const startWin = startPosPhysical.toLogical(scale);
-    const monitorPos = monitor.position.toLogical(scale);
-    const monitorSize = monitor.size.toLogical(scale);
 
-    // Bornes directes sur la position de la fenêtre (= position de l'avatar, aucune marge) :
-    // le bord réel de l'écran moins `avatarSize`, un seul calcul par axe.
-    const avatarMinX = monitorPos.x;
-    const avatarMaxX = monitorPos.x + monitorSize.width - avatarSize;
-    const avatarMinY = monitorPos.y;
-    const avatarMaxY = monitorPos.y + monitorSize.height - avatarSize;
+    // Bornes sur l'union de TOUS les moniteurs (bureau virtuel), pas seulement celui où le
+    // drag démarre -- `currentMonitor()` seul bloquait l'avatar sur son écran d'origine en
+    // config multi-écran. Converties avec le `scale` du moniteur de départ (cf. `scale`
+    // ci-dessus) : approximation suffisante tant que les moniteurs partagent le même DPI,
+    // qui reste le cas courant.
+    let virtualMinX = Infinity;
+    let virtualMinY = Infinity;
+    let virtualMaxX = -Infinity;
+    let virtualMaxY = -Infinity;
+    for (const m of monitors) {
+      const pos = m.position.toLogical(scale);
+      const size = m.size.toLogical(scale);
+      virtualMinX = Math.min(virtualMinX, pos.x);
+      virtualMinY = Math.min(virtualMinY, pos.y);
+      virtualMaxX = Math.max(virtualMaxX, pos.x + size.width);
+      virtualMaxY = Math.max(virtualMaxY, pos.y + size.height);
+    }
+
+    // Bornes sur la position de la fenêtre : le bord réel du bureau virtuel moins
+    // `windowSize` (taille réelle de la fenêtre "main", cf. layout.ts `avatarWindowSize` --
+    // plus grande que l'avatar lui-même depuis l'ajout d'`AVATAR_SHADOW_GAP`), avec
+    // `EDGE_PADDING` pour ne jamais coller la fenêtre pile contre le bord de l'écran.
+    const avatarMinX = virtualMinX + EDGE_PADDING;
+    const avatarMaxX = virtualMaxX - windowSize - EDGE_PADDING;
+    const avatarMinY = virtualMinY + EDGE_PADDING;
+    const avatarMaxY = virtualMaxY - windowSize - EDGE_PADDING;
 
     let rafId: number | null = null;
     let pendingX = startWin.x;

@@ -10,8 +10,10 @@ import { useSettings } from "../hooks/useSettings";
 import { debugZoneClass } from "../lib/debugZone";
 import {
   BUBBLE_MAX_WIDTH,
+  BUBBLE_SHADOW_GAP,
   BUBBLE_TAIL_GAP,
   BUBBLE_WINDOW_WIDTH,
+  EDGE_PADDING,
 } from "../lib/layout";
 import { pickNotificationMessage } from "../lib/notificationMessages";
 
@@ -129,17 +131,43 @@ export function NotificationBubbleWindow() {
       return;
     }
     const params = new URLSearchParams(window.location.search);
-    const newHeight =
-      Math.ceil(bubbleRef.current.getBoundingClientRect().height) +
-      BUBBLE_TAIL_GAP;
-    const avatarTop = Number(params.get("avatarTop"));
-    const avatarBottom = Number(params.get("avatarBottom"));
-    const monitorTop = Number(params.get("monitorTop"));
-    const bubbleX = Number(params.get("bubbleX"));
-    const nextFlipped = avatarTop - monitorTop < newHeight;
-    const y = nextFlipped ? avatarBottom : avatarTop - newHeight;
 
     void (async () => {
+      // Le texte utilise une police web custom (Geist Mono) -- si elle n'est pas encore
+      // chargée au moment de la mesure, le fallback système peut faire retomber le texte sur
+      // moins de lignes que la police finale, sous-dimensionnant la fenêtre (le vrai rendu,
+      // plus haut une fois la police chargée, déborde alors du haut). Attendre son chargement
+      // avant de mesurer élimine cette course.
+      await document.fonts.ready;
+      if (!bubbleRef.current) return;
+
+      // `offsetHeight` (pas `getBoundingClientRect()`) : pendant "measuring", la bulle porte
+      // encore sa classe `scale-95` (état caché avant révélation, cf. plus bas) --
+      // `getBoundingClientRect()` inclut les transforms CSS et mesurerait donc 95% de la
+      // vraie taille, sous-dimensionnant la fenêtre. `offsetHeight` ignore les transforms
+      // (taille de layout réelle), déjà rogné du contenu une fois passé à `scale-100`.
+      const bubbleHeight = bubbleRef.current.offsetHeight;
+      const newHeight = bubbleHeight + BUBBLE_TAIL_GAP + BUBBLE_SHADOW_GAP;
+      const avatarTop = Number(params.get("avatarTop"));
+      const avatarBottom = Number(params.get("avatarBottom"));
+      const monitorTop = Number(params.get("monitorTop"));
+      const bubbleX = Number(params.get("bubbleX"));
+      // `EDGE_PADDING` (cf. layout.ts) : la bulle ne doit pas non plus coller pile contre le
+      // bord haut de l'écran quand elle passe au-dessus de l'avatar.
+      const nextFlipped = avatarTop - monitorTop - EDGE_PADDING < newHeight;
+      // `shadow-lg` (Tailwind) déborde du corps presque exclusivement VERS LE BAS (offset
+      // positif), quelle que soit l'orientation `flipped` -- le corps lui-même, en revanche,
+      // ne se retourne jamais (seule sa position dans la fenêtre change). Non flipped (pointe
+      // en bas, corps proche du bord bas de la fenêtre) : `BUBBLE_SHADOW_GAP` doit rester
+      // COLLÉ à la pointe (donc ajouté À `avatarTop`, la fenêtre déborde de `BUBBLE_SHADOW_GAP`
+      // SOUS `avatarTop`, sans incidence -- transparent) au lieu d'être réservé en haut de
+      // fenêtre (cf. mémoire projet -- corrige un rognage constaté malgré une première passe
+      // qui plaçait ce gap du "côté opposé à la pointe", correct seulement en orientation
+      // flipped où pointe-en-haut coïncide avec le sens du débordement).
+      const y = nextFlipped
+        ? avatarBottom
+        : avatarTop - bubbleHeight - BUBBLE_TAIL_GAP;
+
       const win = getCurrentWindow();
       await win
         .setSize(new LogicalSize(BUBBLE_WINDOW_WIDTH, newHeight))
@@ -258,14 +286,16 @@ export function NotificationBubbleWindow() {
   );
 
   return (
-    // `pt-[5px]`/`pb-[5px]` DOIT correspondre à `BUBBLE_TAIL_GAP` (layout.ts, ajouté à la
-    // hauteur de fenêtre calculée plus haut) -- classes Tailwind statiques, impossible d'y
-    // injecter la constante directement (cf. mémoire projet sur debugZoneClass). Sans cette
-    // marge réservée côté avatar, le corps de la bulle (items-start/items-end) vient flush
-    // contre CE bord de la fenêtre et la pointe (qui dépasse de 5px du corps) est rognée par
-    // le bord de la fenêtre -- déjà rencontré une fois, cf. mémoire projet.
+    // `pt-[5px]` (flipped) DOIT correspondre à `BUBBLE_TAIL_GAP` seul -- le débordement du
+    // `shadow-lg` (vers le bas, cf. commentaire sur `y` plus haut) tombe naturellement dans
+    // l'espace flex restant SOUS le corps dans ce cas (pointe en haut, corps poussé en haut).
+    // `pb-[21px]` (non flipped) DOIT correspondre à `BUBBLE_TAIL_GAP + BUBBLE_SHADOW_GAP`
+    // (5 + 16, layout.ts) -- ici la pointe ET le débordement du shadow sont TOUS LES DEUX du
+    // même côté (bas), contrairement au cas flipped : la marge doit les couvrir ensemble.
+    // Classes Tailwind statiques, impossible d'y injecter les constantes directement (cf.
+    // mémoire projet sur debugZoneClass).
     <div
-      className={`flex h-full w-full ${flipped ? "items-start pt-[5px]" : "items-end pb-[5px]"} justify-center px-2 ${debugZoneClass(settings.debugMode, "bubble-zone", flipped)}`}
+      className={`flex h-full w-full ${flipped ? "items-start pt-[5px]" : "items-end pb-[21px]"} justify-center px-2 ${debugZoneClass(settings.debugMode, "bubble-zone", flipped)}`}
     >
       <div
         ref={bubbleRef}
@@ -296,7 +326,7 @@ export function NotificationBubbleWindow() {
             maxWidth: BUBBLE_MAX_WIDTH,
           } as CSSProperties
         }
-        className={`relative rounded-2xl border bg-popover px-4 py-3 text-center font-mono text-sm font-medium text-popover-foreground shadow-lg transition-all ${
+        className={`relative rounded-2xl border bg-popover px-4 py-5 text-center font-mono text-sm font-medium text-popover-foreground shadow-lg transition-all ${
           flipped ? "origin-top" : "origin-bottom"
         } ${
           phase === "revealing" && fullText

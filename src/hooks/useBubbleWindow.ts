@@ -1,7 +1,13 @@
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { currentMonitor, getCurrentWindow } from "@tauri-apps/api/window";
 import { useEffect, useRef } from "react";
-import { BUBBLE_MAX_WIDTH, BUBBLE_WINDOW_WIDTH } from "../lib/layout";
+import {
+  AVATAR_SHADOW_GAP,
+  BUBBLE_MAX_WIDTH,
+  BUBBLE_WINDOW_WIDTH,
+  EDGE_PADDING,
+  avatarWindowSize,
+} from "../lib/layout";
 import { pickNotificationMessage } from "../lib/notificationMessages";
 
 interface BubbleWindowParams {
@@ -86,13 +92,15 @@ export function useBubbleWindow({
       if (!posPhysical || !monitor) return;
 
       const scale = monitor.scaleFactor;
-      // Position/taille de "main" == position/taille de l'avatar, aucune marge (cf.
-      // Avatar.tsx/windowDrag.ts -- la fenêtre "main" est dimensionnée EXACTEMENT à
-      // `avatarSize`).
+      // "main" est dimensionnée à `avatarWindowSize(avatarSize)`, pas `avatarSize` pile (cf.
+      // layout.ts, `AVATAR_SHADOW_GAP` -- marge réservée pour le drop-shadow de l'avatar) --
+      // l'avatar reste centré dedans, décalé de `AVATAR_SHADOW_GAP` par rapport au coin de la
+      // fenêtre sur chaque axe.
       const posLogical = posPhysical.toLogical(scale);
-      const avatarTop = posLogical.y;
+      const windowSize = avatarWindowSize(avatarSize);
+      const avatarTop = posLogical.y + AVATAR_SHADOW_GAP;
       const avatarBottom = avatarTop + avatarSize;
-      const avatarCenterX = posLogical.x + avatarSize / 2;
+      const avatarCenterX = posLogical.x + windowSize / 2;
       const monitorPos = monitor.position.toLogical(scale);
       const monitorSize = monitor.size.toLogical(scale);
 
@@ -103,13 +111,17 @@ export function useBubbleWindow({
       // comme l'ancienne bulle intégrée à "main" (cf. mémoire projet).
       const bubbleX = avatarCenterX - BUBBLE_WINDOW_WIDTH / 2;
       const halfBubble = BUBBLE_MAX_WIDTH / 2;
+      // `EDGE_PADDING` (cf. layout.ts) : même marge de sécurité que le drag de l'avatar, pour
+      // que le corps de la bulle ne colle jamais pile contre le bord de l'écran non plus.
       const overflowLeft = Math.max(
         0,
-        monitorPos.x - (avatarCenterX - halfBubble),
+        monitorPos.x + EDGE_PADDING - (avatarCenterX - halfBubble),
       );
       const overflowRight = Math.max(
         0,
-        avatarCenterX + halfBubble - (monitorPos.x + monitorSize.width),
+        avatarCenterX +
+          halfBubble -
+          (monitorPos.x + monitorSize.width - EDGE_PADDING),
       );
       const shiftX = overflowLeft - overflowRight;
 
