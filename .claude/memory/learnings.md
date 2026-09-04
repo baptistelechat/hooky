@@ -72,3 +72,5 @@ register: learnings
 | [LRN-064](learnings/LRN-064.md) | 2026-08-30 | Fenêtre Tauri spawnée en réaction à un event n'en reçoit jamais le rejeu            | #tauri #webviewwindow #event #race-condition #spawn #pub-sub                          |
 | [LRN-065](learnings/LRN-065.md) | 2026-08-30 | Redimensionner une fenêtre AVANT `show()` élimine le flash de resize                | #tauri #webviewwindow #window-resize #flash-free #dynamic-sizing #popup               |
 | [LRN-066](learnings/LRN-066.md) | 2026-08-30 | Porter un mécanisme de compensation visuelle en entier lors d'une ré-architecture   | #refactor #architecture-migration #regression #compensation-mechanism #edge-case      |
+| [LRN-067](learnings/LRN-067.md) | 2026-09-04 | `SetForegroundWindow` échoue depuis un process externe, `SetWindowPos(TOPMOST)` OK  | #windows #win32 #setforegroundwindow #focus-stealing #setwindowpos #screenshot        |
+| [LRN-068](learnings/LRN-068.md) | 2026-09-04 | `@tailwindcss/vite` scanne tout le repo, exclure la doc du watch                    | #tailwind #tailwindv4 #vite #watch #hmr #full-reload #docs                            |

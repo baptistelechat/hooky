@@ -61,3 +61,5 @@ register: decisions
 | [BDR-055](decisions/BDR-055.md) | 2026-08-30 | Région de hit-test en "I" via `SetWindowRgn`, vérifiée OS                    | #tauri #windows #setwindowrgn #hit-test-shaping #click-through #architecture        | révisé |
 | [BDR-056](decisions/BDR-056.md) | 2026-08-30 | Bulle de notification : fenêtre dédiée spawn/kill par notification           | #tauri #webviewwindow #multi-window #notification #spawn-kill #architecture #revert | actif  |
 | [BDR-057](decisions/BDR-057.md) | 2026-08-30 | Positionnement bulle : fenêtre surdimensionnée + shiftX, hauteur mesurée     | #css #shiftx #tauri #window-resize #flash-free #dynamic-measurement #ux             | actif  |
+| [BDR-058](decisions/BDR-058.md) | 2026-09-04 | Checklist V0 partageable (`docs/RELEASE.md`), MAJ via check API GitHub       | #v0 #release #distribution #update-system #github-releases #tauri-updater #nsis     | actif  |
+| [BDR-059](decisions/BDR-059.md) | 2026-09-04 | README bilingue EN/FR façon mini-LP, screenshots réels                       | #readme #documentation #bilingual #screenshots #shieldcn #readme-writer #mini-lp    | actif  |
