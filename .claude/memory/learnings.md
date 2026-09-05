@@ -79,3 +79,4 @@ register: learnings
 | [LRN-071](learnings/LRN-071.md) | 2026-08-31 | État CSS live ne doit jamais dépasser une opération OS débouncée qui le borne       | #react #css #debounce #window-resize #race-condition #ux                              |
 | [LRN-072](learnings/LRN-072.md) | 2026-09-04 | `SetForegroundWindow` échoue depuis un process externe, `SetWindowPos(TOPMOST)` OK  | #windows #win32 #setforegroundwindow #focus-stealing #setwindowpos #screenshot        |
 | [LRN-073](learnings/LRN-073.md) | 2026-09-04 | `@tailwindcss/vite` scanne tout le repo, exclure la doc du watch                    | #tailwind #tailwindv4 #vite #watch #hmr #full-reload #docs                            |
+| [LRN-074](learnings/LRN-074.md) | 2026-09-05 | Merge JSON idempotent par identité stable, jamais par égalité de texte exacte       | #rust #json-merge #idempotency #hooks-install #session-start #regression              |
