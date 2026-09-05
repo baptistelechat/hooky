@@ -155,10 +155,10 @@ additionnel. À reconsidérer si le moteur expose un jour ce type de hook.
       souris.**
 - [x] Étape 10 — Fenêtre de settings (taille avatar, mode debug, JSON, export/import) —
       voir section dédiée plus bas
-- [ ] Étape 11 — V0 partageable (icônes custom, tray simplifié, packaging NSIS,
+- [x] Étape 11 — V0 partageable (icônes custom, tray simplifié, packaging NSIS,
       auto-launch au 1er `SessionStart`, commande settings pour installer les
-      hooks, système de mise à jour, CI de release, LP optionnelle) — détail
-      complet dans [`docs/RELEASE.md`](RELEASE.md)
+      hooks, système de mise à jour, CI de release) — voir section dédiée plus
+      bas ; LP optionnelle non commencée
 - [x] **Découpage frontend.** `src/App.tsx` (orchestrateur fin) + `src/hooks/useHookyState.ts`
       (écoute l'event `hooky-state`) + `src/components/PetAvatar.tsx` (rendu + drag) —
       base réutilisable pour ajouter d'autres hooks/composants sans repartir d'un
@@ -366,3 +366,35 @@ fenêtre statique show/hide) :
   le resize de "main".
 - Vérifié : `pnpm lint`, `pnpm build`, `cargo check` passent tous. Pas de test visuel réel
   de ce round.
+
+## Étape 11 — V0 partageable ✅ (LP optionnelle exclue)
+
+Checklist complète décidée dans [BDR-064](../.claude/memory/decisions/BDR-064.md), implémentée
+en une passe via 5 agents parallèles groupés par fichiers non-partagés — détail décision :
+[BDR-066](../.claude/memory/decisions/BDR-066.md). Détail technique de chaque point (icônes,
+tray, NSIS, auto-launch, commande hooks, mise à jour, CI) : source de vérité tenue à jour dans
+[`docs/RELEASE.md`](RELEASE.md), pas dupliqué ici (même convention que
+[`docs/EVENTS.md`](EVENTS.md) pour les events).
+
+- Icônes régénérées depuis `src/assets/logo.svg` (vrai logo Cubee, `viewBox` resserré pour
+  remplir le cadre aux petites tailles tray/taskbar) via le générateur intégré `pnpm tauri icon`.
+- Tray réduit à `Paramètres` + `Quitter` ; commande `install_claude_hooks` (Rust) fusionne
+  `docs/hooks/claude-settings-snippet.json` dans `~/.claude/settings.json` de façon idempotente.
+- **Bug trouvé en test manuel + corrigé le jour même** : le dédoublonnage comparait par
+  égalité de texte exacte plutôt que par identité stable (port fixe `127.0.0.1:4242`) —
+  toute évolution future du snippet aurait dupliqué l'entrée `SessionStart` au lieu de la
+  remplacer. Root cause + fix : [LRN-074](../.claude/memory/learnings/LRN-074.md).
+- `serde_json` passé en `preserve_order` : un merge ne réordonne plus tout le fichier
+  `settings.json`, ne touche que les clés réellement modifiées.
+- Hook `SessionStart` auto-launch Windows implémenté en `curl ... || start ...` inline —
+  délibérément sans wrapper PowerShell pour rester dans le même modèle de portabilité que le
+  `curl` existant (aucun interpréteur shell explicite imposé), cf. `docs/hooks/README.md`.
+- CI `.github/workflows/release.yml` (`tauri-apps/tauri-action`, `windows-latest` uniquement)
+  déclenchée sur tag `v*`. Nouveau : `pnpm release:patch|minor|major`
+  (`scripts/sync-version.mjs`) bump `package.json` + synchronise `tauri.conf.json`/
+  `Cargo.toml`/`Cargo.lock` + crée le tag automatiquement via le hook `"version"` de
+  `pnpm version` — reste à pousser manuellement (`git push --follow-tags`) pour déclencher
+  la CI.
+- Vérifié en conditions réelles par Baptiste : build + install NSIS + auto-launch
+  fonctionnels. Mise à jour non testable tant qu'aucune release GitHub n'existe (404 attendu
+  sur `/releases/latest`).

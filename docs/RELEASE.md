@@ -143,6 +143,13 @@ avant publication, à ajuster si publication directe préférée). Condition pou
 que le point 6 ait quelque chose à checker. Pas encore testé en réel (aucun
 tag poussé).
 
+**Tags** : `pnpm release:patch|minor|major` (`package.json`) — bump
+`package.json` via `pnpm version`, hook `"version"` qui synchronise
+`src-tauri/tauri.conf.json` + `Cargo.toml` + `Cargo.lock`
+(`scripts/sync-version.mjs`), commit + tag `vX.Y.Z` créés automatiquement.
+Ne push rien tout seul — `git push --follow-tags` reste une étape manuelle,
+c'est elle qui déclenche cette CI.
+
 ## 8. Landing page (optionnel)
 
 `hooky.vercel.app` déjà retenu dans `BRIEF.md`. Statique, présente le

@@ -13,7 +13,11 @@
     "lint:fix": "eslint . --fix",
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build",
-    "icons": "tauri icon"
+    "icons": "tauri icon",
+    "version": "node scripts/sync-version.mjs && git add src-tauri/tauri.conf.json src-tauri/Cargo.toml src-tauri/Cargo.lock",
+    "release:patch": "pnpm version patch -m \"🔖 (Release) - v%s\"",
+    "release:minor": "pnpm version minor -m \"🔖 (Release) - v%s\"",
+    "release:major": "pnpm version major -m \"🔖 (Release) - v%s\""
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",
