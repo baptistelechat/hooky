@@ -592,7 +592,7 @@ Baptiste demande les étapes restantes avant une v0 partageable (icônes custom,
 
 Baptiste valide et demande d'enchaîner sur un README complet + LICENSE, avec présentation du projet et tuto d'installation incluant le disclaimer SmartScreen Windows. Premier jet écrit, puis trois retours consécutifs : (1) trop de sauts de ligne inutiles, (2) besoin d'une version EN et FR, (3) besoin d'illustrations (captures du pet et des settings) pour que le README rende comme une mini landing page en attendant une vraie LP.
 
-Chantier screenshots : capture de la fenêtre "Hooky - Paramètres" via un script PowerShell interop Win32 (`docs/assets/capture-window.ps1`, cf. déjà [LRN-035](learnings/LRN-035.md) pour la méthode générale). Plusieurs itérations sur un bug sournois -- dimensions de capture correctes mais contenu visuel erroné (VS Code au lieu de la fenêtre Hooky) -- diagnostiquées en comparant un screenshot de l'écran virtuel entier à la sous-région supposée : cause racine, `SetForegroundWindow` (et l'activation implicite de `ShowWindow(SW_RESTORE)`) bloqué silencieusement par la protection anti-focus-stealing de Windows quand appelé depuis un process PowerShell externe. Fix : `SetWindowPos(HWND_TOPMOST, SWP_NOACTIVATE)`, qui ne demande pas les mêmes droits (cf. [BLK-030](blockers/BLK-030.md), [LRN-072](learnings/LRN-072.md)). Tentative parallèle de capturer le pet via un navigateur classique (page blanche, l'app dépend de l'API Tauri au runtime, pas seulement au montage) -- abandonnée au profit de la capture native, une fois le bug résolu.
+Chantier screenshots : capture de la fenêtre "Hooky - Paramètres" via un script PowerShell interop Win32 (`docs/assets/capture-window.ps1`, cf. déjà [LRN-035](learnings/LRN-035.md) pour la méthode générale). Plusieurs itérations sur un bug sournois -- dimensions de capture correctes mais contenu visuel erroné (VS Code au lieu de la fenêtre Hooky) -- diagnostiquées en comparant un screenshot de l'écran virtuel entier à la sous-région supposée : cause racine, `SetForegroundWindow` (et l'activation implicite de `ShowWindow(SW_RESTORE)`) bloqué silencieusement par la protection anti-focus-stealing de Windows quand appelé depuis un process PowerShell externe. Fix : `SetWindowPos(HWND_TOPMOST, SWP_NOACTIVATE)`, qui ne demande pas les mêmes droits (cf. [ZBLK-030](archive/blockers/ZBLK-030.md), [LRN-072](learnings/LRN-072.md)). Tentative parallèle de capturer le pet via un navigateur classique (page blanche, l'app dépend de l'API Tauri au runtime, pas seulement au montage) -- abandonnée au profit de la capture native, une fois le bug résolu.
 
 Une fois l'outil fiable, Baptiste demande explicitement plusieurs captures d'animations (déclenchées en POSTant des events synthétiques sur le serveur local `127.0.0.1:4242/event`, même technique que [LRN-024](learnings/LRN-024.md)) et plusieurs skins d'avatar (forçage temporaire de `avatarId` dans `Avatar.tsx`, hot-reload Vite, capture, puis revert propre confirmé par `git diff` vide). 13 captures obtenues au total (6 animations Cubee, 4 skins, 3 onglets Settings). Skill `readme-writer` découvert et utilisé pour la réécriture finale (badges `shieldcn`, table stack technique, footer signature) -- `README.md` (EN, canonique) et `README.fr.md` réécrits avec ces captures intégrées façon mini-LP (cf. [BDR-065](decisions/BDR-065.md)).
 
@@ -604,6 +604,58 @@ En fin de chantier, Baptiste signale que l'avatar disparaît pendant que le READ
 
 - [BDR-064](decisions/BDR-064.md) — checklist V0 partageable (`docs/RELEASE.md`), MAJ via check API GitHub plutôt que le plugin Tauri Updater
 - [BDR-065](decisions/BDR-065.md) — README bilingue EN/FR façon mini-LP avec captures réelles
-- [BLK-030](blockers/BLK-030.md) — capture de fenêtre Hooky montrait le mauvais contenu malgré un rect correct (résolu)
+- [ZBLK-030](archive/blockers/ZBLK-030.md) — capture de fenêtre Hooky montrait le mauvais contenu malgré un rect correct (résolu)
 - [LRN-072](learnings/LRN-072.md) — `SetForegroundWindow` bloqué depuis un process externe, `SetWindowPos(TOPMOST)` fonctionne
 - [LRN-073](learnings/LRN-073.md) — `@tailwindcss/vite` scanne tout le repo, exclure la doc du watch Vite
+
+## 2026-09-05
+
+Checklist v0 partageable ([BDR-064](decisions/BDR-064.md)) implémentée en une passe : 5
+subagents lancés en parallèle, groupés par fichiers non-partagés pour éviter les
+conflits d'édition (icônes / `tauri.conf.json` / hook PowerShell / CI yaml séparés ;
+tray+settings+update regroupés dans un seul agent car les trois touchent `lib.rs` et
+`Settings/**`) -- décision détaillée [BDR-066](decisions/BDR-066.md). Test manuel par
+Baptiste a immédiatement révélé un vrai bug de régression : le dédoublonnage du merge
+`~/.claude/settings.json` comparait par égalité de texte exacte, donc la moindre
+évolution du snippet dupliquait l'entrée `SessionStart` au lieu de la remplacer --
+corrigé (dédup par port fixe 4242, identité stable) et documenté dans
+[LRN-074](learnings/LRN-074.md).
+
+Icône : le SVG source (`src/assets/logo.svg`, export Cubee) avait ~25% de marge
+inutile dans son `viewBox` -- mesuré et resserré via `magick -trim`
+([LRN-077](learnings/LRN-077.md)), le logo remplit maintenant le cadre aux petites
+tailles tray/taskbar.
+
+Mise en place d'un système de bump de version ([BDR-067](decisions/BDR-067.md)) :
+`pnpm release:patch|minor|major` synchronise `package.json`/`tauri.conf.json`/
+`Cargo.toml`/`Cargo.lock` et crée le tag automatiquement via le hook `"version"` de
+`pnpm version`. Premier vrai run du pipeline de release ensuite -- jamais exercé en
+conditions réelles avant ce jour, 3 surprises enchaînées documentées dans
+[BLK-031](blockers/BLK-031.md) (résolu) : CI en échec immédiat
+(`pnpm/action-setup@v4` sans `packageManager`, cf.
+[LRN-075](learnings/LRN-075.md)), puis confusion sur la visibilité d'une release en
+draft (invisible sur la sidebar repo et `/tags`, seulement sous `/releases`, cf.
+[LRN-076](learnings/LRN-076.md)), puis correction d'un tag `v0.1.1` non désiré
+(Baptiste voulait `v0.1.0` pour ce premier vrai release) -- revert de version +
+déplacement du tag (`git tag -f` + `push --force`, validé explicitement par
+Baptiste ; `git tag -d` bloqué par ses permissions globales, laissé à sa charge).
+
+Baptiste a ensuite remarqué que le corps de la release GitHub était quasi vide (juste
+un lien de comparaison, `generateReleaseNotes` par défaut à `false` chez
+`tauri-action`) et a demandé un vrai changelog suivant Keep a Changelog --
+[BDR-068](decisions/BDR-068.md) : `CHANGELOG.md` + `scripts/changelog-release.mjs`
+(bascule `Unreleased`→version au bump, bloque si vide) +
+`scripts/changelog-extract.mjs` (alimente le corps de la release CI, réutilisable à la
+main). Nouveau skill global `/changelog` créé via `skill-creator` (pas de process
+d'éval complet, juste un test rapide validé en conditions réelles sur ce repo) pour
+tenir `## [Unreleased]` à jour en routine après `/gen-commit` -- curation stricte
+demandée (Keep a Changelog explicite : "changelogs are for humans, not machines"),
+jamais de dump de commits bruts.
+
+**Entrées clés :**
+
+- [BDR-066](decisions/BDR-066.md) — checklist RELEASE.md implémentée via 5 subagents parallèles
+- [LRN-074](learnings/LRN-074.md) — merge JSON idempotent par identité stable, jamais égalité de texte exacte
+- [BDR-067](decisions/BDR-067.md) — bump de version unifié (`pnpm release:*`) synchronisant tous les fichiers de version
+- [BDR-068](decisions/BDR-068.md) — changelog Keep a Changelog, corps de release généré depuis `CHANGELOG.md`
+- [BLK-031](blockers/BLK-031.md) — premier run du pipeline de release : 3 surprises enchaînées (résolu)
