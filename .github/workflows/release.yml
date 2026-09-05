@@ -43,3 +43,11 @@ jobs:
           releaseName: "Hooky ${{ github.ref_name }}"
           releaseDraft: true
           prerelease: false
+          # Changelog auto-généré par GitHub (commits depuis le tag précédent) -- pas de
+          # process de changelog manuel dans ce repo, pas de raison de laisser le draft
+          # vide.
+          generateReleaseNotes: true
+          # Pas de plugin tauri-plugin-updater (BDR-064, décision volontaire) : ce
+          # manifest de signature ne sert jamais, seulement à générer un avertissement
+          # "Signature not found" dans les logs à chaque run.
+          includeUpdaterJson: false
