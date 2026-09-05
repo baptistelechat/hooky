@@ -6,35 +6,44 @@ Checklist v0 partageable. Détail technique de chaque point résumé dans
 
 ## Checklist
 
-- [ ] Icônes custom (tray, app, installeur)
-- [ ] Tray simplifié : `Paramètres` + `Quitter`
-- [ ] Packaging NSIS (`bundle.targets: ["nsis"]`, `installMode: "currentUser"`)
-- [ ] Auto-launch au 1er `SessionStart` si l'app n'est pas déjà lancée
-- [ ] Commande settings : fusionner `hooks/claude-settings-snippet.json` dans `~/.claude/settings.json`
-- [ ] Système de mise à jour (check button + check au lancement + badge persistant)
-- [ ] CI GitHub Actions : build + publish installeur sur tag
+- [x] Icônes custom (tray, app, installeur)
+- [x] Tray simplifié : `Paramètres` + `Quitter`
+- [x] Packaging NSIS (`bundle.targets: ["nsis"]`, `installMode: "currentUser"`)
+- [x] Auto-launch au 1er `SessionStart` si l'app n'est pas déjà lancée
+- [x] Commande settings : fusionner `hooks/claude-settings-snippet.json` dans `~/.claude/settings.json`
+- [x] Système de mise à jour (check button + check au lancement + badge persistant)
+- [x] CI GitHub Actions : build + publish installeur sur tag
 - [x] README complet EN/FR (présentation, screenshots pet + settings façon mini-LP, tuto d'installation, disclaimer SmartScreen)
 - [x] LICENSE (déjà en place — AGPL-3.0 intégrale, convention GitHub, pas de doublon `.md`)
 - [ ] (optionnel) Landing page `hooky.vercel.app`
 
-## 1. Icônes custom
+## 1. Icônes custom ✅
 
-Icônes actuelles = scaffold Tauri par défaut (`src-tauri/icons/`), pas de lien
-visuel avec Cubee. Pas besoin de package supplémentaire : le CLI Tauri génère
-déjà tout le set (`pnpm tauri icon path/vers/source-1024.png`) — juste fournir
-un PNG source haute résolution dérivé de Cubee (export du Studio ou capture
-`@bible-strong/avatar-react`).
+Fait via le générateur intégré au CLI Tauri (`pnpm tauri icon <source>`),
+zéro package supplémentaire. Source finale : `src/assets/logo.svg` (vrai
+logo Cubee, carré 1024×1024 avec transparence — remplace le placeholder
+initial `#6366f1`). Set régénéré dans `src-tauri/icons/` via
+`pnpm icons src/assets/logo.svg` (script npm). Pour toute future mise à jour
+du logo, relancer la même commande avec la nouvelle source.
 
-## 2. Tray simplifié
+> Les assets mobiles générés en trop par le CLI (`android/`, `ios/`,
+> `64x64.png` — app Windows-only, aucune cible mobile déclarée) sont
+> supprimés après chaque régénération.
 
-`src-tauri/src/lib.rs` (`TrayIconBuilder`, ~L513) : remplacer `recenter_item`
-par `settings_item` (ouvre la fenêtre settings, même code que le
-double-clic — cf. Étape 10) ; garder `quit_item`. Diff minimal, pas de nouvelle
-dépendance.
+## 2. Tray simplifié ✅
 
-## 3. Packaging NSIS
+`src-tauri/src/lib.rs` : `recenter_item` remplacé par `settings_item`
+("Paramètres"), `quit_item` gardé. Le menu tray n'ouvre pas la fenêtre
+directement depuis Rust (éviterait de dupliquer la logique
+focus/toggle-minimize déjà en JS) — il émet l'event applicatif
+`hooky-open-settings`, écouté uniquement par la fenêtre `"main"` (toujours
+vivante), qui appelle `openSettingsWindow()` (extrait d'`Avatar.tsx` vers
+`src/lib/settingsWindow.ts`, réutilisable sans dupliquer). `recenter_window`
+conservée (`#[allow(dead_code)]`) en cas de réintroduction future.
 
-`src-tauri/tauri.conf.json` :
+## 3. Packaging NSIS ✅
+
+Fait tel que prévu, dans `src-tauri/tauri.conf.json` :
 
 ```json
 "bundle": {
@@ -55,70 +64,84 @@ la v0 (coût annuel, disproportionné à ce stade) — à mentionner sur la LP p
 ne pas surprendre au premier téléchargement. À reconsidérer si l'usage
 dépasse le cercle proche.
 
-## 4. Auto-launch au 1er SessionStart
+## 4. Auto-launch au 1er SessionStart ✅
 
-Étend le hook `SessionStart` existant (`command` + `curl`, cf. BDR-010/GLRN-255
-— les hooks `http` ne partent pas sur `SessionStart`) : essayer le POST vers
-`127.0.0.1:4242/event` d'abord, et si la connexion échoue (app pas lancée),
-lancer l'exe avant de réessayer.
+Implémenté en inline dans `docs/hooks/claude-settings-snippet.json` (pas de
+fichier `.ps1` séparé, contrairement au sketch initial ci-dessous — un script
+externe casserait la propriété "portable sans script à copier" déjà
+documentée dans `docs/hooks/README.md`, et pose un problème d'œuf-et-poule
+tant que Hooky n'est pas encore installé) :
 
-```powershell
-# docs/hooks/session-start.ps1 (extension du hook existant)
-$json = [Console]::In.ReadToEnd()
-try {
-    Invoke-RestMethod -Uri "http://127.0.0.1:4242/event" -Method Post `
-        -Body $json -ContentType "application/json" -TimeoutSec 1 | Out-Null
-} catch {
-    Start-Process "$env:LOCALAPPDATA\Hooky\Hooky.exe"
-    # pas de retry immédiat : l'app met un instant à démarrer + bind le port,
-    # le prochain event (UserPromptSubmit) sera reçu normalement.
-}
 ```
+powershell -NoProfile -Command "$j=[Console]::In.ReadToEnd(); $j | curl.exe -s -m 5 -X POST http://127.0.0.1:4242/event -H 'Content-Type: application/json' -d @-; if ($LASTEXITCODE -ne 0) { Start-Process ($env:LOCALAPPDATA + '\Hooky\Hooky.exe') }"
+```
+
+`$LASTEXITCODE` reflète le code retour de `curl.exe` (dernier exécutable natif
+de la pipeline) : `0` sur un POST normal, non-zéro (typiquement `7`,
+connexion refusée) si rien n'écoute sur le port 4242 → déclenche
+`Start-Process`. Pas de retry immédiat : le prochain event
+(`UserPromptSubmit`) sera reçu normalement une fois l'app démarrée.
 
 Chemin `%LOCALAPPDATA%\Hooky\Hooky.exe` dépend directement de
 `installMode: "currentUser"` (point 3) — à garder synchronisés.
 
-## 5. Commande settings → fusionner les hooks
+> ⚠️ Pas encore testé en conditions réelles (nécessite de relancer une session
+> Claude Code avec le snippet installé) — à valider avant de considérer ce
+> point définitivement clos.
 
-Aujourd'hui fait à la main par Baptiste (cf. ROADMAP, étape "Fusionner
-`claude-settings-snippet.json`") — attribut `ReadOnly` du fichier
-`~/.claude/settings.json` désactivé temporairement, JSON mergé, `ReadOnly`
-restauré. À reproduire en bouton dans `SettingsPanel` :
+## 5. Commande settings → fusionner les hooks ✅
 
-- Commande Rust applicative (`invoke_handler`, pas de plugin `fs` — même
-  pattern que `write_text_file`, Étape 10) : lit `~/.claude/settings.json`,
-  merge les blocks `hooks/claude-settings-snippet.json` (skip si déjà
-  présents — idempotent), réécrit, respecte l'attribut `ReadOnly` (le
-  désactive le temps de l'écriture, le restaure après).
-- Bouton "Installer les hooks Claude Code" dans `SettingsPanel`, retour
-  visuel (succès / déjà installé / erreur).
+Fait tel que prévu. Commande Rust `install_claude_hooks` (`lib.rs`, même
+pattern que `write_text_file`) : le snippet `docs/hooks/claude-settings-snippet.json`
+est embarqué dans le binaire via `include_str!` (pas de lecture disque
+fragile côté install), fusionné event par event dans `~/.claude/settings.json`
+avec dédup structurelle (idempotent, jamais d'écrasement des hooks
+existants), `ReadOnly` désactivé/restauré via `std::fs` (pas de nouvelle
+dépendance). Retourne `"installed" | "merged" | "already_up_to_date"`.
 
-## 6. Système de mise à jour
+Bouton "Installer les hooks Claude Code" dans `src/components/Settings/components/MaintenanceField.tsx`
+(nouveau fichier, extrait pour respecter la règle des composants >200
+lignes), retour visuel inline par statut — pas de toast (cf. BDR-041, ce
+projet n'a volontairement aucune dépendance toast).
 
-Pas le plugin `tauri-plugin-updater` officiel (signature ECDSA par build +
-`latest.json` à maintenir manuellement — disproportionné : ici on ne fait pas
-d'install silencieuse, juste rediriger vers la page de release). À la place :
+## 6. Système de mise à jour ✅
+
+Pas de `tauri-plugin-updater` (écarté comme prévu). Implémenté dans
+`src/lib/updateStatus.ts` + `src/hooks/useUpdateStatus.ts` :
 
 - `fetch("https://api.github.com/repos/baptistelechat/hooky/releases/latest")`
-  côté front (natif, pas d'Axios) → compare `tag_name` à la version courante
-  (`package.json`/`tauri.conf.json`, exposée au front via une commande Rust ou
-  une constante buildée).
-- Bouton "Vérifier les mises à jour" dans `SettingsPanel` (appelle la même
-  fonction, ouvre `html_url` de la release si nouvelle version).
-- Check silencieux au lancement (une fois, pas de polling) → si outdated,
-  state partagé (Zustand ou event Tauri, même pattern que `hooky-settings`)
-  déclenche un badge.
-- Badge : réutilise le système de badge/icône déjà existant (BDR-015/020/023)
-  — variante persistante coin bas-gauche de la fenêtre principale, reste tant
-  que la version n'est pas à jour (contrairement aux badges hooks qui
-  s'effacent).
+  côté front, compare `tag_name` à `getVersion()` (natif, `@tauri-apps/api/app` —
+  pas de nouvelle commande Rust nécessaire).
+- État partagé cross-fenêtre via localStorage + event Tauri, même contrat que
+  `settings.ts`/`useSettings.ts` (pas de store Zustand introduit — ce
+  pattern EST déjà le mécanisme d'état partagé du projet, aucune dépendance
+  Zustand présente dans `package.json`).
+- Bouton "Vérifier les mises à jour" dans `MaintenanceField.tsx`, ouvre
+  `html_url` via `@tauri-apps/plugin-opener` (déjà utilisé ailleurs).
+- Check silencieux une fois au lancement (`checkForUpdateOnce`, garde
+  module-level anti-double-appel StrictMode), déclenché depuis `App.tsx`
+  pour la fenêtre `"main"` uniquement.
 
-## 7. CI GitHub Actions
+**Écart vs plan initial** : le badge ne réutilise pas le composant
+`AnimationOverlay` (badge des hooks sur le pet) — hors du scope de fichiers
+alloué à l'agent, et trop couplé au rendu avatar/hooks pour être
+génériquement réutilisable. À la place : un point rouge persistant
+(`bg-destructive`, token shadcn existant) sur le bouton "Vérifier les mises
+à jour" et sur l'onglet "Réglages" dans `Settings/index.tsx`, piloté par
+`useUpdateStatus()`. Fonctionnellement équivalent (indicateur persistant,
+ne s'efface pas seul), mais pas au même endroit visuel (settings, pas coin
+bas-gauche de la fenêtre principale) — à revoir si ce placement s'avère
+peu visible à l'usage.
 
-`.github/workflows/release.yml`, action officielle
-`tauri-apps/tauri-action` (zéro script de build custom à maintenir) :
-déclenchée sur push de tag `v*`, build l'installeur NSIS, crée/attache à une
-GitHub Release. Condition pour que le point 6 ait quelque chose à checker.
+## 7. CI GitHub Actions ✅
+
+`.github/workflows/release.yml`, action officielle `tauri-apps/tauri-action`.
+`runs-on: windows-latest` uniquement (pas de matrice multi-OS, app
+Windows-only). Déclenché sur push de tag `v*`, build l'installeur NSIS,
+crée une GitHub Release en **draft** (`releaseDraft: true` — contrôle manuel
+avant publication, à ajuster si publication directe préférée). Condition pour
+que le point 6 ait quelque chose à checker. Pas encore testé en réel (aucun
+tag poussé).
 
 ## 8. Landing page (optionnel)
 

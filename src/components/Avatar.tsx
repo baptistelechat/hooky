@@ -1,6 +1,5 @@
 import { LogicalSize } from "@tauri-apps/api/dpi";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { useEffect, useRef, useState } from "react";
 import { useAnimationEffects } from "../hooks/useAnimationEffects";
 import { useAvatarBundle } from "../hooks/useAvatarBundle";
@@ -9,6 +8,7 @@ import { useSettings } from "../hooks/useSettings";
 import { findMappingEntry } from "../lib/animationCatalog";
 import { debugZoneClass } from "../lib/debugZone";
 import { avatarWindowSize } from "../lib/layout";
+import { openSettingsWindow } from "../lib/settingsWindow";
 import { startClampedDrag } from "../lib/windowDrag";
 import { AnimationOverlay } from "./AnimationOverlay";
 import { avatarBundleKey, type AnimationName } from "./avatarDefinition";
@@ -29,41 +29,6 @@ interface PetAvatarProps {
 // manuel (cf. startClampedDrag) qui capture mousemove/mouseup globalement (voir GLRN-212 en
 // mémoire globale -- pattern déjà rencontré ailleurs avec l'ancien `startDragging()`).
 const DOUBLE_CLICK_WINDOW_MS = 300;
-
-/** Ouvre, refocus ou minimise la fenêtre de settings. Si elle a déjà le focus, le
- * double-clic la minimise (toggle, comme cliquer une icône de taskbar déjà active) --
- * sinon `show()`/`unminimize()` avant `setFocus()` la ramène au premier plan : Windows
- * refuse silencieusement de voler le focus à une autre appli avec `setFocus()` seul
- * (anti-focus-stealing), y compris pour ramener une fenêtre déjà ouverte mais passée en
- * arrière-plan ou minimisée. */
-async function openSettingsWindow(): Promise<void> {
-  const existing = await WebviewWindow.getByLabel("settings");
-  if (existing) {
-    if (await existing.isFocused()) {
-      await existing.minimize();
-      return;
-    }
-    await existing.show();
-    await existing.unminimize();
-    await existing.setFocus();
-    return;
-  }
-
-  new WebviewWindow("settings", {
-    title: "Hooky - Paramètres",
-    width: 620,
-    height: 570,
-    // max/min Width doivent être fournis en paire avec Height pour être pris en compte
-    // (quirk de l'API Tauri, cf. LRN-012) -- généreux sur l'axe non contraint.
-    maxWidth: 620,
-    maxHeight: 1000,
-    minWidth: 400,
-    minHeight: 570,
-    resizable: true,
-    decorations: true,
-    center: true,
-  });
-}
 
 /**
  * Avatar + badge, seuls occupants de la fenêtre "main" -- la bulle de notification vit

@@ -1,7 +1,10 @@
+import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import "./App.css";
 import { useHookyState } from "./hooks/useHookyState";
+import { openSettingsWindow } from "./lib/settingsWindow";
+import { checkForUpdateOnce } from "./lib/updateStatus";
 
 // Chargement paresseux PAR FENÊTRE (label) -- "main"/"settings"/"bubble" partagent le même
 // bundle Vite (un seul point d'entrée `index.html`, cf. vite.config.ts), donc un import
@@ -29,6 +32,37 @@ const SettingsPanel = lazy(() =>
 function App() {
   const hooky = useHookyState();
   const label = getCurrentWindow().label;
+
+  // Écoute "hooky-open-settings" (menu tray "Paramètres", cf. lib.rs on_menu_event) +
+  // check silencieux de mise à jour au lancement (cf. lib/updateStatus.ts) -- gardé dans
+  // App.tsx (pas Avatar.tsx) mais gated à la fenêtre "main" uniquement : elle seule est
+  // garantie vivante tant que l'app tourne, contrairement à "settings"/"bubble" qui
+  // n'existent qu'à la demande -- sans ce garde, l'event serait traité plusieurs fois
+  // (une fois par fenêtre ouverte) et le check de version relancé à chaque ouverture des
+  // settings plutôt qu'une fois par lancement.
+  useEffect(() => {
+    if (label !== "main") return;
+
+    void checkForUpdateOnce();
+
+    let unlisten: (() => void) | undefined;
+    let cancelled = false;
+
+    listen("hooky-open-settings", () => {
+      void openSettingsWindow();
+    }).then((fn) => {
+      if (cancelled) {
+        fn();
+      } else {
+        unlisten = fn;
+      }
+    });
+
+    return () => {
+      cancelled = true;
+      unlisten?.();
+    };
+  }, [label]);
 
   // Fenêtres "settings"/"bubble" créées dynamiquement (cf. Avatar.tsx/useBubbleWindow) --
   // même bundle, rendu différent selon le label plutôt qu'un point d'entrée HTML séparé.

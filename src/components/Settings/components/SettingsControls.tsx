@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/field";
 import { useSettings } from "@/hooks/useSettings";
 import { ConfigurationField } from "./ConfigurationField";
+import { MaintenanceField } from "./MaintenanceField";
 
 /** Réglages persistés (taille avatar, effets visuels, mode debug) + export/import/reset
  * (ConfigurationField). Stockage localStorage, diffusé aux autres fenêtres via l'event
@@ -117,6 +118,10 @@ export function SettingsControls() {
             }
           />
         </Field>
+
+        <FieldSeparator />
+
+        <MaintenanceField />
       </FieldGroup>
 
       <FieldSeparator />

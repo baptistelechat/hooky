@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Settings2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useUpdateStatus } from "@/hooks/useUpdateStatus";
 import { SettingsControls } from "./components/SettingsControls";
 import { AnimationValidation } from "./components/AnimationValidation";
 import { AvatarPicker } from "./components/AvatarPicker";
@@ -14,6 +15,10 @@ type View = "avatar" | "settings" | "animation";
  * que réglage pour un utilisateur final. */
 export function SettingsPanel() {
   const [view, setView] = useState<View>("avatar");
+  // Discoverabilité : signale une mise à jour disponible même quand on n'est pas sur
+  // l'onglet "Réglages" (où vit le bouton "Vérifier les mises à jour", cf.
+  // MaintenanceField) -- point persistant, ne s'efface pas seul (cf. lib/updateStatus.ts).
+  const update = useUpdateStatus();
 
   return (
     <div className="flex h-screen flex-col gap-4 bg-background p-6 text-foreground">
@@ -33,9 +38,16 @@ export function SettingsPanel() {
           <Button
             variant={view === "settings" ? "default" : "ghost"}
             size="sm"
+            className="relative"
             onClick={() => setView("settings")}
           >
             Réglages
+            {update.updateAvailable && (
+              <span
+                aria-label="Mise à jour disponible"
+                className="absolute -top-0.5 -right-0.5 size-2 rounded-full bg-destructive"
+              />
+            )}
           </Button>
           <Button
             variant={view === "animation" ? "default" : "ghost"}

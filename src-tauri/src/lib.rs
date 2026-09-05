@@ -396,6 +396,10 @@ async fn on_event(State(state): State<ServerState>, Json(payload): Json<Value>) 
 }
 
 /// Repositionne la fenêtre dans le coin bas-droit de l'écran principal (position par défaut).
+/// ponytail: plus appelée depuis le tray (remplacé par "Paramètres", cf. setup()) -- gardée
+/// telle quelle (pas supprimée) en cas de réintroduction future d'une action de recentrage
+/// dans l'UI ; `#[allow(dead_code)]` évite le warning `cargo check` en attendant.
+#[allow(dead_code)]
 fn recenter_window(app: &AppHandle) {
     let Some(window) = app.get_webview_window("main") else {
         return;
@@ -491,6 +495,161 @@ fn write_text_file(path: String, content: String) -> Result<(), String> {
     std::fs::write(path, content).map_err(|e| e.to_string())
 }
 
+/// Racine des settings Claude Code globaux (`~/.claude/settings.json`) -- `USERPROFILE`
+/// est l'équivalent Windows de `HOME`, cohérent avec le hook `SessionStart` embarqué qui
+/// s'appuie déjà sur `$env:LOCALAPPDATA` de la même façon (cf. docs/hooks/README.md).
+fn claude_settings_path() -> Result<std::path::PathBuf, String> {
+    let profile = std::env::var("USERPROFILE")
+        .map_err(|_| "variable d'environnement USERPROFILE introuvable".to_string())?;
+    Ok(std::path::PathBuf::from(profile)
+        .join(".claude")
+        .join("settings.json"))
+}
+
+/// Snippet de hooks Hooky embarqué dans le binaire à la compilation -- fait partie du
+/// repo (docs/hooks/claude-settings-snippet.json, source de vérité tenue à jour
+/// manuellement), pas une donnée utilisateur : `include_str!` plutôt qu'une lecture
+/// disque relative fragile (le binaire installé n'a pas le repo à côté de lui).
+const CLAUDE_HOOKS_SNIPPET: &str = include_str!("../../docs/hooks/claude-settings-snippet.json");
+
+/// Marqueur d'une entrée "possédée" par Hooky : toute entrée dont un des hooks cible le
+/// port fixe 4242 (BDR-002, jamais réutilisé ailleurs) -- pas une comparaison de texte
+/// exact, pour rester idempotent même quand le contenu de `CLAUDE_HOOKS_SNIPPET` évolue
+/// d'une version de Hooky à l'autre (sinon : une commande légèrement modifiée ne matche
+/// plus l'ancienne, et s'ajoute EN PLUS au lieu de la remplacer -- doublons qui
+/// s'accumulent à chaque mise à jour, cf. régression constatée en test manuel).
+fn is_hooky_entry(entry: &Value) -> bool {
+    const MARKER: &str = "127.0.0.1:4242";
+    entry
+        .get("hooks")
+        .and_then(Value::as_array)
+        .is_some_and(|hooks| {
+            hooks.iter().any(|h| {
+                h.get("url")
+                    .and_then(Value::as_str)
+                    .is_some_and(|u| u.contains(MARKER))
+                    || h.get("command")
+                        .and_then(Value::as_str)
+                        .is_some_and(|c| c.contains(MARKER))
+            })
+        })
+}
+
+/// Fusionne `CLAUDE_HOOKS_SNIPPET` dans `~/.claude/settings.json`, en préservant tout hook
+/// déjà configuré (jamais d'écrasement de la clé "hooks" existante, ni des entrées d'un
+/// autre outil pour le même event) -- remplace le geste manuel documenté dans
+/// docs/hooks/README.md (désactiver l'attribut ReadOnly, fusionner event par event,
+/// réactiver ReadOnly). Idempotent : pour chaque event, les entrées déjà "possédées" par
+/// Hooky (`is_hooky_entry`) sont retirées puis remplacées par la version courante du
+/// snippet -- un second clic (ou une mise à jour du snippet) ne duplique jamais rien,
+/// contrairement à une comparaison par égalité de texte exact.
+///
+/// Retourne "installed" (fichier ou clé "hooks" absents avant), "merged" (ajouts/mises à
+/// jour faits) ou "already_up_to_date" (rien à changer).
+#[tauri::command]
+fn install_claude_hooks() -> Result<String, String> {
+    let path = claude_settings_path()?;
+
+    let snippet: Value = serde_json::from_str(CLAUDE_HOOKS_SNIPPET).map_err(|e| e.to_string())?;
+    let snippet_hooks = snippet
+        .get("hooks")
+        .and_then(Value::as_object)
+        .ok_or("snippet embarqué invalide : pas de clé \"hooks\"")?;
+
+    let file_existed = path.exists();
+    let mut target: Value = if file_existed {
+        let raw = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
+        serde_json::from_str(&raw)
+            .map_err(|e| format!("~/.claude/settings.json existant est invalide : {e}"))?
+    } else {
+        serde_json::json!({})
+    };
+    let target_obj = target
+        .as_object_mut()
+        .ok_or("~/.claude/settings.json existant n'est pas un objet JSON")?;
+
+    let hooks_existed = target_obj.contains_key("hooks");
+    let hooks_value = target_obj
+        .entry("hooks")
+        .or_insert_with(|| Value::Object(serde_json::Map::new()));
+    let hooks_obj = hooks_value
+        .as_object_mut()
+        .ok_or("clé \"hooks\" existante n'est pas un objet")?;
+
+    let mut changed = false;
+    for (event, entries) in snippet_hooks {
+        let snippet_entries = entries.as_array().ok_or_else(|| {
+            format!("snippet embarqué invalide : hooks.{event} n'est pas un tableau")
+        })?;
+        match hooks_obj.get_mut(event) {
+            None => {
+                hooks_obj.insert(event.clone(), Value::Array(snippet_entries.clone()));
+                changed = true;
+            }
+            Some(existing) => {
+                let existing_arr = existing.as_array_mut().ok_or_else(|| {
+                    format!(
+                        "~/.claude/settings.json existant : hooks.{event} n'est pas un tableau"
+                    )
+                })?;
+                // Retire toute entrée déjà possédée par Hooky (versions précédentes du
+                // snippet incluses) avant de réinsérer la version courante -- remplace,
+                // n'accumule jamais (cf. `is_hooky_entry`).
+                let mut new_arr: Vec<Value> = existing_arr
+                    .iter()
+                    .filter(|e| !is_hooky_entry(e))
+                    .cloned()
+                    .collect();
+                new_arr.extend(snippet_entries.iter().cloned());
+                if &new_arr != existing_arr {
+                    *existing_arr = new_arr;
+                    changed = true;
+                }
+            }
+        }
+    }
+
+    if !changed {
+        return Ok("already_up_to_date".to_string());
+    }
+
+    // Le fichier est souvent marqué ReadOnly (protection Claude Code contre une édition
+    // accidentelle) -- désactivé le temps de l'écriture puis réactivé, comme le geste
+    // manuel documenté dans docs/hooks/README.md. `std::fs::Permissions::set_readonly`
+    // (std, déjà disponible) fait le job sur Windows sans dépendance supplémentaire.
+    let was_readonly = std::fs::metadata(&path)
+        .map(|m| m.permissions().readonly())
+        .unwrap_or(false);
+    if was_readonly {
+        let mut perms = std::fs::metadata(&path)
+            .map_err(|e| e.to_string())?
+            .permissions();
+        perms.set_readonly(false);
+        std::fs::set_permissions(&path, perms).map_err(|e| e.to_string())?;
+    }
+
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    let pretty = serde_json::to_string_pretty(&target).map_err(|e| e.to_string())?;
+    std::fs::write(&path, pretty).map_err(|e| e.to_string())?;
+
+    if was_readonly {
+        let mut perms = std::fs::metadata(&path)
+            .map_err(|e| e.to_string())?
+            .permissions();
+        perms.set_readonly(true);
+        std::fs::set_permissions(&path, perms).map_err(|e| e.to_string())?;
+    }
+
+    Ok(if file_existed && hooks_existed {
+        "merged"
+    } else {
+        "installed"
+    }
+    .to_string())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let sessions: Sessions = Arc::new(Mutex::new(HashMap::new()));
@@ -506,15 +665,15 @@ pub fn run() {
         }))
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
-        .invoke_handler(tauri::generate_handler![write_text_file])
+        .invoke_handler(tauri::generate_handler![write_text_file, install_claude_hooks])
         .setup(move |app| {
             let app_handle = app.handle().clone();
 
-            // --- Tray icon : "Recentrer la fenêtre" + "Quitter" ---
-            let recenter_item =
-                MenuItem::with_id(app, "recenter", "Recentrer la fenêtre", true, None::<&str>)?;
+            // --- Tray icon : "Paramètres" + "Quitter" ---
+            let settings_item =
+                MenuItem::with_id(app, "settings", "Paramètres", true, None::<&str>)?;
             let quit_item = MenuItem::with_id(app, "quit", "Quitter", true, None::<&str>)?;
-            let menu = Menu::with_items(app, &[&recenter_item, &quit_item])?;
+            let menu = Menu::with_items(app, &[&settings_item, &quit_item])?;
 
             let tray_icon = app
                 .default_window_icon()
@@ -526,7 +685,13 @@ pub fn run() {
                 .menu(&menu)
                 .on_menu_event(|app, event| match event.id().as_ref() {
                     "quit" => app.exit(0),
-                    "recenter" => recenter_window(app),
+                    // Ouvrir/focus/toggle-minimize la fenêtre settings est déjà implémenté
+                    // côté JS (cf. src/lib/settingsWindow.ts `openSettingsWindow`) -- pas
+                    // dupliqué ici, on se contente de relayer l'intention via un event
+                    // applicatif, écouté uniquement par la fenêtre "main" (cf. App.tsx).
+                    "settings" => {
+                        let _ = app.emit("hooky-open-settings", ());
+                    }
                     _ => {}
                 })
                 .build(app)?;
