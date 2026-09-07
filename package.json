@@ -1,8 +1,25 @@
 {
   "name": "hooky",
+  "description": "A tiny desktop pet built with Tauri that reacts in real time to Claude Code CLI hooks.",
   "private": true,
   "version": "0.1.0",
   "type": "module",
+  "license": "AGPL-3.0",
+  "author": "Baptiste LECHAT",
+  "homepage": "https://github.com/baptistelechat/hooky#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/baptistelechat/hooky.git"
+  },
+  "bugs": {
+    "url": "https://github.com/baptistelechat/hooky/issues"
+  },
+  "keywords": [
+    "tauri",
+    "desktop-pet",
+    "claude-code",
+    "hooks"
+  ],
   "packageManager": "pnpm@10.30.3",
   "scripts": {
     "dev": "vite",
