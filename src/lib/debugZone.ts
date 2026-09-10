@@ -26,6 +26,7 @@ const ZONE_COLORS = {
   "bubble-zone": "outline-yellow-500/80 bg-yellow-500/10",
   bubble: "outline-purple-500/80",
   badge: "outline-pink-500/80",
+  "usage-panel": "outline-blue-500/80 bg-blue-500/10",
 } as const;
 
 export type DebugZone = keyof typeof ZONE_COLORS;

@@ -7,6 +7,21 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Permanent Claude Code quota rings below the avatar (session, weekly, per-model),
+  color-coded by usage level, with the exact percentage shown on hover -- toggleable in
+  Settings
+
+### Changed
+
+- "Mode debug" moved to the bottom of the Settings list
+
+### Fixed
+
+- Increased the screen-edge drag safety margin so the avatar (and its quota rings) no
+  longer end up hidden behind the taskbar when dragged to the bottom of the screen
+
 ## [0.1.0] - 2026-09-05
 
 ### Added

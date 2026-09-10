@@ -1,4 +1,4 @@
-import { Bell, Bug, Ruler, Sparkles, UserRound } from "lucide-react";
+import { Bell, Bug, Gauge, Ruler, Sparkles, UserRound } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
@@ -104,6 +104,31 @@ export function SettingsControls() {
         <Field orientation="horizontal">
           <FieldContent>
             <FieldTitle>
+              <Gauge className="size-4" />
+              Quotas Claude Code
+            </FieldTitle>
+            <FieldDescription>
+              Rings permanents à côté de l'avatar (session 5h, semaine) --
+              rafraîchis toutes les 3 minutes.
+            </FieldDescription>
+          </FieldContent>
+          <Switch
+            checked={settings.usagePanelEnabled}
+            onCheckedChange={(checked) =>
+              setSettings({ ...settings, usagePanelEnabled: checked })
+            }
+          />
+        </Field>
+
+        <FieldSeparator />
+
+        <MaintenanceField />
+
+        <FieldSeparator />
+
+        <Field orientation="horizontal">
+          <FieldContent>
+            <FieldTitle>
               <Bug className="size-4" />
               Mode debug
             </FieldTitle>
@@ -118,10 +143,6 @@ export function SettingsControls() {
             }
           />
         </Field>
-
-        <FieldSeparator />
-
-        <MaintenanceField />
       </FieldGroup>
 
       <FieldSeparator />

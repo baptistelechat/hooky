@@ -506,6 +506,109 @@ fn claude_settings_path() -> Result<std::path::PathBuf, String> {
         .join("settings.json"))
 }
 
+/// Racine des credentials OAuth Claude Code (`~/.claude/.credentials.json`) -- même base
+/// que `claude_settings_path`, fichier distinct (token, pas config utilisateur).
+fn claude_credentials_path() -> Result<std::path::PathBuf, String> {
+    let profile = std::env::var("USERPROFILE")
+        .map_err(|_| "variable d'environnement USERPROFILE introuvable".to_string())?;
+    Ok(std::path::PathBuf::from(profile)
+        .join(".claude")
+        .join(".credentials.json"))
+}
+
+/// Lit le token OAuth local et interroge l'endpoint de quotas Claude Code (même endpoint
+/// que le CLI officiel, cf. github.com/Ulrichfr/Claude-Marge-Widget qui l'a documenté en
+/// premier). Retourne le JSON brut tel quel -- le formatage (labels, pourcentages, dates
+/// de reset) reste côté front (`src/lib/usage.ts`), pas dupliqué dans un struct Rust qui
+/// devrait suivre chaque évolution de la forme de la réponse. Fonction interne (pas une
+/// commande) : seul `spawn_usage_poller` l'appelle, sur un timer -- le front ne déclenche
+/// plus jamais ce fetch lui-même (cf. USAGE_POLL_INTERVAL, corrige le rate-limit constaté
+/// quand chaque survol de l'avatar déclenchait son propre appel API en parallèle).
+async fn fetch_usage() -> Result<Value, String> {
+    let path = claude_credentials_path()?;
+    let raw = std::fs::read_to_string(&path)
+        .map_err(|e| format!("lecture de {} impossible : {e}", path.display()))?;
+    let creds: Value = serde_json::from_str(&raw).map_err(|e| e.to_string())?;
+    let token = creds
+        .get("claudeAiOauth")
+        .and_then(|o| o.get("accessToken"))
+        .and_then(Value::as_str)
+        .ok_or("accessToken introuvable dans .credentials.json")?;
+
+    let response = reqwest::Client::new()
+        .get("https://api.anthropic.com/api/oauth/usage")
+        .bearer_auth(token)
+        .header("anthropic-beta", "oauth-2025-04-20")
+        .header("User-Agent", "hooky")
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    if !response.status().is_success() {
+        return Err(format!("l'API usage a répondu {}", response.status()));
+    }
+
+    response.json::<Value>().await.map_err(|e| e.to_string())
+}
+
+/// Dernière réponse connue de `fetch_usage()` (succès ou `{"error": ...}`) -- managé comme
+/// state Tauri (`app.manage`), lu par la commande `get_cached_usage`. Existe pour fermer
+/// la course décrite sur `spawn_usage_poller` : le front lit ce cache une fois au montage
+/// EN PLUS d'écouter `hooky-usage`, au lieu de dépendre uniquement d'un event qui a pu être
+/// émis avant que quiconque écoute.
+type LastUsage = Arc<Mutex<Option<Value>>>;
+
+#[tauri::command]
+fn get_cached_usage(state: tauri::State<LastUsage>) -> Option<Value> {
+    state
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+        .clone()
+}
+
+/// Interroge `fetch_usage()` en boucle et émet le résultat sur `hooky-usage` -- écouté par
+/// `useClaudeUsage` (front) pour peupler le panneau de quotas permanent (cf. UsagePanel,
+/// Avatar.tsx). Une SEULE source de fetch peu importe le nombre de fenêtres ouvertes ou de
+/// re-renders : contrairement à un fetch déclenché depuis le front (hover, mount...), rien
+/// ne peut le dupliquer ou le spammer.
+///
+/// Premier appel IMMÉDIAT (boucle "fetch puis sleep", pas un `tokio::time::interval`) --
+/// mais ce premier appel part si tôt qu'il peut se terminer AVANT que la fenêtre "main" ait
+/// fini de monter son listener `hooky-usage` (webview encore en train de charger le bundle
+/// JS) : Tauri ne rejoue jamais un event passé à un listener tardif (même piège déjà
+/// rencontré sur ce projet pour la bulle de notification, cf. NotificationBubbleWindow) --
+/// SANS le cache `LastUsage` mis à jour ici à chaque tick, ce premier résultat serait perdu
+/// et le panneau resterait bloqué sur "Chargement…" jusqu'au tick suivant (3min plus tard --
+/// exactement le symptôme constaté en usage réel). En cas d'échec (token expiré, API down,
+/// rate-limit -- log `eprintln!` + payload `{"error": "..."}`, sans branche dédiée côté
+/// front puisque `parseUsage` retombe déjà sur `null` par absence de `limits`), retente
+/// après `USAGE_RETRY_INTERVAL` (15s) plutôt que d'attendre le plein cycle de 3min.
+fn spawn_usage_poller(app_handle: AppHandle, last_usage: LastUsage) {
+    const USAGE_POLL_INTERVAL: Duration = Duration::from_secs(180);
+    const USAGE_RETRY_INTERVAL: Duration = Duration::from_secs(15);
+    tauri::async_runtime::spawn(async move {
+        loop {
+            let (payload, ok) = match fetch_usage().await {
+                Ok(data) => (data, true),
+                Err(error) => {
+                    eprintln!("[hooky-usage] fetch_usage a échoué : {error}");
+                    (serde_json::json!({ "error": error }), false)
+                }
+            };
+            *last_usage
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner()) = Some(payload.clone());
+            let _ = app_handle.emit("hooky-usage", payload);
+            tokio::time::sleep(if ok {
+                USAGE_POLL_INTERVAL
+            } else {
+                USAGE_RETRY_INTERVAL
+            })
+            .await;
+        }
+    });
+}
+
 /// Snippet de hooks Hooky embarqué dans le binaire à la compilation -- fait partie du
 /// repo (docs/hooks/claude-settings-snippet.json, source de vérité tenue à jour
 /// manuellement), pas une donnée utilisateur : `include_str!` plutôt qu'une lecture
@@ -654,6 +757,7 @@ fn install_claude_hooks() -> Result<String, String> {
 pub fn run() {
     let sessions: Sessions = Arc::new(Mutex::new(HashMap::new()));
     let last_emission: LastEmission = Arc::new(Mutex::new(None));
+    let last_usage: LastUsage = Arc::new(Mutex::new(None));
 
     tauri::Builder::default()
         // Doit être le premier plugin enregistré (contrainte du plugin single-instance).
@@ -665,7 +769,12 @@ pub fn run() {
         }))
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
-        .invoke_handler(tauri::generate_handler![write_text_file, install_claude_hooks])
+        .manage(last_usage.clone())
+        .invoke_handler(tauri::generate_handler![
+            write_text_file,
+            install_claude_hooks,
+            get_cached_usage
+        ])
         .setup(move |app| {
             let app_handle = app.handle().clone();
 
@@ -701,6 +810,8 @@ pub fn run() {
             let reaper_sessions = sessions.clone();
             let reaper_handle = app_handle.clone();
             let reaper_last_emission = last_emission.clone();
+            let usage_handle = app_handle.clone();
+            let usage_last = last_usage.clone();
 
             // --- Serveur axum local : réceptionne les hooks Claude Code ---
             let server_state = ServerState {
@@ -736,6 +847,12 @@ pub fn run() {
             // SessionEnd implicite (couvre le cas d'une session qui ne renvoie jamais
             // SessionEnd, ex. terminal fermé brutalement).
             spawn_idle_reaper(reaper_sessions, reaper_handle, reaper_last_emission);
+
+            // --- Quotas Claude Code : poll indépendant du front (cf. spawn_usage_poller) --
+            // tourne toujours, le réglage `usagePanelEnabled` ne fait que masquer/afficher
+            // le panneau côté front sans arrêter/relancer ce timer (un GET toutes les 3min
+            // est négligeable, éviter une commande de toggle dédiée).
+            spawn_usage_poller(usage_handle, usage_last);
 
             Ok(())
         })

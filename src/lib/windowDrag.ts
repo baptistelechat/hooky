@@ -29,7 +29,8 @@ import { EDGE_PADDING } from "./layout";
 export function startClampedDrag(
   startScreenX: number,
   startScreenY: number,
-  windowSize: number,
+  windowWidth: number,
+  windowHeight: number,
 ): void {
   void emit("hooky-bubble-dismiss");
 
@@ -70,14 +71,16 @@ export function startClampedDrag(
       virtualMaxY = Math.max(virtualMaxY, pos.y + size.height);
     }
 
-    // Bornes sur la position de la fenêtre : le bord réel du bureau virtuel moins
-    // `windowSize` (taille réelle de la fenêtre "main", cf. layout.ts `avatarWindowSize` --
-    // plus grande que l'avatar lui-même depuis l'ajout d'`AVATAR_SHADOW_GAP`), avec
-    // `EDGE_PADDING` pour ne jamais coller la fenêtre pile contre le bord de l'écran.
+    // Bornes sur la position de la fenêtre : le bord réel du bureau virtuel moins la
+    // taille réelle de la fenêtre "main" (cf. layout.ts `avatarWindowWidth`/
+    // `avatarWindowSize` -- plus grande que l'avatar lui-même depuis `AVATAR_SHADOW_GAP`,
+    // et plus large encore quand le panneau de quotas est activé), avec `EDGE_PADDING`
+    // pour ne jamais coller la fenêtre pile contre le bord de l'écran. Largeur/hauteur
+    // distinctes depuis que la fenêtre n'est plus forcément carrée.
     const avatarMinX = virtualMinX + EDGE_PADDING;
-    const avatarMaxX = virtualMaxX - windowSize - EDGE_PADDING;
+    const avatarMaxX = virtualMaxX - windowWidth - EDGE_PADDING;
     const avatarMinY = virtualMinY + EDGE_PADDING;
-    const avatarMaxY = virtualMaxY - windowSize - EDGE_PADDING;
+    const avatarMaxY = virtualMaxY - windowHeight - EDGE_PADDING;
 
     let rafId: number | null = null;
     let pendingX = startWin.x;

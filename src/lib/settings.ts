@@ -18,6 +18,10 @@ export interface HookySettings {
   // n'importe qui, plutôt que de coder un prénom en dur (Hooky est destiné à être
   // partagé publiquement, cf. CLAUDE.md).
   callName: string;
+  // Panneau permanent des quotas Claude Code (session/semaine), accolé à l'avatar --
+  // rafraîchi côté backend toutes les 3min (cf. src-tauri spawn_usage_poller), pas de
+  // fetch déclenché par le front. Désactivable pour ceux qui n'utilisent pas Claude Code.
+  usagePanelEnabled: boolean;
 }
 
 export const DEFAULT_SETTINGS: HookySettings = {
@@ -28,6 +32,7 @@ export const DEFAULT_SETTINGS: HookySettings = {
   avatarId: DEFAULT_AVATAR_ID,
   avatarColorOverrides: {},
   callName: "",
+  usagePanelEnabled: true,
 };
 
 const STORAGE_KEY = "hooky-settings";
