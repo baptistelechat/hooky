@@ -2,6 +2,12 @@ interface UsageLimit {
   kind: string;
   percent: number;
   scope?: { model?: { display_name?: string | null } | null } | null;
+  /** Hypothèse de nom de champ (snake_case, cohérent avec `kind`/`percent`/`scope`) --
+   * jamais confirmé contre un payload réel (pas de token dispo depuis cet environnement).
+   * À vérifier en usage réel : si le "restant" n'apparaît jamais dans le tooltip, c'est que
+   * l'API utilise un autre nom -- `resetsAt` reste `null` par simple absence de champ, pas
+   * de crash, cf. parseUsage. */
+  resets_at?: string | null;
 }
 
 export interface ParsedUsageLimit {
@@ -15,6 +21,13 @@ export interface ParsedUsageLimit {
    * déjà la sévérité. */
   glyph: string;
   percent: number;
+  /** Nom complet du modèle scopé ("weekly_scoped" uniquement), exposé en plus de `glyph`
+   * (son initiale) pour qu'UsagePanel puisse cibler une icône dédiée par nom exact (ex.
+   * Fable) sans construire une table de correspondance pour tous les modèles. */
+  modelName: string | null;
+  /** Date de reset de cette limite si l'API l'expose, sinon `null` (cf. UsageLimit.resets_at)
+   * -- UsagePanel n'affiche le "restant" dans le tooltip que si non-null. */
+  resetsAt: Date | null;
 }
 
 function glyphFor(limit: UsageLimit, index: number): string {
@@ -46,7 +59,26 @@ export function parseUsage(data: unknown): ParsedUsageLimit[] | null {
     kind: limit.kind,
     glyph: glyphFor(limit, index),
     percent: Math.round(limit.percent),
+    resetsAt: limit.resets_at ? new Date(limit.resets_at) : null,
+    modelName: limit.scope?.model?.display_name ?? null,
   }));
+}
+
+/** Durée avant reset, formatée pour tenir dans un tooltip -- jours+heures au-delà de 24h
+ * (weekly_all/weekly_scoped, jusqu'à 7 jours), heures+minutes en-dessous (session, max 5h).
+ * `null` si pas de date connue ou déjà passée (poller pas encore rattrapé le nouveau cycle). */
+export function formatTimeRemaining(resetsAt: Date | null): string | null {
+  if (!resetsAt) return null;
+  const totalMinutes = Math.round((resetsAt.getTime() - Date.now()) / 60_000);
+  if (totalMinutes <= 0) return null;
+
+  const days = Math.floor(totalMinutes / 1440);
+  const hours = Math.floor((totalMinutes % 1440) / 60);
+  const minutes = totalMinutes % 60;
+
+  if (days > 0) return `${days}j ${hours}h`;
+  if (hours > 0) return `${hours}h ${minutes}min`;
+  return `${minutes}min`;
 }
 
 /** Vert < 50% / jaune 50-69% / orange 69-89% / rouge >= 89% -- seuil jaune ajusté depuis

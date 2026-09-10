@@ -10,12 +10,13 @@ project adheres to [Semantic Versioning](https://semver.org/).
 ### Added
 
 - Permanent Claude Code quota rings below the avatar (session, weekly, per-model),
-  color-coded by usage level, with the exact percentage shown on hover -- toggleable in
-  Settings
+  color-coded by usage level, with the exact percentage and time remaining before reset
+  shown on hover -- toggleable in Settings
 
 ### Changed
 
 - "Mode debug" moved to the bottom of the Settings list
+- Session and Fable quota rings now show a dedicated icon instead of a text glyph
 
 ### Fixed
 

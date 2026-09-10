@@ -1,22 +1,27 @@
-import { CalendarDays } from "lucide-react";
+import { CalendarDays, Clock, Sparkles } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import type { ParsedUsageLimit } from "../lib/usage";
+import { formatTimeRemaining, type ParsedUsageLimit } from "../lib/usage";
 import { UsageRing } from "./UsageRing";
 
 interface UsagePanelProps {
   limits: ParsedUsageLimit[] | null;
 }
 
-/** Icône dédiée pour "weekly_all" (plus parlant qu'un "W" texte) -- les autres kinds
- * gardent leur glyphe texte (`5h`, initiale du modèle) : pas d'icône lucide évidente pour
- * "session" ou un modèle précis sans ajouter une table de correspondance par modèle. */
+/** Icône dédiée pour "weekly_all" et "session" (plus parlant qu'un "W"/"5h" texte fixe --
+ * ce dernier ne changeant jamais, il pouvait laisser croire à une valeur figée plutôt qu'un
+ * simple label de catégorie). "weekly_scoped" garde son glyphe texte (initiale du modèle)
+ * SAUF exception ciblée pour Fable -- pas de table complète par modèle, ajoutée seulement
+ * au cas par cas si demandé pour un autre modèle. */
 function glyphFor(limit: ParsedUsageLimit) {
   if (limit.kind === "weekly_all") return <CalendarDays className="size-4" />;
+  if (limit.kind === "session") return <Clock className="size-4" />;
+  if (limit.modelName?.includes("Fable"))
+    return <Sparkles className="size-4" />;
   return limit.glyph;
 }
 
@@ -38,14 +43,19 @@ export function UsagePanel({ limits }: UsagePanelProps) {
   return (
     <TooltipProvider delay={0}>
       <div className="flex items-center justify-center gap-3">
-        {limits.map((limit) => (
-          <Tooltip key={limit.key}>
-            <TooltipTrigger render={<span className="inline-flex" />}>
-              <UsageRing percent={limit.percent} glyph={glyphFor(limit)} />
-            </TooltipTrigger>
-            <TooltipContent>{limit.percent}%</TooltipContent>
-          </Tooltip>
-        ))}
+        {limits.map((limit) => {
+          const remaining = formatTimeRemaining(limit.resetsAt);
+          return (
+            <Tooltip key={limit.key}>
+              <TooltipTrigger render={<span className="inline-flex" />}>
+                <UsageRing percent={limit.percent} glyph={glyphFor(limit)} />
+              </TooltipTrigger>
+              <TooltipContent>
+                {limit.percent}%{remaining ? ` (${remaining} restant)` : ""}
+              </TooltipContent>
+            </Tooltip>
+          );
+        })}
       </div>
     </TooltipProvider>
   );
