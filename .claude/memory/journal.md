@@ -631,7 +631,7 @@ Mise en place d'un système de bump de version ([BDR-067](decisions/BDR-067.md))
 `Cargo.toml`/`Cargo.lock` et crée le tag automatiquement via le hook `"version"` de
 `pnpm version`. Premier vrai run du pipeline de release ensuite -- jamais exercé en
 conditions réelles avant ce jour, 3 surprises enchaînées documentées dans
-[BLK-031](blockers/BLK-031.md) (résolu) : CI en échec immédiat
+[ZBLK-031](archive/blockers/ZBLK-031.md) (résolu) : CI en échec immédiat
 (`pnpm/action-setup@v4` sans `packageManager`, cf.
 [LRN-075](learnings/LRN-075.md)), puis confusion sur la visibilité d'une release en
 draft (invisible sur la sidebar repo et `/tags`, seulement sous `/releases`, cf.
@@ -658,4 +658,41 @@ jamais de dump de commits bruts.
 - [LRN-074](learnings/LRN-074.md) — merge JSON idempotent par identité stable, jamais égalité de texte exacte
 - [BDR-067](decisions/BDR-067.md) — bump de version unifié (`pnpm release:*`) synchronisant tous les fichiers de version
 - [BDR-068](decisions/BDR-068.md) — changelog Keep a Changelog, corps de release généré depuis `CHANGELOG.md`
-- [BLK-031](blockers/BLK-031.md) — premier run du pipeline de release : 3 surprises enchaînées (résolu)
+- [ZBLK-031](archive/blockers/ZBLK-031.md) — premier run du pipeline de release : 3 surprises enchaînées (résolu)
+
+## 2026-09-10
+
+Amélioration du panneau de quotas Claude Code ajouté récemment ([BDR-064](decisions/BDR-064.md) et
+suivants). Baptiste a signalé que le glyphe "5h" du ring "session" semblait ne jamais changer :
+clarifié que ce n'est pas un bug, c'est un label de catégorie fixe (pas une valeur mesurée) — le
+`percent` réel (couleur + remplissage) se met bien à jour toutes les 3 minutes via le poller
+backend déjà en place. Remplacement du glyphe texte par une icône dédiée pour lever l'ambiguïté :
+`Clock` pour "session", puis `Sparkles` (lucide-react statique, après un premier essai `BookOpen`
+écarté par Baptiste) pour le modèle "Fable" spécifiquement — pas de table de correspondance
+complète par modèle, cf. [BDR-069](decisions/BDR-069.md). Ajout du temps restant avant reset dans
+le tooltip (`formatTimeRemaining`, jours+heures au-delà de 24h pour weekly/Fable, heures+minutes
+en-dessous pour session) : le nom du champ API (`resets_at`) n'a pas pu être vérifié contre un
+payload réel (pas de token/réseau depuis l'environnement), codé défensivement avec fallback
+silencieux — cf. [LRN-078](learnings/LRN-078.md).
+
+Question de Baptiste sur l'intervalle de poll (3min → 1min) : recommandation de garder 3min,
+argumentée par l'historique de rate-limit connu de l'endpoint `api/oauth/usage` — décision actée
+sans changement de code, cf. [BDR-070](decisions/BDR-070.md).
+
+Rituel `/changelog` puis `/gen-commit` puis `/memory-close` enchaînés à la demande de Baptiste.
+CHANGELOG.md mis à jour (entrée Added enrichie + nouvelle ligne Changed), commit
+`9c93efc` créé sur `development` (non pushé). Incohérence pré-existante détectée en ouvrant le
+rituel de fermeture : le journal du 2026-09-05 référence des liens locaux
+`[LRN-075](learnings/LRN-075.md)`/`LRN-076`/`LRN-077` dont les fichiers n'ont jamais été créés —
+les patterns correspondants (pnpm action-setup, visibilité release draft, `magick -trim`) semblent
+avoir atterri côté global (`GLRN-272`/`GLRN-273`/`GLRN-274`) sans que les liens locaux du journal
+soient corrigés. Non traité ici (hors scope de cette session, risque de dupliquer le contenu déjà
+en global) — nouvelles entrées de cette session numérotées à partir de
+[LRN-078](learnings/LRN-078.md) pour éviter d'aggraver la confusion.
+
+**Entrées clés :**
+
+- [BDR-069](decisions/BDR-069.md) — icônes UsagePanel ciblées kind/modèle exact, pas de table par modèle
+- [BDR-070](decisions/BDR-070.md) — intervalle de poll usage conservé à 3min
+- [LRN-078](learnings/LRN-078.md) — champ API non vérifiable, coder défensivement
+- [LRN-079](learnings/LRN-079.md) — icône animée en boucle infinie ≠ glyphe statique ponctuel
