@@ -36,3 +36,4 @@ register: archive_blockers
 | [ZBLK-028](blockers/ZBLK-028.md) | 2026-08-31 | Bulle "encore coupée" après deux fixes ciblés, la vraie cause était la mesure     | #tauri #notification-bubble #window-resize #debugging #css-transform #web-fonts           | résolu |
 | [ZBLK-030](blockers/ZBLK-030.md) | 2026-09-04 | Capture d'écran fenêtre Hooky montrait le mauvais contenu malgré un rect correct  | #windows #win32 #screenshot #powershell #setforegroundwindow #debugging #misdiagnosis     | résolu |
 | [ZBLK-031](blockers/ZBLK-031.md) | 2026-09-05 | Premier run du pipeline de release : 3 surprises enchaînées                       | #ci #github-actions #release #tagging #first-run #debugging                               | résolu |
+| [ZBLK-032](blockers/ZBLK-032.md) | 2026-09-11 | Quota panel "Chargement…" : résolu prématurément, 2e cause découverte plus tard   | #usage-panel #rate-limit #misdiagnosis #debugging #429                                    | résolu |

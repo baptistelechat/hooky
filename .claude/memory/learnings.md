@@ -85,3 +85,6 @@ register: learnings
 | [LRN-080](learnings/LRN-080.md) | 2026-09-11 | `cargo metadata --no-deps` ne réécrit pas la version propre dans Cargo.lock         | #rust #cargo #cargo-lock #version-sync #automation                                    |
 | [LRN-081](learnings/LRN-081.md) | 2026-09-11 | Relancer une app desktop complète pour tester perturbe l'écran de l'utilisateur     | #desktop-app #testing-methodology #headless #gui #tauri                               |
 | [LRN-082](learnings/LRN-082.md) | 2026-09-11 | Regarder les projets équivalents avant de dégrader l'UX pour un rate-limit          | #research-methodology #rate-limit #oss-reference #problem-solving                     |
+| [LRN-083](learnings/LRN-083.md) | 2026-09-11 | `claude auth status` ne rafraîchit pas le token OAuth                               | #claude-code #oauth #auth-status #cli #refresh-token #empirical-testing               |
+| [LRN-084](learnings/LRN-084.md) | 2026-09-11 | Un 429 observé sur un endpoint peut couvrir tout un service, pas que lui            | #rate-limit #429 #debugging #api #scope-of-failure                                    |
+| [LRN-085](learnings/LRN-085.md) | 2026-09-11 | Tester un appel réseau sensible hors code prod, avec backup/restore                 | #credentials #security #testing-methodology #backup-restore #sensitive-file           |

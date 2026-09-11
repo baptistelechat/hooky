@@ -727,7 +727,48 @@ reproduit et vérifié volontairement avant/après le fix.
 
 - [BDR-071](decisions/BDR-071.md) — backoff exponentiel sur l'endpoint usage, révise BDR-070
 - [BDR-072](decisions/BDR-072.md) — `docs/RELEASING.md`, checklist de release en 8 étapes
-- [BLK-032](blockers/BLK-032.md) — panneau bloqué sur "Chargement…", diagnostic erroné puis résolu
+- [ZBLK-032](archive/blockers/ZBLK-032.md) — panneau bloqué sur "Chargement…", diagnostic erroné puis résolu (prématurément)
 - [LRN-080](learnings/LRN-080.md) — `cargo metadata --no-deps` ne resync pas Cargo.lock
 - [LRN-081](learnings/LRN-081.md) — relancer une app desktop complète pour tester perturbe l'utilisateur
 - [LRN-082](learnings/LRN-082.md) — regarder les projets équivalents avant de dégrader l'UX
+
+---
+
+Baptiste signale que la bulle est toujours restée sur "Chargement…" depuis 19h30, constaté à
+22h30 — donc 3h après le fix backoff de la session précédente. Test empirique immédiat (relance
+avec stderr redirigé) : `429 Too Many Requests` toujours actif sur `api/oauth/usage`, backoff bien
+respecté. À 3h de blocage continu, creusé plus loin : `expiresAt` du token OAuth local
+(`.credentials.json`) était dans le passé depuis **3 jours** — jamais rafraîchi, car Baptiste
+n'utilise quasiment plus que l'app Desktop (onglet Code), qui ne touche jamais ce fichier
+contrairement au CLI `claude` en terminal. Confirmé en observant Baptiste lancer une vraie session
+`claude` : `expiresAt` passé de 3 jours dans le passé à ~8h dans le futur.
+
+Tentative de fix "discret" (subprocess `claude auth status`) implémentée puis invalidée par un
+test empirique explicitement demandé par Baptiste (le token n'avait pas bougé après simulation
+d'expiration, backup/restore contrôlé) — cf. [LRN-083](learnings/LRN-083.md). Recherche de la
+vraie mécanique de refresh OAuth (endpoint `platform.claude.com/v1/oauth/token`, client_id public,
+documentée par la communauté) puis implémentation directe en Rust (`refresh_oauth_token`,
+écriture atomique). Test réseau réel bloqué une première fois par le classifier auto-mode
+(exfiltration de secret vers un endpoint externe) — débloqué après autorisation explicite de
+Baptiste en chat, mais le test a lui-même échoué en 429 : le rate-limit externe semble couvrir
+tout `/v1/oauth/*` du compte, pas que l'endpoint usage (cf. [LRN-084](learnings/LRN-084.md)). Le
+fix reste donc non validé en conditions réelles au moment du commit.
+
+Baptiste a explicitement relevé le risque ("tu as fait un code qui potentiellement ne fonctionne
+pas") et proposé un garde-fou UX en complément — implémenté (event `hooky-usage-error`, message
+"Quotas indisponibles" différencié de "Chargement…"), sans référence au CLI dans l'UI (idée
+proposée puis écartée par Baptiste lui-même en cours de discussion, cohérent avec le style
+minimaliste déjà établi du panneau). Commit livré en 🚧 (WIP, à la demande explicite de Baptiste
+qui a remplacé le 🐛 initialement proposé) plutôt que 🐛, pour signaler que la validation réelle
+reste à faire au prochain cycle (~06h37 le lendemain). Rituel `/session-close` enchaîné ensuite :
+changelog mis à jour, commit `354c515` créé et pushé sur `development`, react-doctor lancé sur les
+fichiers changés (score 92/100, aucun problème).
+
+**Entrées clés :**
+
+- [BLK-033](blockers/BLK-033.md) — "Chargement…" persistant malgré le fix backoff, révise ZBLK-032
+- [BDR-073](decisions/BDR-073.md) — refresh OAuth direct en HTTP plutôt qu'un subprocess `claude`
+- [BDR-074](decisions/BDR-074.md) — event `hooky-usage-error` dédié, message différencié
+- [LRN-083](learnings/LRN-083.md) — `claude auth status` ne rafraîchit pas le token OAuth
+- [LRN-084](learnings/LRN-084.md) — un 429 observé peut couvrir tout un service, pas qu'un endpoint
+- [LRN-085](learnings/LRN-085.md) — tester un appel réseau sensible hors code prod, avec backup/restore
