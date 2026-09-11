@@ -15,8 +15,15 @@ export const BUBBLE_TAIL_GAP = 5;
 
 /** Marge de sécurité pour ne jamais coller l'avatar ou la bulle pile contre le bord de
  * l'écran (drag, cf. windowDrag.ts, ET positionnement bulle, cf. useBubbleWindow.ts /
- * NotificationBubbleWindow.tsx) -- même valeur partagée pour un comportement cohérent. */
-export const EDGE_PADDING = 12;
+ * NotificationBubbleWindow.tsx) -- même valeur partagée pour un comportement cohérent.
+ * 48px (pas 12) : `monitor.size()` (API Tauri) renvoie la résolution PHYSIQUE du moniteur,
+ * jamais la zone de travail hors barre des tâches -- un padding de 12px protégeait juste du
+ * bord physique de l'écran, pas d'un vrai chevauchement visuel. Peu grave tant que seule la
+ * marge d'ombre de l'avatar (AVATAR_SHADOW_GAP) risquait d'y passer (invisible), devenu
+ * visible avec le panneau de quotas SOUS l'avatar (contenu utile, cf. UsagePanel) --
+ * approximation volontaire (hauteur de barre des tâches Windows/macOS usuelle), pas de
+ * requête de la vraie zone de travail (non exposée simplement par l'API Tauri). */
+export const EDGE_PADDING = 48;
 
 /** Espace réservé du côté OPPOSÉ à l'avatar (au-dessus du corps si la bulle est en bas de
  * l'avatar -- flipped --, en-dessous sinon) pour que le `shadow-lg` du corps de la bulle
@@ -38,4 +45,26 @@ export const AVATAR_SHADOW_GAP = 24;
  * automatiquement des deux côtés sur chaque axe. */
 export function avatarWindowSize(avatarSize: number): number {
   return avatarSize + AVATAR_SHADOW_GAP * 2;
+}
+
+/** Hauteur du panneau de quotas Claude Code (cf. UsagePanel), accolé SOUS la zone avatar
+ * quand `settings.usagePanelEnabled` -- même fenêtre "main" (pas une fenêtre séparée à
+ * faire suivre pendant le drag, cf. LRN-057 en mémoire projet : une fenêtre suiveuse
+ * resynchronisée par IPC pendant un déplacement continu crée un flash structurel jamais
+ * éliminable). Agrandir la fenêtre "main" elle-même, qui se déplace déjà comme un seul
+ * bloc, ne demande aucune synchronisation. Rings alignés en ligne (pas en colonne) dans ce
+ * panneau -- la largeur disponible (celle de la zone avatar) suffit largement pour 3 rings
+ * de 44px, alors qu'empiler 3 rings + libellés en dessous de l'avatar aurait vite dépassé
+ * la hauteur de la fenêtre. */
+export const USAGE_PANEL_HEIGHT = 56;
+
+/** Hauteur totale de la fenêtre "main" -- carrée (`avatarWindowSize`) plus le panneau de
+ * quotas s'il est activé. La largeur reste toujours `avatarWindowSize(avatarSize)`. */
+export function avatarWindowHeight(
+  avatarSize: number,
+  usagePanelEnabled: boolean,
+): number {
+  return (
+    avatarWindowSize(avatarSize) + (usagePanelEnabled ? USAGE_PANEL_HEIGHT : 0)
+  );
 }

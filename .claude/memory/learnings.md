@@ -80,3 +80,5 @@ register: learnings
 | [LRN-072](learnings/LRN-072.md) | 2026-09-04 | `SetForegroundWindow` échoue depuis un process externe, `SetWindowPos(TOPMOST)` OK  | #windows #win32 #setforegroundwindow #focus-stealing #setwindowpos #screenshot        |
 | [LRN-073](learnings/LRN-073.md) | 2026-09-04 | `@tailwindcss/vite` scanne tout le repo, exclure la doc du watch                    | #tailwind #tailwindv4 #vite #watch #hmr #full-reload #docs                            |
 | [LRN-074](learnings/LRN-074.md) | 2026-09-05 | Merge JSON idempotent par identité stable, jamais par égalité de texte exacte       | #rust #json-merge #idempotency #hooks-install #session-start #regression              |
+| [LRN-078](learnings/LRN-078.md) | 2026-09-10 | Champ API non vérifiable : parier défensivement, jamais crasher                     | #api-integration #defensive-coding #unverified-schema #fallback                       |
+| [LRN-079](learnings/LRN-079.md) | 2026-09-10 | Icône animée en boucle infinie ≠ glyphe statique ponctuel                           | #react #icon-reuse #animation #component-context #lucide-react                        |

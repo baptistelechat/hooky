@@ -1,13 +1,5 @@
-import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
-import { currentMonitor, getCurrentWindow } from "@tauri-apps/api/window";
 import { useEffect, useRef } from "react";
-import {
-  AVATAR_SHADOW_GAP,
-  BUBBLE_MAX_WIDTH,
-  BUBBLE_WINDOW_WIDTH,
-  EDGE_PADDING,
-  avatarWindowSize,
-} from "../lib/layout";
+import { spawnBubbleWindow } from "../lib/bubbleWindow";
 import { pickNotificationMessage } from "../lib/notificationMessages";
 
 interface BubbleWindowParams {
@@ -19,16 +11,10 @@ interface BubbleWindowParams {
   callName: string;
 }
 
-/** Décide si une fenêtre "bubble" doit être spawnée pour la notification courante. Ne
- * calcule QUE ce qui ne dépend pas de la hauteur réelle du message -- position X (toujours
- * centrée sur l'avatar, jamais clampée -- cf. layout.ts, `BUBBLE_WINDOW_WIDTH`), `shiftX`
- * (décalage du CORPS de la bulle pour rester visible à l'écran même avatar collé à un bord)
- * et les bords haut/bas de l'avatar/du moniteur. Le choix au-dessus/en-dessous et la
- * position Y finale sont décidés par la fenêtre "bubble" elle-même, une fois qu'elle connaît
- * sa propre hauteur mesurée (cf. NotificationBubbleWindow) : décider "flipped" ici, à partir
- * d'un seuil fixe devinant la hauteur de la bulle, pouvait choisir "assez de place au-dessus"
- * alors que la bulle réelle (plus haute que le seuil deviné) débordait quand même hors
- * écran -- plus de seuil à deviner, la fenêtre a l'information exacte au moment de décider.
+/** Décide si une fenêtre "bubble" doit être spawnée pour la notification courante --
+ * délègue le calcul position/taille et le spawn lui-même à `spawnBubbleWindow` (cf.
+ * lib/bubbleWindow.ts, aussi utilisé par le survol de l'avatar pour les stats Claude
+ * Code). Ne fait ici que traduire l'event hook courant en message affichable (ou rien).
  *
  * Calcule tout ça UNE SEULE FOIS au moment du spawn -- jamais réévalué en continu
  * (contrairement à l'ancienne bulle intégrée à "main", cf. mémoire projet) : l'avatar n'a
@@ -72,98 +58,7 @@ export function useBubbleWindow({
     );
     if (!message) return;
 
-    void (async () => {
-      const existing = await WebviewWindow.getByLabel("bubble").catch(
-        () => null,
-      );
-      if (existing) return;
-
-      const win = getCurrentWindow();
-      const [posPhysical, monitor] = await Promise.all([
-        win.outerPosition(),
-        currentMonitor(),
-      ]).catch((error: unknown) => {
-        console.error(
-          "[useBubbleWindow] lecture position/moniteur échouée",
-          error,
-        );
-        return [null, null] as const;
-      });
-      if (!posPhysical || !monitor) return;
-
-      const scale = monitor.scaleFactor;
-      // "main" est dimensionnée à `avatarWindowSize(avatarSize)`, pas `avatarSize` pile (cf.
-      // layout.ts, `AVATAR_SHADOW_GAP` -- marge réservée pour le drop-shadow de l'avatar) --
-      // l'avatar reste centré dedans, décalé de `AVATAR_SHADOW_GAP` par rapport au coin de la
-      // fenêtre sur chaque axe.
-      const posLogical = posPhysical.toLogical(scale);
-      const windowSize = avatarWindowSize(avatarSize);
-      const avatarTop = posLogical.y + AVATAR_SHADOW_GAP;
-      const avatarBottom = avatarTop + avatarSize;
-      const avatarCenterX = posLogical.x + windowSize / 2;
-      const monitorPos = monitor.position.toLogical(scale);
-      const monitorSize = monitor.size.toLogical(scale);
-
-      // Fenêtre TOUJOURS centrée sur l'avatar, jamais clampée (cf. layout.ts,
-      // `BUBBLE_WINDOW_WIDTH`) -- seul le CORPS de la bulle (`BUBBLE_MAX_WIDTH`, bien plus
-      // étroit) doit rester visible à l'écran : `shiftX` compense l'éventuel débordement de
-      // ce corps (centré sur l'avatar par défaut) contre les bords du moniteur, exactement
-      // comme l'ancienne bulle intégrée à "main" (cf. mémoire projet).
-      const bubbleX = avatarCenterX - BUBBLE_WINDOW_WIDTH / 2;
-      const halfBubble = BUBBLE_MAX_WIDTH / 2;
-      // `EDGE_PADDING` (cf. layout.ts) : même marge de sécurité que le drag de l'avatar, pour
-      // que le corps de la bulle ne colle jamais pile contre le bord de l'écran non plus.
-      const overflowLeft = Math.max(
-        0,
-        monitorPos.x + EDGE_PADDING - (avatarCenterX - halfBubble),
-      );
-      const overflowRight = Math.max(
-        0,
-        avatarCenterX +
-          halfBubble -
-          (monitorPos.x + monitorSize.width - EDGE_PADDING),
-      );
-      const shiftX = overflowLeft - overflowRight;
-
-      // Le message est transmis directement via l'URL de la fenêtre : au moment où CETTE
-      // fenêtre existe et pourrait écouter `hooky-state` elle-même, l'event qui a causé son
-      // spawn a déjà été émis (par définition -- c'est lui qui a déclenché ce spawn) et ne
-      // sera donc JAMAIS reçu par son propre listener (Tauri n'a pas de rejeu d'events
-      // passés pour un listener tardif). Sans ce contournement, la fenêtre s'ouvrait vide au
-      // premier message et ne s'affichait correctement qu'à partir de la DEUXIÈME
-      // notification -- cf. NotificationBubbleWindow, qui affiche ce message initial au
-      // montage puis continue d'écouter `hooky-state` normalement pour les notifications
-      // suivantes. `avatarTop`/`avatarBottom`/`monitorTop` lui donnent tout ce qu'il faut
-      // pour décider elle-même au-dessus/en-dessous une fois sa propre hauteur connue.
-      const params = new URLSearchParams({
-        bubbleText: message,
-        bubbleLastEvent: lastEvent ?? "",
-        bubbleX: String(bubbleX),
-        bubbleShiftX: String(shiftX),
-        avatarTop: String(avatarTop),
-        avatarBottom: String(avatarBottom),
-        monitorTop: String(monitorPos.y),
-      });
-
-      new WebviewWindow("bubble", {
-        url: `/?${params.toString()}`,
-        // Placeholder invisible -- corrigé (hauteur + position Y) par la fenêtre elle-même
-        // une fois sa hauteur réelle mesurée, avant son premier `show()` (cf.
-        // NotificationBubbleWindow). X ne change jamais après coup (largeur fixe).
-        x: bubbleX,
-        y: avatarTop,
-        width: BUBBLE_WINDOW_WIDTH,
-        height: 10,
-        visible: false,
-        transparent: true,
-        decorations: false,
-        shadow: false,
-        alwaysOnTop: true,
-        resizable: false,
-        skipTaskbar: true,
-        focus: false,
-      });
-    })();
+    void spawnBubbleWindow({ text: message, avatarSize, lastEvent });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [revision]);
 }
