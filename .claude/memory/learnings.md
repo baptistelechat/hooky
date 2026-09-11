@@ -82,3 +82,6 @@ register: learnings
 | [LRN-074](learnings/LRN-074.md) | 2026-09-05 | Merge JSON idempotent par identité stable, jamais par égalité de texte exacte       | #rust #json-merge #idempotency #hooks-install #session-start #regression              |
 | [LRN-078](learnings/LRN-078.md) | 2026-09-10 | Champ API non vérifiable : parier défensivement, jamais crasher                     | #api-integration #defensive-coding #unverified-schema #fallback                       |
 | [LRN-079](learnings/LRN-079.md) | 2026-09-10 | Icône animée en boucle infinie ≠ glyphe statique ponctuel                           | #react #icon-reuse #animation #component-context #lucide-react                        |
+| [LRN-080](learnings/LRN-080.md) | 2026-09-11 | `cargo metadata --no-deps` ne réécrit pas la version propre dans Cargo.lock         | #rust #cargo #cargo-lock #version-sync #automation                                    |
+| [LRN-081](learnings/LRN-081.md) | 2026-09-11 | Relancer une app desktop complète pour tester perturbe l'écran de l'utilisateur     | #desktop-app #testing-methodology #headless #gui #tauri                               |
+| [LRN-082](learnings/LRN-082.md) | 2026-09-11 | Regarder les projets équivalents avant de dégrader l'UX pour un rate-limit          | #research-methodology #rate-limit #oss-reference #problem-solving                     |
