@@ -7,6 +7,8 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-09-11
+
 ### Added
 
 - Permanent Claude Code quota rings below the avatar (session, weekly, per-model),
@@ -36,5 +38,6 @@ project adheres to [Semantic Versioning](https://semver.org/).
 - Update check (manual button, silent check on launch, persistent indicator)
 - GitHub Actions release pipeline building and publishing the Windows installer on tag push
 
-[Unreleased]: https://github.com/baptistelechat/hooky/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/baptistelechat/hooky/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/baptistelechat/hooky/releases/tag/v0.2.0
 [0.1.0]: https://github.com/baptistelechat/hooky/releases/tag/v0.1.0
