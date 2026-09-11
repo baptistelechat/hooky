@@ -2,8 +2,9 @@
 // Source de vérité : package.json (déjà bumpé par `pnpm version` avant que ce script ne
 // tourne, via le hook "version" -- cf. package.json). Propage la même version vers
 // tauri.conf.json + Cargo.toml, puis rafraîchit Cargo.lock pour qu'il ne reste pas
-// désynchronisé (ponytail: `cargo metadata` suffit, pas besoin d'un build complet juste
-// pour mettre à jour le lockfile).
+// désynchronisé -- `cargo check` (pas `cargo metadata --no-deps`, qui NE réécrit PAS la
+// propre entrée du package dans Cargo.lock, constaté en v0.2.0 : Cargo.toml passé à 0.2.0
+// mais Cargo.lock resté sur 0.1.0 pour `hooky` lui-même).
 import { execSync } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
 
@@ -26,7 +27,7 @@ writeFileSync(
   cargoToml.replace(/^version = ".*"$/m, `version = "${version}"`),
 );
 
-execSync("cargo metadata --format-version 1 --no-deps", {
+execSync("cargo check", {
   cwd: "src-tauri",
   stdio: "ignore",
 });

@@ -578,33 +578,55 @@ fn get_cached_usage(state: tauri::State<LastUsage>) -> Option<Value> {
 /// JS) : Tauri ne rejoue jamais un event passé à un listener tardif (même piège déjà
 /// rencontré sur ce projet pour la bulle de notification, cf. NotificationBubbleWindow) --
 /// SANS le cache `LastUsage` mis à jour ici à chaque tick, ce premier résultat serait perdu
-/// et le panneau resterait bloqué sur "Chargement…" jusqu'au tick suivant (3min plus tard --
-/// exactement le symptôme constaté en usage réel). En cas d'échec (token expiré, API down,
-/// rate-limit -- log `eprintln!` + payload `{"error": "..."}`, sans branche dédiée côté
-/// front puisque `parseUsage` retombe déjà sur `null` par absence de `limits`), retente
-/// après `USAGE_RETRY_INTERVAL` (15s) plutôt que d'attendre le plein cycle de 3min.
+/// et le panneau resterait bloqué sur "Chargement…" jusqu'au tick suivant.
+///
+/// En cas d'échec (token expiré, API down, rate-limit 429 sur cet endpoint non-officiel --
+/// log `eprintln!`), backoff exponentiel (`USAGE_BACKOFF_BASE` doublé à chaque échec
+/// consécutif, plafonné à `USAGE_BACKOFF_MAX`) au lieu d'un retry fixe qui martèle
+/// l'endpoint pendant qu'il est encore en rate-limit -- même stratégie que claude-pulse
+/// (github.com/NoobyGains/claude-pulse), qui interroge ce même endpoint sans jamais
+/// déclencher de 429 en usage normal. Le cache `LastUsage` n'est mis à jour QUE sur succès
+/// -- une erreur ne l'écrase jamais et n'émet rien : le panneau garde la dernière valeur
+/// connue au lieu de retomber sur "Chargement…" (`parseUsage` traiterait un payload
+/// `{"error": ...}` comme une absence de données de toute façon, cf. `src/lib/usage.ts`).
+const USAGE_BACKOFF_BASE: Duration = Duration::from_secs(60);
+const USAGE_BACKOFF_MAX: Duration = Duration::from_secs(900);
+
+/// Délai avant le prochain essai après N échecs consécutifs : 60s, 120s, 240s, 480s, puis
+/// plafonné à 900s (15min) -- fonction pure séparée du poller pour être testable sans réseau
+/// ni attente réelle (cf. `tests::usage_backoff_delay_doubles_then_caps`).
+fn usage_backoff_delay(consecutive_failures: u32) -> Duration {
+    USAGE_BACKOFF_BASE
+        .saturating_mul(1 << consecutive_failures.min(4))
+        .min(USAGE_BACKOFF_MAX)
+}
+
 fn spawn_usage_poller(app_handle: AppHandle, last_usage: LastUsage) {
     const USAGE_POLL_INTERVAL: Duration = Duration::from_secs(180);
-    const USAGE_RETRY_INTERVAL: Duration = Duration::from_secs(15);
     tauri::async_runtime::spawn(async move {
+        let mut consecutive_failures: u32 = 0;
         loop {
-            let (payload, ok) = match fetch_usage().await {
-                Ok(data) => (data, true),
+            match fetch_usage().await {
+                Ok(data) => {
+                    if consecutive_failures > 0 {
+                        eprintln!(
+                            "[hooky-usage] fetch_usage a réussi après {consecutive_failures} échec(s)"
+                        );
+                    }
+                    consecutive_failures = 0;
+                    *last_usage
+                        .lock()
+                        .unwrap_or_else(|poisoned| poisoned.into_inner()) = Some(data.clone());
+                    let _ = app_handle.emit("hooky-usage", data);
+                    tokio::time::sleep(USAGE_POLL_INTERVAL).await;
+                }
                 Err(error) => {
                     eprintln!("[hooky-usage] fetch_usage a échoué : {error}");
-                    (serde_json::json!({ "error": error }), false)
+                    let backoff = usage_backoff_delay(consecutive_failures);
+                    consecutive_failures += 1;
+                    tokio::time::sleep(backoff).await;
                 }
-            };
-            *last_usage
-                .lock()
-                .unwrap_or_else(|poisoned| poisoned.into_inner()) = Some(payload.clone());
-            let _ = app_handle.emit("hooky-usage", payload);
-            tokio::time::sleep(if ok {
-                USAGE_POLL_INTERVAL
-            } else {
-                USAGE_RETRY_INTERVAL
-            })
-            .await;
+            }
         }
     });
 }
@@ -858,4 +880,19 @@ pub fn run() {
         })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn usage_backoff_delay_doubles_then_caps() {
+        assert_eq!(usage_backoff_delay(0), Duration::from_secs(60));
+        assert_eq!(usage_backoff_delay(1), Duration::from_secs(120));
+        assert_eq!(usage_backoff_delay(2), Duration::from_secs(240));
+        assert_eq!(usage_backoff_delay(3), Duration::from_secs(480));
+        assert_eq!(usage_backoff_delay(4), Duration::from_secs(900));
+        assert_eq!(usage_backoff_delay(100), Duration::from_secs(900));
+    }
 }

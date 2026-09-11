@@ -7,6 +7,12 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- Quota rings no longer get stuck on "Loading…" when Anthropic's usage endpoint is
+  temporarily rate-limited -- the panel keeps showing the last known values and retries
+  with increasing delays instead of hammering the endpoint
+
 ## [0.2.0] - 2026-09-11
 
 ### Added
