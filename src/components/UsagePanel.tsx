@@ -10,6 +10,9 @@ import { UsageRing } from "./UsageRing";
 
 interface UsagePanelProps {
   limits: ParsedUsageLimit[] | null;
+  /** cf. `useClaudeUsage` -- 0 tant qu'aucun échec n'est survenu (chargement initial normal),
+   * sinon distingue "en cours" de "bloqué" dans le message affiché. */
+  consecutiveFailures: number;
 }
 
 /** Icône dédiée pour "weekly_all" et "session" (plus parlant qu'un "W"/"5h" texte fixe --
@@ -31,11 +34,11 @@ function glyphFor(limit: ParsedUsageLimit) {
  * permanence (le ring encode déjà couleur + remplissage) -- seulement au survol, via
  * Tooltip (`render={<span/>}` : sans ça `TooltipTrigger` rend un `<button>` par défaut,
  * cf. doc shadcn -- imbriquer le ring, un `div`, dedans est invalide en HTML). */
-export function UsagePanel({ limits }: UsagePanelProps) {
+export function UsagePanel({ limits, consecutiveFailures }: UsagePanelProps) {
   if (limits === null) {
     return (
       <span className="rounded-full bg-white/90 px-2 py-0.5 font-mono text-[10px] text-neutral-600 shadow-sm">
-        Chargement…
+        {consecutiveFailures > 0 ? "Quotas indisponibles" : "Chargement…"}
       </span>
     );
   }

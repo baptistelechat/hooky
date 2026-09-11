@@ -7,6 +7,12 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- Quota rings no longer get stuck on "Loading…" indefinitely when the local Claude Code
+  auth token has expired -- it's now refreshed automatically, and an "unavailable" message
+  appears instead if fetching still fails after retries
+
 ## [0.2.1] - 2026-09-11
 
 ### Fixed

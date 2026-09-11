@@ -72,7 +72,8 @@ export function PetAvatar({
   revision,
 }: PetAvatarProps) {
   const [settings] = useSettings();
-  const usageLimits = useClaudeUsage();
+  const { limits: usageLimits, consecutiveFailures: usageFailures } =
+    useClaudeUsage();
 
   // Taille RÉELLEMENT appliquée à l'avatar/fenêtre "main", distincte de `settings.avatarSize`
   // (qui change à chaque tick du slider Settings, plusieurs fois par seconde pendant un
@@ -236,7 +237,10 @@ export function PetAvatar({
           className={`flex w-full shrink-0 items-center justify-center ${debugZoneClass(settings.debugMode, "usage-panel")}`}
           style={{ height: USAGE_PANEL_HEIGHT, marginTop: -AVATAR_SHADOW_GAP }}
         >
-          <UsagePanel limits={usageLimits} />
+          <UsagePanel
+            limits={usageLimits}
+            consecutiveFailures={usageFailures}
+          />
         </div>
       )}
     </div>
