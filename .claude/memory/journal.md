@@ -696,3 +696,38 @@ en global) — nouvelles entrées de cette session numérotées à partir de
 - [BDR-070](decisions/BDR-070.md) — intervalle de poll usage conservé à 3min
 - [LRN-078](learnings/LRN-078.md) — champ API non vérifiable, coder défensivement
 - [LRN-079](learnings/LRN-079.md) — icône animée en boucle infinie ≠ glyphe statique ponctuel
+
+## 2026-09-11
+
+Préparation de la release 0.2.0. `docs/RELEASING.md` créé en cours de route à la demande de
+Baptiste (checklist répétable en 8 étapes), enrichi au fil des questions réelles : appel au skill
+`/pr-description-writer` avant le merge, options SourceGit/PR GitHub en plus de la ligne de
+commande, commandes de purge de branches réécrites en PowerShell natif après un premier essai
+bash raté (`grep`/`xargs` absents du terminal réel de Baptiste), étape de resynchronisation
+`development` sur `main` par fast-forward (l'habitude de supprimer/recréer la branche était
+inutile). Release 0.2.0 effectuée : merge via PR GitHub (#1), `pnpm release:minor` exécuté.
+
+Après l'installation de la maj, le panneau de quotas est resté bloqué sur "Chargement…" une bonne
+minute. Diagnostic en deux temps : une première hypothèse (panique silencieuse d'un
+`CryptoProvider` rustls manquant) écartée sur demande explicite de Baptiste ("arrête les
+suppositions, fais le test toi-même") — le vrai test (relance du binaire, single-instance plugin
+tué au préalable, stderr redirigé) a révélé un 429 de l'endpoint non-officiel `api/oauth/usage`.
+Recherche du comportement de projets équivalents (claude-pulse, ccstatusline) plutôt que de
+mitiger par un poll plus lent (option explicitement rejetée par Baptiste) : la vraie cause était
+l'absence de backoff, pas la fréquence. Fix implémenté et vérifié en conditions réelles (3 cycles
+de backoff 60s→120s→240s observés) puis verrouillé par un test unitaire déterministe une fois le
+rate-limit réel devenu trop long à attendre en live (potentiellement ~1h).
+
+Au passage, bug détecté dans `scripts/sync-version.mjs` : `cargo metadata --no-deps` ne
+resynchronisait pas la propre entrée de version du package dans `Cargo.lock` (resté à `0.1.0`
+dans le commit de release alors que `Cargo.toml` affichait `0.2.0`) — corrigé avec `cargo check`,
+reproduit et vérifié volontairement avant/après le fix.
+
+**Entrées clés :**
+
+- [BDR-071](decisions/BDR-071.md) — backoff exponentiel sur l'endpoint usage, révise BDR-070
+- [BDR-072](decisions/BDR-072.md) — `docs/RELEASING.md`, checklist de release en 8 étapes
+- [BLK-032](blockers/BLK-032.md) — panneau bloqué sur "Chargement…", diagnostic erroné puis résolu
+- [LRN-080](learnings/LRN-080.md) — `cargo metadata --no-deps` ne resync pas Cargo.lock
+- [LRN-081](learnings/LRN-081.md) — relancer une app desktop complète pour tester perturbe l'utilisateur
+- [LRN-082](learnings/LRN-082.md) — regarder les projets équivalents avant de dégrader l'UX
