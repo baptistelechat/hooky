@@ -2,7 +2,7 @@
   "name": "hooky",
   "description": "A tiny desktop pet built with Tauri that reacts in real time to Claude Code CLI hooks.",
   "private": true,
-  "version": "0.2.0",
+  "version": "0.2.1",
   "type": "module",
   "license": "AGPL-3.0",
   "author": "Baptiste LECHAT",
