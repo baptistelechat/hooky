@@ -766,9 +766,25 @@ fichiers changés (score 92/100, aucun problème).
 
 **Entrées clés :**
 
-- [BLK-033](blockers/BLK-033.md) — "Chargement…" persistant malgré le fix backoff, révise ZBLK-032
+- [ZBLK-033](archive/blockers/ZBLK-033.md) — "Chargement…" persistant malgré le fix backoff, révise ZBLK-032
 - [BDR-073](decisions/BDR-073.md) — refresh OAuth direct en HTTP plutôt qu'un subprocess `claude`
 - [BDR-074](decisions/BDR-074.md) — event `hooky-usage-error` dédié, message différencié
 - [LRN-083](learnings/LRN-083.md) — `claude auth status` ne rafraîchit pas le token OAuth
 - [LRN-084](learnings/LRN-084.md) — un 429 observé peut couvrir tout un service, pas qu'un endpoint
 - [LRN-085](learnings/LRN-085.md) — tester un appel réseau sensible hors code prod, avec backup/restore
+
+## 2026-09-12
+
+Vérification du fix de la veille ([ZBLK-033](archive/blockers/ZBLK-033.md)) à 11h30 : Baptiste a
+relancé `pnpm tauri:dev`, ce qui a démarré un nouveau process `hooky.exe` juste après
+l'expiration naturelle du token (06h37). Confirmé que `refresh_oauth_token` a fonctionné dès le
+premier cycle sans avoir besoin d'observer l'UI ou d'attacher un logger dédié : `expiresAt` du
+token vaut exactement `LastWriteTime` du fichier + 8h (durée de vie connue), et aucune ligne
+d'erreur `[hooky-usage]` n'apparaît dans le terminal où tourne le process. [ZBLK-033](archive/blockers/ZBLK-033.md)
+mis à jour et archivé en conséquence (le fix est donc validé de bout en bout, contrairement à
+[ZBLK-032](archive/blockers/ZBLK-032.md) qui avait été marqué résolu prématurément sans cette
+confirmation).
+
+**Entrées clés :**
+
+- [LRN-086](learnings/LRN-086.md) — valider un fix asynchrone via corrélation d'horodatages, sans observation directe

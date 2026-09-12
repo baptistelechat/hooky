@@ -88,3 +88,4 @@ register: learnings
 | [LRN-083](learnings/LRN-083.md) | 2026-09-11 | `claude auth status` ne rafraîchit pas le token OAuth                               | #claude-code #oauth #auth-status #cli #refresh-token #empirical-testing               |
 | [LRN-084](learnings/LRN-084.md) | 2026-09-11 | Un 429 observé sur un endpoint peut couvrir tout un service, pas que lui            | #rate-limit #429 #debugging #api #scope-of-failure                                    |
 | [LRN-085](learnings/LRN-085.md) | 2026-09-11 | Tester un appel réseau sensible hors code prod, avec backup/restore                 | #credentials #security #testing-methodology #backup-restore #sensitive-file           |
+| [LRN-086](learnings/LRN-086.md) | 2026-09-12 | Valider un fix asynchrone via corrélation d'horodatages, sans observation directe   | #debugging-methodology #timestamp-correlation #async-fix-validation #log-analysis     |
