@@ -7,6 +7,36 @@ import {
 } from "@tauri-apps/api/window";
 import { EDGE_PADDING } from "./layout";
 
+interface Rect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+/** Union des bornes (min/max) d'une liste de rectangles -- extrait de `startClampedDrag`
+ * en fonction pure (aucune dépendance Tauri/DOM) pour être vérifiable avec des données
+ * synthétiques à plusieurs moniteurs, sans écran secondaire disponible pour tester en
+ * conditions réelles (cf. mémoire projet). `null` si la liste est vide (aucun moniteur
+ * détecté -- ne devrait jamais arriver en pratique, mais évite un `Infinity` qui fuiterait
+ * silencieusement dans le clamp de drag). */
+export function unionBounds(
+  rects: Rect[],
+): { minX: number; minY: number; maxX: number; maxY: number } | null {
+  if (rects.length === 0) return null;
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  for (const r of rects) {
+    minX = Math.min(minX, r.x);
+    minY = Math.min(minY, r.y);
+    maxX = Math.max(maxX, r.x + r.width);
+    maxY = Math.max(maxY, r.y + r.height);
+  }
+  return { minX, minY, maxX, maxY };
+}
+
 /**
  * Déplace la fenêtre "main" à la main (mousemove/mouseup globaux + `setPosition()`) au lieu
  * du `startDragging()` natif Tauri. Constaté en test réel (avatar/fenêtre restant croppés
@@ -57,19 +87,23 @@ export function startClampedDrag(
     // drag démarre -- `currentMonitor()` seul bloquait l'avatar sur son écran d'origine en
     // config multi-écran. Converties avec le `scale` du moniteur de départ (cf. `scale`
     // ci-dessus) : approximation suffisante tant que les moniteurs partagent le même DPI,
-    // qui reste le cas courant.
-    let virtualMinX = Infinity;
-    let virtualMinY = Infinity;
-    let virtualMaxX = -Infinity;
-    let virtualMaxY = -Infinity;
-    for (const m of monitors) {
-      const pos = m.position.toLogical(scale);
-      const size = m.size.toLogical(scale);
-      virtualMinX = Math.min(virtualMinX, pos.x);
-      virtualMinY = Math.min(virtualMinY, pos.y);
-      virtualMaxX = Math.max(virtualMaxX, pos.x + size.width);
-      virtualMaxY = Math.max(virtualMaxY, pos.y + size.height);
-    }
+    // qui reste le cas courant. `workArea` (pas `position`/`size`) : exclut la barre des
+    // tâches de CE moniteur quelle que soit sa position (haut/bas/côté), contrairement à
+    // la résolution physique -- cf. EDGE_PADDING dans layout.ts.
+    const bounds = unionBounds(
+      monitors.map((m) => {
+        const pos = m.workArea.position.toLogical(scale);
+        const size = m.workArea.size.toLogical(scale);
+        return { x: pos.x, y: pos.y, width: size.width, height: size.height };
+      }),
+    );
+    if (!bounds) return;
+    const {
+      minX: virtualMinX,
+      minY: virtualMinY,
+      maxX: virtualMaxX,
+      maxY: virtualMaxY,
+    } = bounds;
 
     // Bornes sur la position de la fenêtre : le bord réel du bureau virtuel moins la
     // taille réelle de la fenêtre "main" (cf. layout.ts `avatarWindowWidth`/

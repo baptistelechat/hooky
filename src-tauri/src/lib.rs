@@ -516,6 +516,122 @@ fn claude_credentials_path() -> Result<std::path::PathBuf, String> {
         .join(".credentials.json"))
 }
 
+/// `true` si `expiresAt` (ms epoch, `claudeAiOauth`) est passé ou à moins de 5 min --
+/// seul le CLI `claude` rafraîchit `.credentials.json` (via son `refreshToken`), jamais
+/// Hooky. Un utilisateur qui ne passe que par l'app desktop (onglet Code, pas le CLI en
+/// terminal) ne déclenche donc jamais ce refresh : le token reste périmé indéfiniment et
+/// `fetch_usage` échoue en boucle avec un 429 qui n'a rien à voir avec un vrai rate-limit
+/// (cf. BLK-032). Marge de 5 min plutôt qu'une comparaison stricte : évite de rater de peu
+/// une expiration entre la lecture du fichier et l'appel HTTP qui suit.
+fn token_expiring_soon(creds: &Value) -> bool {
+    let Some(expires_at_ms) = creds
+        .get("claudeAiOauth")
+        .and_then(|o| o.get("expiresAt"))
+        .and_then(Value::as_i64)
+    else {
+        return false;
+    };
+    let now_ms = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as i64)
+        .unwrap_or(0);
+    expires_at_ms - now_ms < 5 * 60 * 1000
+}
+
+/// Client OAuth public du CLI officiel `claude` (identique pour tous ses utilisateurs, pas
+/// un secret propre à Hooky) -- documenté par la communauté (cf. gist
+/// ben-vargas/c7c7cbfebbb47278f45feca9cef309d1), `claude auth status` s'est avéré NE PAS
+/// rafraîchir le token (vérifié empiriquement : `expiresAt` inchangé même sur un token
+/// simulé expiré) -- seule une vraie session interactive le fait, en plusieurs secondes.
+const CLAUDE_OAUTH_CLIENT_ID: &str = "9d1c250a-e61b-44d9-88ed-5944d1962f5e";
+const CLAUDE_OAUTH_TOKEN_URL: &str = "https://platform.claude.com/v1/oauth/token";
+
+/// Fusionne la réponse de refresh dans `creds`, en ne touchant QUE
+/// accessToken/refreshToken/expiresAt -- scopes/subscriptionType/rateLimitTier/
+/// refreshTokenExpiresAt restent intacts. `refresh_token` peut être absent de la réponse
+/// (rotation non systématique côté API) : on garde alors l'ancien. Séparée de
+/// `refresh_oauth_token` (réseau + écriture disque) pour être testable sans I/O.
+fn merge_refreshed_token(creds: &mut Value, body: &Value, now_ms: i64) -> Result<(), String> {
+    let access_token = body
+        .get("access_token")
+        .and_then(Value::as_str)
+        .ok_or("access_token absent de la réponse de refresh")?
+        .to_string();
+    let expires_in = body
+        .get("expires_in")
+        .and_then(Value::as_i64)
+        .ok_or("expires_in absent de la réponse de refresh")?;
+    let fallback_refresh_token = creds
+        .get("claudeAiOauth")
+        .and_then(|o| o.get("refreshToken"))
+        .and_then(Value::as_str)
+        .unwrap_or_default()
+        .to_string();
+    let refresh_token = body
+        .get("refresh_token")
+        .and_then(Value::as_str)
+        .map(str::to_string)
+        .unwrap_or(fallback_refresh_token);
+
+    let oauth = creds
+        .get_mut("claudeAiOauth")
+        .ok_or("claudeAiOauth manquant dans .credentials.json")?;
+    oauth["accessToken"] = Value::String(access_token);
+    oauth["refreshToken"] = Value::String(refresh_token);
+    oauth["expiresAt"] = Value::from(now_ms + expires_in * 1000);
+    Ok(())
+}
+
+/// Rafraîchit le token OAuth (endpoint non officiel, cf. `CLAUDE_OAUTH_TOKEN_URL`) et
+/// réécrit `.credentials.json` de façon atomique (fichier temporaire + rename -- ce fichier
+/// est aussi lu/écrit par le CLI `claude`, une écriture tronquée en cas de crash le
+/// corromprait). Best-effort : toute erreur (réseau, parsing, écriture) remonte en `Err`
+/// sans avoir modifié `creds` ni le fichier -- l'appelant continue avec le token existant,
+/// le backoff du poller prend le relais si l'appel qui suit échoue vraiment.
+async fn refresh_oauth_token(path: &std::path::Path, creds: &mut Value) -> Result<(), String> {
+    let refresh_token = creds
+        .get("claudeAiOauth")
+        .and_then(|o| o.get("refreshToken"))
+        .and_then(Value::as_str)
+        .ok_or("refreshToken introuvable dans .credentials.json")?
+        .to_string();
+
+    let response = reqwest::Client::new()
+        .post(CLAUDE_OAUTH_TOKEN_URL)
+        .json(&serde_json::json!({
+            "grant_type": "refresh_token",
+            "refresh_token": refresh_token,
+            "client_id": CLAUDE_OAUTH_CLIENT_ID,
+        }))
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    if !response.status().is_success() {
+        return Err(format!(
+            "l'endpoint de refresh a répondu {}",
+            response.status()
+        ));
+    }
+
+    let body: Value = response.json().await.map_err(|e| e.to_string())?;
+    let now_ms = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as i64)
+        .unwrap_or(0);
+    merge_refreshed_token(creds, &body, now_ms)?;
+
+    let tmp_path = path.with_extension("json.tmp");
+    std::fs::write(
+        &tmp_path,
+        serde_json::to_string_pretty(creds).map_err(|e| e.to_string())?,
+    )
+    .map_err(|e| e.to_string())?;
+    std::fs::rename(&tmp_path, path).map_err(|e| e.to_string())?;
+
+    Ok(())
+}
+
 /// Lit le token OAuth local et interroge l'endpoint de quotas Claude Code (même endpoint
 /// que le CLI officiel, cf. github.com/Ulrichfr/Claude-Marge-Widget qui l'a documenté en
 /// premier). Retourne le JSON brut tel quel -- le formatage (labels, pourcentages, dates
@@ -528,7 +644,14 @@ async fn fetch_usage() -> Result<Value, String> {
     let path = claude_credentials_path()?;
     let raw = std::fs::read_to_string(&path)
         .map_err(|e| format!("lecture de {} impossible : {e}", path.display()))?;
-    let creds: Value = serde_json::from_str(&raw).map_err(|e| e.to_string())?;
+    let mut creds: Value = serde_json::from_str(&raw).map_err(|e| e.to_string())?;
+
+    if token_expiring_soon(&creds) {
+        if let Err(e) = refresh_oauth_token(&path, &mut creds).await {
+            eprintln!("[hooky-usage] refresh du token OAuth échoué : {e}");
+        }
+    }
+
     let token = creds
         .get("claudeAiOauth")
         .and_then(|o| o.get("accessToken"))
@@ -622,8 +745,13 @@ fn spawn_usage_poller(app_handle: AppHandle, last_usage: LastUsage) {
                 }
                 Err(error) => {
                     eprintln!("[hooky-usage] fetch_usage a échoué : {error}");
-                    let backoff = usage_backoff_delay(consecutive_failures);
                     consecutive_failures += 1;
+                    // Événement dédié (pas le cache `LastUsage`, qui ne bouge jamais sur
+                    // échec) : sans ça, le front ne peut pas distinguer "premier chargement
+                    // en cours" de "échoue en boucle depuis 1h" -- les deux se traduisent
+                    // par `limits === null` côté UsagePanel, cf. BLK-032.
+                    let _ = app_handle.emit("hooky-usage-error", consecutive_failures);
+                    let backoff = usage_backoff_delay(consecutive_failures - 1);
                     tokio::time::sleep(backoff).await;
                 }
             }
@@ -894,5 +1022,70 @@ mod tests {
         assert_eq!(usage_backoff_delay(3), Duration::from_secs(480));
         assert_eq!(usage_backoff_delay(4), Duration::from_secs(900));
         assert_eq!(usage_backoff_delay(100), Duration::from_secs(900));
+    }
+
+    #[test]
+    fn token_expiring_soon_detects_past_and_near_expiry() {
+        let now_ms = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_millis() as i64;
+        let creds_at = |expires_at_ms: i64| {
+            serde_json::json!({ "claudeAiOauth": { "expiresAt": expires_at_ms } })
+        };
+
+        assert!(token_expiring_soon(&creds_at(now_ms - 1))); // déjà expiré
+        assert!(token_expiring_soon(&creds_at(now_ms + 60_000))); // dans la marge de 5min
+        assert!(!token_expiring_soon(&creds_at(now_ms + 10 * 60_000))); // largement valide
+        assert!(!token_expiring_soon(&serde_json::json!({}))); // champ absent -> pas de crash
+    }
+
+    #[test]
+    fn merge_refreshed_token_updates_only_token_fields() {
+        let mut creds = serde_json::json!({
+            "claudeAiOauth": {
+                "accessToken": "old-access",
+                "refreshToken": "old-refresh",
+                "expiresAt": 1_000,
+                "scopes": ["user:inference"],
+                "subscriptionType": "max",
+            }
+        });
+        let body = serde_json::json!({
+            "access_token": "new-access",
+            "refresh_token": "new-refresh",
+            "expires_in": 3600,
+        });
+
+        merge_refreshed_token(&mut creds, &body, 10_000).unwrap();
+
+        assert_eq!(creds["claudeAiOauth"]["accessToken"], "new-access");
+        assert_eq!(creds["claudeAiOauth"]["refreshToken"], "new-refresh");
+        assert_eq!(creds["claudeAiOauth"]["expiresAt"], 10_000 + 3_600_000);
+        assert_eq!(
+            creds["claudeAiOauth"]["scopes"],
+            serde_json::json!(["user:inference"])
+        );
+        assert_eq!(creds["claudeAiOauth"]["subscriptionType"], "max");
+    }
+
+    #[test]
+    fn merge_refreshed_token_falls_back_to_existing_refresh_token_when_absent() {
+        let mut creds = serde_json::json!({
+            "claudeAiOauth": { "accessToken": "old", "refreshToken": "keep-me", "expiresAt": 0 }
+        });
+        let body = serde_json::json!({ "access_token": "new-access", "expires_in": 60 });
+
+        merge_refreshed_token(&mut creds, &body, 0).unwrap();
+
+        assert_eq!(creds["claudeAiOauth"]["refreshToken"], "keep-me");
+    }
+
+    #[test]
+    fn merge_refreshed_token_errors_on_missing_access_token() {
+        let mut creds = serde_json::json!({ "claudeAiOauth": {} });
+        let body = serde_json::json!({ "expires_in": 60 });
+
+        assert!(merge_refreshed_token(&mut creds, &body, 0).is_err());
     }
 }

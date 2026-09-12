@@ -727,7 +727,90 @@ reproduit et vérifié volontairement avant/après le fix.
 
 - [BDR-071](decisions/BDR-071.md) — backoff exponentiel sur l'endpoint usage, révise BDR-070
 - [BDR-072](decisions/BDR-072.md) — `docs/RELEASING.md`, checklist de release en 8 étapes
-- [BLK-032](blockers/BLK-032.md) — panneau bloqué sur "Chargement…", diagnostic erroné puis résolu
+- [ZBLK-032](archive/blockers/ZBLK-032.md) — panneau bloqué sur "Chargement…", diagnostic erroné puis résolu (prématurément)
 - [LRN-080](learnings/LRN-080.md) — `cargo metadata --no-deps` ne resync pas Cargo.lock
 - [LRN-081](learnings/LRN-081.md) — relancer une app desktop complète pour tester perturbe l'utilisateur
 - [LRN-082](learnings/LRN-082.md) — regarder les projets équivalents avant de dégrader l'UX
+
+---
+
+Baptiste signale que la bulle est toujours restée sur "Chargement…" depuis 19h30, constaté à
+22h30 — donc 3h après le fix backoff de la session précédente. Test empirique immédiat (relance
+avec stderr redirigé) : `429 Too Many Requests` toujours actif sur `api/oauth/usage`, backoff bien
+respecté. À 3h de blocage continu, creusé plus loin : `expiresAt` du token OAuth local
+(`.credentials.json`) était dans le passé depuis **3 jours** — jamais rafraîchi, car Baptiste
+n'utilise quasiment plus que l'app Desktop (onglet Code), qui ne touche jamais ce fichier
+contrairement au CLI `claude` en terminal. Confirmé en observant Baptiste lancer une vraie session
+`claude` : `expiresAt` passé de 3 jours dans le passé à ~8h dans le futur.
+
+Tentative de fix "discret" (subprocess `claude auth status`) implémentée puis invalidée par un
+test empirique explicitement demandé par Baptiste (le token n'avait pas bougé après simulation
+d'expiration, backup/restore contrôlé) — cf. [LRN-083](learnings/LRN-083.md). Recherche de la
+vraie mécanique de refresh OAuth (endpoint `platform.claude.com/v1/oauth/token`, client_id public,
+documentée par la communauté) puis implémentation directe en Rust (`refresh_oauth_token`,
+écriture atomique). Test réseau réel bloqué une première fois par le classifier auto-mode
+(exfiltration de secret vers un endpoint externe) — débloqué après autorisation explicite de
+Baptiste en chat, mais le test a lui-même échoué en 429 : le rate-limit externe semble couvrir
+tout `/v1/oauth/*` du compte, pas que l'endpoint usage (cf. [LRN-084](learnings/LRN-084.md)). Le
+fix reste donc non validé en conditions réelles au moment du commit.
+
+Baptiste a explicitement relevé le risque ("tu as fait un code qui potentiellement ne fonctionne
+pas") et proposé un garde-fou UX en complément — implémenté (event `hooky-usage-error`, message
+"Quotas indisponibles" différencié de "Chargement…"), sans référence au CLI dans l'UI (idée
+proposée puis écartée par Baptiste lui-même en cours de discussion, cohérent avec le style
+minimaliste déjà établi du panneau). Commit livré en 🚧 (WIP, à la demande explicite de Baptiste
+qui a remplacé le 🐛 initialement proposé) plutôt que 🐛, pour signaler que la validation réelle
+reste à faire au prochain cycle (~06h37 le lendemain). Rituel `/session-close` enchaîné ensuite :
+changelog mis à jour, commit `354c515` créé et pushé sur `development`, react-doctor lancé sur les
+fichiers changés (score 92/100, aucun problème).
+
+**Entrées clés :**
+
+- [ZBLK-033](archive/blockers/ZBLK-033.md) — "Chargement…" persistant malgré le fix backoff, révise ZBLK-032
+- [BDR-073](decisions/BDR-073.md) — refresh OAuth direct en HTTP plutôt qu'un subprocess `claude`
+- [BDR-074](decisions/BDR-074.md) — event `hooky-usage-error` dédié, message différencié
+- [LRN-083](learnings/LRN-083.md) — `claude auth status` ne rafraîchit pas le token OAuth
+- [LRN-084](learnings/LRN-084.md) — un 429 observé peut couvrir tout un service, pas qu'un endpoint
+- [LRN-085](learnings/LRN-085.md) — tester un appel réseau sensible hors code prod, avec backup/restore
+
+## 2026-09-12
+
+Vérification du fix de la veille ([ZBLK-033](archive/blockers/ZBLK-033.md)) à 11h30 : Baptiste a
+relancé `pnpm tauri:dev`, ce qui a démarré un nouveau process `hooky.exe` juste après
+l'expiration naturelle du token (06h37). Confirmé que `refresh_oauth_token` a fonctionné dès le
+premier cycle sans avoir besoin d'observer l'UI ou d'attacher un logger dédié : `expiresAt` du
+token vaut exactement `LastWriteTime` du fichier + 8h (durée de vie connue), et aucune ligne
+d'erreur `[hooky-usage]` n'apparaît dans le terminal où tourne le process. [ZBLK-033](archive/blockers/ZBLK-033.md)
+mis à jour et archivé en conséquence (le fix est donc validé de bout en bout, contrairement à
+[ZBLK-032](archive/blockers/ZBLK-032.md) qui avait été marqué résolu prématurément sans cette
+confirmation).
+
+**Entrées clés :**
+
+- [LRN-086](learnings/LRN-086.md) — valider un fix asynchrone via corrélation d'horodatages, sans observation directe
+
+---
+
+Baptiste signale une marge de drag de l'avatar visiblement plus grande à gauche/droite qu'en
+haut/bas, sur un screenshot debug-zone. Plutôt que de conclure depuis l'image (peu fiable pour
+des écarts en pixels), mesuré le vrai rect de la fenêtre via `GetWindowRect` (Win32) et comparé
+aux bornes `Screen.Bounds` (physique) et `Screen.WorkingArea` (hors taskbar) du même écran en un
+seul bloc PowerShell : marge gauche réelle 48px (= `EDGE_PADDING`), marge bas réelle seulement 8px
+(48 - 40px de taskbar Windows). Root cause confirmée : `EDGE_PADDING=48` avait été bumpé pour
+compenser une taskbar invisible à `monitor.size()` (résolution physique), appliqué symétriquement
+aux 4 côtés -- alors que Tauri expose déjà `monitor.workArea` (zone hors taskbar, déjà installé,
+pas de nouvelle dépendance). Remplacé `monitor.size`/`monitor.position` par `monitor.workArea`
+dans `windowDrag.ts` et `bubbleWindow.ts`, `EDGE_PADDING` revenu à 12 (sa valeur d'origine avant
+le hack de BDR-059).
+
+Baptiste n'ayant pas de second écran sous la main pour tester le multi-moniteur, extrait la
+logique d'union des bornes (`unionBounds`) en fonction pure et vérifiée avec des données
+synthétiques à 2 écrans (dont un décalé verticalement) via un script `.mjs` jetable (`node:assert`,
+zéro dépendance, aucune infra de test JS dans ce projet) -- supprimé après vérification. Bug latent
+corrigé au passage : une liste de moniteurs vide aurait fuité un `Infinity` dans le clamp, la
+fonction retourne maintenant `null` proprement dans ce cas.
+
+**Entrées clés :**
+
+- [BDR-075](decisions/BDR-075.md) — `monitor.workArea` remplace la résolution physique pour le clamp de drag
+- [LRN-087](learnings/LRN-087.md) — mesurer un écart de marge fenêtre via GetWindowRect + Screen.Bounds/WorkingArea
