@@ -788,3 +788,29 @@ confirmation).
 **Entrées clés :**
 
 - [LRN-086](learnings/LRN-086.md) — valider un fix asynchrone via corrélation d'horodatages, sans observation directe
+
+---
+
+Baptiste signale une marge de drag de l'avatar visiblement plus grande à gauche/droite qu'en
+haut/bas, sur un screenshot debug-zone. Plutôt que de conclure depuis l'image (peu fiable pour
+des écarts en pixels), mesuré le vrai rect de la fenêtre via `GetWindowRect` (Win32) et comparé
+aux bornes `Screen.Bounds` (physique) et `Screen.WorkingArea` (hors taskbar) du même écran en un
+seul bloc PowerShell : marge gauche réelle 48px (= `EDGE_PADDING`), marge bas réelle seulement 8px
+(48 - 40px de taskbar Windows). Root cause confirmée : `EDGE_PADDING=48` avait été bumpé pour
+compenser une taskbar invisible à `monitor.size()` (résolution physique), appliqué symétriquement
+aux 4 côtés -- alors que Tauri expose déjà `monitor.workArea` (zone hors taskbar, déjà installé,
+pas de nouvelle dépendance). Remplacé `monitor.size`/`monitor.position` par `monitor.workArea`
+dans `windowDrag.ts` et `bubbleWindow.ts`, `EDGE_PADDING` revenu à 12 (sa valeur d'origine avant
+le hack de BDR-059).
+
+Baptiste n'ayant pas de second écran sous la main pour tester le multi-moniteur, extrait la
+logique d'union des bornes (`unionBounds`) en fonction pure et vérifiée avec des données
+synthétiques à 2 écrans (dont un décalé verticalement) via un script `.mjs` jetable (`node:assert`,
+zéro dépendance, aucune infra de test JS dans ce projet) -- supprimé après vérification. Bug latent
+corrigé au passage : une liste de moniteurs vide aurait fuité un `Infinity` dans le clamp, la
+fonction retourne maintenant `null` proprement dans ce cas.
+
+**Entrées clés :**
+
+- [BDR-075](decisions/BDR-075.md) — `monitor.workArea` remplace la résolution physique pour le clamp de drag
+- [LRN-087](learnings/LRN-087.md) — mesurer un écart de marge fenêtre via GetWindowRect + Screen.Bounds/WorkingArea
