@@ -12,6 +12,9 @@ project adheres to [Semantic Versioning](https://semver.org/).
 - Quota rings no longer get stuck on "Loading…" indefinitely when the local Claude Code
   auth token has expired -- it's now refreshed automatically, and an "unavailable" message
   appears instead if fetching still fails after retries
+- The safety margin keeping the avatar off screen edges while dragging was inconsistent --
+  much smaller near the taskbar than on the other sides -- now uses the real usable screen
+  area on every monitor, so the margin stays even on all sides
 
 ## [0.2.1] - 2026-09-11
 

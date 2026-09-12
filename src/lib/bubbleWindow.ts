@@ -48,8 +48,10 @@ export async function spawnBubbleWindow({
   const avatarTop = posLogical.y + AVATAR_SHADOW_GAP;
   const avatarBottom = avatarTop + avatarSize;
   const avatarCenterX = posLogical.x + windowSize / 2;
-  const monitorPos = monitor.position.toLogical(scale);
-  const monitorSize = monitor.size.toLogical(scale);
+  // `workArea` (pas `position`/`size`) : exclut la barre des tâches, cf. windowDrag.ts et
+  // EDGE_PADDING (layout.ts) pour le même changement côté drag de l'avatar.
+  const monitorPos = monitor.workArea.position.toLogical(scale);
+  const monitorSize = monitor.workArea.size.toLogical(scale);
 
   const bubbleX = avatarCenterX - BUBBLE_WINDOW_WIDTH / 2;
   const halfBubble = BUBBLE_MAX_WIDTH / 2;

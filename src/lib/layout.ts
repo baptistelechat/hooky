@@ -14,16 +14,16 @@ export const BUBBLE_WINDOW_WIDTH = 520;
 export const BUBBLE_TAIL_GAP = 5;
 
 /** Marge de sécurité pour ne jamais coller l'avatar ou la bulle pile contre le bord de
- * l'écran (drag, cf. windowDrag.ts, ET positionnement bulle, cf. useBubbleWindow.ts /
+ * l'écran (drag, cf. windowDrag.ts, ET positionnement bulle, cf. bubbleWindow.ts /
  * NotificationBubbleWindow.tsx) -- même valeur partagée pour un comportement cohérent.
- * 48px (pas 12) : `monitor.size()` (API Tauri) renvoie la résolution PHYSIQUE du moniteur,
- * jamais la zone de travail hors barre des tâches -- un padding de 12px protégeait juste du
- * bord physique de l'écran, pas d'un vrai chevauchement visuel. Peu grave tant que seule la
- * marge d'ombre de l'avatar (AVATAR_SHADOW_GAP) risquait d'y passer (invisible), devenu
- * visible avec le panneau de quotas SOUS l'avatar (contenu utile, cf. UsagePanel) --
- * approximation volontaire (hauteur de barre des tâches Windows/macOS usuelle), pas de
- * requête de la vraie zone de travail (non exposée simplement par l'API Tauri). */
-export const EDGE_PADDING = 48;
+ * Revenu à 12 (depuis 48, cf. BDR-059) : les trois calculs utilisent maintenant
+ * `monitor.workArea` (API Tauri, exclut la barre des tâches quelle que soit sa position)
+ * au lieu de `monitor.size()`/`monitor.position()` (résolution PHYSIQUE) -- la marge
+ * anti-taskbar n'est donc plus approximée ici, `EDGE_PADDING` ne sert plus qu'à éviter de
+ * coller pile contre le bord de la VRAIE zone utile. Un 48px uniforme sur les 4 côtés
+ * masquait ce fix : sans taskbar visible (haut/gauche/droite), l'écart perçu était bien
+ * plus grand que côté taskbar (souvent en bas), constaté par Baptiste. */
+export const EDGE_PADDING = 12;
 
 /** Espace réservé du côté OPPOSÉ à l'avatar (au-dessus du corps si la bulle est en bas de
  * l'avatar -- flipped --, en-dessous sinon) pour que le `shadow-lg` du corps de la bulle
