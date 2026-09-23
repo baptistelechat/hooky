@@ -11,6 +11,15 @@ export interface ClaudeUsageState {
    * la bulle bloquée sur "Chargement…" indéfiniment sans aucun signal (cf. BLK-032). Remis
    * à 0 dès qu'un succès arrive. */
   consecutiveFailures: number;
+  /** `true` si le refresh token OAuth lui-même est expiré (cf. `hooky-usage-error`,
+   * `REFRESH_TOKEN_EXPIRED_ERR` côté Rust) -- aucun poll ne réussira tant qu'une vraie
+   * session (`claude auth login`) n'a pas régénéré `.credentials.json`. */
+  reconnectRequired: boolean;
+}
+
+interface UsageErrorPayload {
+  consecutiveFailures: number;
+  reconnectRequired: boolean;
 }
 
 /** Quotas Claude Code, mis à jour par le poller backend (cf. spawn_usage_poller,
@@ -26,6 +35,7 @@ export interface ClaudeUsageState {
 export function useClaudeUsage(): ClaudeUsageState {
   const [limits, setLimits] = useState<ParsedUsageLimit[] | null>(null);
   const [consecutiveFailures, setConsecutiveFailures] = useState(0);
+  const [reconnectRequired, setReconnectRequired] = useState(false);
 
   useEffect(() => {
     let unlistenUsage: (() => void) | undefined;
@@ -38,6 +48,7 @@ export function useClaudeUsage(): ClaudeUsageState {
 
     listen<unknown>("hooky-usage", (event) => {
       setConsecutiveFailures(0);
+      setReconnectRequired(false);
       setLimits(parseUsage(event.payload));
     }).then((fn) => {
       if (cancelled) {
@@ -47,8 +58,9 @@ export function useClaudeUsage(): ClaudeUsageState {
       }
     });
 
-    listen<number>("hooky-usage-error", (event) => {
-      setConsecutiveFailures(event.payload);
+    listen<UsageErrorPayload>("hooky-usage-error", (event) => {
+      setConsecutiveFailures(event.payload.consecutiveFailures);
+      setReconnectRequired(event.payload.reconnectRequired);
     }).then((fn) => {
       if (cancelled) {
         fn();
@@ -64,5 +76,5 @@ export function useClaudeUsage(): ClaudeUsageState {
     };
   }, []);
 
-  return { limits, consecutiveFailures };
+  return { limits, consecutiveFailures, reconnectRequired };
 }

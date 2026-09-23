@@ -72,8 +72,11 @@ export function PetAvatar({
   revision,
 }: PetAvatarProps) {
   const [settings] = useSettings();
-  const { limits: usageLimits, consecutiveFailures: usageFailures } =
-    useClaudeUsage();
+  const {
+    limits: usageLimits,
+    consecutiveFailures: usageFailures,
+    reconnectRequired: usageReconnectRequired,
+  } = useClaudeUsage();
 
   // Taille RÉELLEMENT appliquée à l'avatar/fenêtre "main", distincte de `settings.avatarSize`
   // (qui change à chaque tick du slider Settings, plusieurs fois par seconde pendant un
@@ -240,6 +243,7 @@ export function PetAvatar({
           <UsagePanel
             limits={usageLimits}
             consecutiveFailures={usageFailures}
+            reconnectRequired={usageReconnectRequired}
           />
         </div>
       )}

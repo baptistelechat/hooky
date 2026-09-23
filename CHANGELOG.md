@@ -7,6 +7,12 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- When the local Claude Code login itself has expired (not just the short-lived token),
+  the quota rings now show "Reconnexion requise" telling you to run `claude auth login`,
+  instead of a generic "unavailable" message that never went away
+
 ## [0.2.2] - 2026-09-12
 
 ### Fixed
