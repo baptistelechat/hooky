@@ -90,3 +90,4 @@ register: learnings
 | [LRN-085](learnings/LRN-085.md) | 2026-09-11 | Tester un appel réseau sensible hors code prod, avec backup/restore                 | #credentials #security #testing-methodology #backup-restore #sensitive-file           |
 | [LRN-086](learnings/LRN-086.md) | 2026-09-12 | Valider un fix asynchrone via corrélation d'horodatages, sans observation directe   | #debugging-methodology #timestamp-correlation #async-fix-validation #log-analysis     |
 | [LRN-087](learnings/LRN-087.md) | 2026-09-12 | Mesurer un écart de marge fenêtre via GetWindowRect + Screen.Bounds/WorkingArea     | #win32 #getwindowrect #debugging #screen-measurement #taskbar #verification           |
+| [LRN-088](learnings/LRN-088.md) | 2026-09-23 | Format d'asset communautaire non documenté : mesurer les fichiers réels | #reverse-engineering #webp #spritesheet #verification #community-assets #codex-pets |

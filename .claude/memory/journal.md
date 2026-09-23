@@ -814,3 +814,27 @@ fonction retourne maintenant `null` proprement dans ce cas.
 
 - [BDR-075](decisions/BDR-075.md) — `monitor.workArea` remplace la résolution physique pour le clamp de drag
 - [LRN-087](learnings/LRN-087.md) — mesurer un écart de marge fenêtre via GetWindowRect + Screen.Bounds/WorkingArea
+
+## 2026-09-23
+
+Cadrage du support des pets Codex dans Hooky (avatars sous forme de spritesheets installés dans
+`~/.codex/pets`, par exemple via Petdex). Mesuré les 4 pets présents plutôt que de supposer leur
+format : spritesheet 1536×1872 identique partout, soit 8 colonnes × 9 lignes de cellules 192×208
+(idle, run-right, run-left, waving, jumping, failed, waiting, running, review), `pet.json` sans
+timing ni nombre de frames, et un `id` de manifeste qui diffère du nom du dossier. La doc Petdex
+n'était pas lisible par WebFetch (page rendue côté client), d'où une spec entièrement
+observée, pas officielle.
+
+Écrit l'Étape 12 dans `docs/ROADMAP.md` : format constaté, architecture (scan live du dossier,
+protocole `asset:` à scope limité, union `procedural | sprite`, table de correspondance à 3
+niveaux dont une surcharge `codexAnimation` par hook), règles de sécurité sur le
+`spritesheetPath` (venu d'un store public), risques (mémoire ~11 Mo décodés par sheet, licences
+propres à chaque pet) et découpage en 3 sessions. Baptiste a tranché les 4 décisions ouvertes :
+`sleeping` en `idle` ralentie avec badge Zzz, effets conservés, `run-left/right` au drag réservé
+aux pets Codex, rendu lissé. Roadmap stagée mais non committée à la clôture (message de commit
+fourni, choix laissé à Baptiste). Aucun code applicatif écrit dans cette session.
+
+**Entrées clés :**
+
+- [BDR-077](decisions/BDR-077.md) — pets Codex : scan live, union `procedural | sprite`, mapping à 3 niveaux
+- [BDR-078](decisions/BDR-078.md) — pets Codex : choix UX tranchés
