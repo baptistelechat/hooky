@@ -92,9 +92,18 @@ export const SPRITE_ANIMATION_ORDER = Object.keys(
   STATE_TO_ROW,
 ) as AnimationName[];
 
+/** Nom de la ligne Codex à jouer : surcharge par hook (niveau C, `codexAnimation` du catalogue)
+ * si fournie, sinon repli par état agrégé (niveau B), sinon `idle`. */
+export function codexRowNameFor(
+  animation: AnimationName,
+  override?: CodexRowName,
+): CodexRowName {
+  return override ?? STATE_TO_ROW[animation] ?? "idle";
+}
+
 /** Ligne de spritesheet (position, frames, fps) à jouer pour une animation Hooky. */
-export function codexRowFor(animation: AnimationName) {
-  return CODEX_ROWS[STATE_TO_ROW[animation] ?? "idle"];
+export function codexRowFor(animation: AnimationName, override?: CodexRowName) {
+  return CODEX_ROWS[codexRowNameFor(animation, override)];
 }
 
 /** Durée d'affichage d'une animation sur une carte de picker : deux passages de la ligne,

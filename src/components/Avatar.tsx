@@ -6,10 +6,12 @@ import { useAvatarBundle } from "../hooks/useAvatarBundle";
 import { useBubbleWindow } from "../hooks/useBubbleWindow";
 import { useClaudeUsage } from "../hooks/useClaudeUsage";
 import { useSettings } from "../hooks/useSettings";
-import { findMappingEntry } from "../lib/animationCatalog";
+import { codexOverrideFor, findMappingEntry } from "../lib/animationCatalog";
+import { codexRowNameFor } from "../lib/codexPets";
 import { debugZoneClass } from "../lib/debugZone";
 import {
   AVATAR_SHADOW_GAP,
+  USAGE_PANEL_GAP,
   USAGE_PANEL_HEIGHT,
   avatarWindowHeight,
   avatarWindowSize,
@@ -132,6 +134,7 @@ export function PetAvatar({
   );
 
   const mappingEntry = findMappingEntry(lastEvent, animation, notificationType);
+  const codexRow = codexOverrideFor(mappingEntry, animation);
   const avatarZoneSize = avatarWindowSize(renderedAvatarSize);
 
   return (
@@ -198,6 +201,7 @@ export function PetAvatar({
             key={avatarBundleKey(bundle)}
             bundle={bundle}
             animation={animation}
+            codexRow={codexRow}
             size={renderedAvatarSize}
             className="animate-in fade-in duration-300"
             style={{
@@ -211,6 +215,9 @@ export function PetAvatar({
           >
             {[
               `animation: ${animation} (rev ${revision})`,
+              ...(bundle.kind === "sprite"
+                ? [`ligne Codex: ${codexRowNameFor(animation, codexRow)}`]
+                : []),
               `hook: ${lastEvent ?? "-"}${
                 toolName ? ` tool=${toolName}` : ""
               }${notificationType ? ` type=${notificationType}` : ""}`,
@@ -238,7 +245,10 @@ export function PetAvatar({
         <div
           data-zone="usage-panel"
           className={`flex w-full shrink-0 items-center justify-center ${debugZoneClass(settings.debugMode, "usage-panel")}`}
-          style={{ height: USAGE_PANEL_HEIGHT, marginTop: -AVATAR_SHADOW_GAP }}
+          style={{
+            height: USAGE_PANEL_HEIGHT,
+            marginTop: -AVATAR_SHADOW_GAP + USAGE_PANEL_GAP,
+          }}
         >
           <UsagePanel
             limits={usageLimits}

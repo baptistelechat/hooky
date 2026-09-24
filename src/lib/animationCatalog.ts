@@ -1,4 +1,5 @@
 import type { AnimationName } from "@/components/Avatar";
+import type { CodexRowName } from "@/lib/codexPets";
 import { ArchiveIcon } from "@/components/icons/archive";
 import { BadgeAlertIcon } from "@/components/icons/badge-alert";
 import { BotIcon } from "@/components/icons/bot";
@@ -37,6 +38,12 @@ export interface AnimationMappingEntry {
    * d'animation n'aurait donc pas de sens (ex. une oreille sur SessionStart). Absent pour
    * les hooks qui n'ont pas besoin d'insister (idle, working générique...). */
   icon?: BadgeIcon;
+  /** Niveau C de la table pets Codex : ligne de spritesheet propre à ce hook, quand elle
+   * diffère du repli par état (`STATE_TO_ROW`, niveau B) -- ex. `SessionStart` et
+   * `PermissionRequest` sont tous deux `listening`, mais l'un salue (`waving`) et l'autre
+   * attend (`waiting`, via le niveau B). Absent = le niveau B suffit. Sans effet sur les
+   * avatars procéduraux. */
+  codexAnimation?: CodexRowName;
   /** Payload minimal pour rejouer cette entrée sur le vrai backend (POST /event, cf.
    * lib/eventTrigger.ts) -- mêmes champs que ceux lus par `on_event()` côté Rust. */
   trigger: {
@@ -52,6 +59,7 @@ export const EVENT_ANIMATIONS: AnimationMappingEntry[] = [
     animation: "listening",
     note: "Claude Code démarre et attend le premier prompt.",
     icon: SparklesIcon,
+    codexAnimation: "waving",
     trigger: { hookEventName: "SessionStart" },
   },
   {
@@ -218,6 +226,7 @@ export const NOTIFICATION_ANIMATIONS: AnimationMappingEntry[] = [
     label: "quota_auto_resume_fired",
     animation: "bored",
     note: "Claude Code reprend le travail après une pause quota",
+    codexAnimation: "waving",
     trigger: {
       hookEventName: "Notification",
       notificationType: "quota_auto_resume_fired",
@@ -252,6 +261,7 @@ export const NOTIFICATION_ANIMATIONS: AnimationMappingEntry[] = [
     label: "auth_success",
     animation: "idle",
     note: "Succès ponctuel isolé, pas la conclusion d'une tâche.",
+    codexAnimation: "waving",
     trigger: {
       hookEventName: "Notification",
       notificationType: "auth_success",
@@ -268,6 +278,17 @@ export const NOTIFICATION_ANIMATIONS: AnimationMappingEntry[] = [
     },
   },
 ];
+
+/** Surcharge de ligne Codex (niveau C) à appliquer au pet flottant : celle de l'entrée du hook
+ * affiché, mais seulement si l'état agrégé (multi-session) est bien celui que ce hook
+ * produirait seul -- sinon une autre session a pris la main et le repli par état (niveau B)
+ * s'applique, même garde que `findMappingEntry` pour `PreToolUse`. */
+export function codexOverrideFor(
+  entry: AnimationMappingEntry | undefined,
+  animation: AnimationName,
+): CodexRowName | undefined {
+  return entry?.animation === animation ? entry.codexAnimation : undefined;
+}
 
 /** Retrouve l'entrée du catalogue correspondant au hook actuellement affiché sur le vrai
  * pet (lastEvent/toolName/notificationType, cf. useHookyState) -- c'est cette entrée qui

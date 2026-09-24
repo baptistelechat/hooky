@@ -62,6 +62,12 @@ export function avatarWindowSize(avatarSize: number): number {
  * la hauteur de la fenêtre. */
 export const USAGE_PANEL_HEIGHT = 56;
 
+/** Écart supplémentaire entre l'avatar et le panneau de quotas : la cellule d'une spritesheet
+ * Codex remplit son cadre jusqu'en bas, le pet paraissait collé aux rings -- appliqué à tous
+ * les avatars par cohérence. Consommé sur la marge basse déjà réservée par la fenêtre
+ * (`AVATAR_SHADOW_GAP`, sous le panneau) -- la hauteur de fenêtre ne change pas. */
+export const USAGE_PANEL_GAP = 4;
+
 /** Hauteur totale de la fenêtre "main" -- carrée (`avatarWindowSize`) plus le panneau de
  * quotas s'il est activé. La largeur reste toujours `avatarWindowSize(avatarSize)`. */
 export function avatarWindowHeight(

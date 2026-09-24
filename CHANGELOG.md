@@ -13,7 +13,13 @@ project adheres to [Semantic Versioning](https://semver.org/).
   section of the Avatar tab in the settings (install one with
   `npx petdex install <name>`). Pick one and it becomes your desktop pet, animated from its
   spritesheet and following what Claude Code is doing, with the status badge colored after
-  the pet's own colors
+  the pet's own colors. A Codex pet waves when a session starts, when a login succeeds or
+  when Claude Code resumes after a quota pause, and the Animation tab shows which
+  spritesheet row each hook plays
+
+### Changed
+
+- A little more space between the pet and the quota rings
 
 ### Fixed
 

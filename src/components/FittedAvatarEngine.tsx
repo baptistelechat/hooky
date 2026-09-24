@@ -4,6 +4,7 @@ import type {
   AvatarBundle,
   ProceduralAvatarBundle,
 } from "./avatarDefinition";
+import type { CodexRowName } from "../lib/codexPets";
 import { SpriteAvatar } from "./SpriteAvatar";
 
 // Même constante que `computeFitScale` (avatarDefinition.ts) -- viewBox fixe du moteur.
@@ -12,6 +13,8 @@ const VIEWBOX_HALF_EXTENT = 150;
 interface FittedAvatarEngineProps<B extends AvatarBundle = AvatarBundle> {
   bundle: B;
   animation: AnimationName;
+  /** Ignoré par un avatar procédural -- ne concerne que les pets Codex (cf. SpriteAvatar). */
+  codexRow?: CodexRowName;
   size: number;
   className?: string;
   style?: React.CSSProperties;

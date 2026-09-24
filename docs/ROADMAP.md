@@ -555,18 +555,37 @@ dans l'app** (voir la dernière case)
 
 **Session 2 — "Piloté par les hooks"**
 
-- [ ] Tables niveaux B + C, `codexAnimation` dans le catalogue, `findMappingEntry` étendu
-- [ ] Pet flottant (`Avatar.tsx`) : ligne Codex résolue depuis (état, hook, notification)
-- [ ] Onglet Animation : cartes rendues avec le pet sélectionné + libellé de la ligne Codex
+- [x] Tables niveaux B + C, `codexAnimation` dans le catalogue. `findMappingEntry` **n'a pas eu
+      à changer** : `codexOverrideFor(entry, animation)` applique la surcharge seulement si
+      l'état agrégé est celui du hook (même garde que `PreToolUse`). Seules les surcharges qui
+      **diffèrent** du niveau B sont posées : `SessionStart`, `quota_auto_resume_fired`,
+      `auth_success` → `waving` (les autres envisagées — `Stop`→`jumping`, échecs→`failed`,
+      attentes→`waiting` — sont déjà données par le niveau B, les dupliquer n'ajouterait rien).
+- [x] Pet flottant (`Avatar.tsx`) : `codexRow` passé à `FittedAvatarEngine` → `SpriteAvatar`,
+      ligne Codex ajoutée à l'overlay debug pour un sprite
+- [x] Onglet Animation : les cartes rendaient déjà le pet sélectionné (session 1) ; elles
+      reçoivent maintenant `entry.codexAnimation` et affichent « ligne Codex : … » (sprite seul)
 - [x] Couleur d'icône du badge pour un sprite — **fait en retour d'usage de la session 1**
       (`src/lib/spriteColor.ts`) : plage de teinte dominante de la ligne `idle` (canvas,
       12 plages de 30°), puis `ensureReadableOnWhite`. Un premier essai « couleur exacte la plus
       fréquente » échouait sur le pet de test (le vert du t-shirt ne pesait que 2 % à cause de
       l'ombrage, retombait sur le gris) — mesuré, d'où le regroupement par teinte (8 %).
       Résultat sur `work-blue-cat` : `#57a072`. Repli gris `#475569` si le calcul échoue.
-- [ ] Brancher les effets ponctuels (confettis/bounce/shake, `useAnimationEffects`) sur un
-      sprite — conservés, décision tranchée
-- [ ] `docs/EVENTS.md` : colonne "Ligne Codex"
+- [ ] Effets ponctuels (confettis/bounce/shake) sur un sprite — conservés, décision tranchée.
+      **Aucun code** : `useAnimationEffects` et `AnimationOverlay` agissent sur le conteneur et
+      sur `animation`, pas sur le moteur — déjà actifs pour un sprite ; reste à le **confirmer à
+      l'œil** (Stop → bounce + confettis, échec → secousse)
+- [x] `docs/EVENTS.md` : colonne "Ligne Codex" + encart d'explication des deux niveaux
+- [x] Tranché par Baptiste : `bored` → `idle` (inchangé), `waving` en boucle sur
+      `SessionStart` (inchangé).
+- [x] Retour d'usage : pet Codex trop collé au panneau de quotas → `USAGE_PANEL_GAP` (4 px,
+      `layout.ts`) ajouté à la marge du panneau, **pour tous les avatars** (décision Baptiste,
+      après un premier essai à 8 px réservé aux sprites) ; le panneau n'étant rendu que si les
+      quotas sont activés, la marge disparaît d'elle-même sans quotas. Fenêtre inchangée (pris
+      sur la marge basse déjà réservée).
+- [ ] **À valider visuellement dans l'app** (`tauri dev`) : onglet Animation (chaque carte
+      affiche la bonne ligne), vrais hooks sur le pet flottant (mode debug → « ligne Codex »),
+      écart pet / quotas.
 
 **Session 3 — "Store + finitions"**
 

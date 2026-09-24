@@ -3,12 +3,16 @@ import {
   CODEX_CELL_ASPECT,
   CODEX_COLUMNS,
   codexRowFor,
+  type CodexRowName,
 } from "../lib/codexPets";
 import type { AnimationName, SpriteAvatarBundle } from "./avatarDefinition";
 
 interface SpriteAvatarProps {
   bundle: SpriteAvatarBundle;
   animation: AnimationName;
+  /** Surcharge par hook (niveau C de la table de correspondance) -- sinon la ligne se déduit
+   * de `animation` (niveau B), cf. `codexRowNameFor`. */
+  codexRow?: CodexRowName;
   size: number;
   className?: string;
   style?: React.CSSProperties;
@@ -24,12 +28,13 @@ interface SpriteAvatarProps {
 export function SpriteAvatar({
   bundle,
   animation,
+  codexRow,
   size,
   className,
   style,
 }: SpriteAvatarProps) {
   const frameRef = useRef<HTMLDivElement>(null);
-  const { row, frames, fps } = codexRowFor(animation);
+  const { row, frames, fps } = codexRowFor(animation, codexRow);
 
   useEffect(() => {
     const frame = frameRef.current;
