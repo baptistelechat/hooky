@@ -90,3 +90,16 @@ register: learnings
 | [LRN-085](learnings/LRN-085.md) | 2026-09-11 | Tester un appel réseau sensible hors code prod, avec backup/restore                 | #credentials #security #testing-methodology #backup-restore #sensitive-file           |
 | [LRN-086](learnings/LRN-086.md) | 2026-09-12 | Valider un fix asynchrone via corrélation d'horodatages, sans observation directe   | #debugging-methodology #timestamp-correlation #async-fix-validation #log-analysis     |
 | [LRN-087](learnings/LRN-087.md) | 2026-09-12 | Mesurer un écart de marge fenêtre via GetWindowRect + Screen.Bounds/WorkingArea     | #win32 #getwindowrect #debugging #screen-measurement #taskbar #verification           |
+| [LRN-088](learnings/LRN-088.md) | 2026-09-23 | Format d'asset communautaire non documenté : mesurer les fichiers réels | #reverse-engineering #webp #spritesheet #verification #community-assets #codex-pets |
+| [LRN-089](learnings/LRN-089.md) | 2026-09-24 | Clé Uninstall NSIS Tauri : InstallLocation entre guillemets | #tauri #nsis #registry #powershell #windows #install-location |
+| [LRN-090](learnings/LRN-090.md) | 2026-09-24 | Config partagée : résoudre les chemins à l'exécution | #config #multi-machine #paths #registry #settings-json #portability |
+| [LRN-091](learnings/LRN-091.md) | 2026-09-24 | Frames par ligne variables selon le pet : les compter | #codex-pets #spritesheet #frames #measurement #hardcoded-constant |
+| [LRN-092](learnings/LRN-092.md) | 2026-09-24 | Couleur dominante : regrouper par plage de teinte | #color #dominant-color #hue #canvas #sprite #wcag #quantization |
+| [LRN-093](learnings/LRN-093.md) | 2026-09-24 | Valider une spritesheet : planche de contact numérotée | #spritesheet #pillow #contact-sheet #verification #web-search #codex-pets |
+| [LRN-094](learnings/LRN-094.md) | 2026-09-24 | Doc web illisible : lire le tarball npm de la CLI | #npm #npm-pack #cli #documentation #minified-js #petdex |
+| [LRN-095](learnings/LRN-095.md) | 2026-09-24 | Tauri asset: scope allow_file à l'exécution et CORS | #tauri #tauri2 #asset-protocol #scope #cors #windows #security |
+| [LRN-096](learnings/LRN-096.md) | 2026-09-24 | Tester du front sans navigateur : esbuild + stubs DOM | #testing #esbuild #node #canvas #pnpm #harness #pillow |
+| [LRN-097](learnings/LRN-097.md) | 2026-09-24 | Tester du canvas : page servie en HTTP local, même origine | #canvas #testing #localhost #http-server #webp #claude-browser #codex-pets |
+| [LRN-098](learnings/LRN-098.md) | 2026-09-24 | Un effet sur l'état par défaut devient permanent | #ux #default-state #opacity #ambient-ui #feedback #codex-pets |
+| [LRN-099](learnings/LRN-099.md) | 2026-09-24 | Un comportement ambiant se branche sur l'état « sans signal » | #ux #ambient-ui #default-state #event-driven #codex-pets #priority |
+| [LRN-100](learnings/LRN-100.md) | 2026-09-24 | Suivre le curseur hors fenêtre Tauri : polling de cursorPosition | #tauri #tauri2 #cursor-position #polling #windows #capabilities #dpi |

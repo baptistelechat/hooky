@@ -814,3 +814,77 @@ fonction retourne maintenant `null` proprement dans ce cas.
 
 - [BDR-075](decisions/BDR-075.md) — `monitor.workArea` remplace la résolution physique pour le clamp de drag
 - [LRN-087](learnings/LRN-087.md) — mesurer un écart de marge fenêtre via GetWindowRect + Screen.Bounds/WorkingArea
+
+## 2026-09-23
+
+Cadrage du support des pets Codex dans Hooky (avatars sous forme de spritesheets installés dans
+`~/.codex/pets`, par exemple via Petdex). Mesuré les 4 pets présents plutôt que de supposer leur
+format : spritesheet 1536×1872 identique partout, soit 8 colonnes × 9 lignes de cellules 192×208
+(idle, run-right, run-left, waving, jumping, failed, waiting, running, review), `pet.json` sans
+timing ni nombre de frames, et un `id` de manifeste qui diffère du nom du dossier. La doc Petdex
+n'était pas lisible par WebFetch (page rendue côté client), d'où une spec entièrement
+observée, pas officielle.
+
+Écrit l'Étape 12 dans `docs/ROADMAP.md` : format constaté, architecture (scan live du dossier,
+protocole `asset:` à scope limité, union `procedural | sprite`, table de correspondance à 3
+niveaux dont une surcharge `codexAnimation` par hook), règles de sécurité sur le
+`spritesheetPath` (venu d'un store public), risques (mémoire ~11 Mo décodés par sheet, licences
+propres à chaque pet) et découpage en 3 sessions. Baptiste a tranché les 4 décisions ouvertes :
+`sleeping` en `idle` ralentie avec badge Zzz, effets conservés, `run-left/right` au drag réservé
+aux pets Codex, rendu lissé. Roadmap stagée mais non committée à la clôture (message de commit
+fourni, choix laissé à Baptiste). Aucun code applicatif écrit dans cette session.
+
+**Entrées clés :**
+
+- [BDR-077](decisions/BDR-077.md) — pets Codex : scan live, union `procedural | sprite`, mapping à 3 niveaux
+- [BDR-078](decisions/BDR-078.md) — pets Codex : choix UX tranchés
+
+## 2026-09-24
+
+Le frère de Baptiste a installé Hooky sur D: et l'app ne se lançait pas au démarrage de Claude Code. Cause trouvée dans `docs/hooks/claude-settings-snippet.json` : seul le hook `SessionStart` dépend d'un chemin (l'auto-launch `|| start "" "%LOCALAPPDATA%\Hooky\Hooky.exe"`), les 14 autres hooks sont des `http` vers `127.0.0.1:4242`. Comme le `settings.json` est partagé entre les deux postes, la substitution du chemin réel à l'installation (`current_exe()`) a été écartée : elle aurait écrit une valeur propre à une machine dans un fichier partagé.
+
+Solution retenue : lire `InstallLocation` dans la clé Uninstall NSIS (`HKCU\...\Uninstall\Hooky`) au moment du lancement, via PowerShell. Une variante `cmd` pure (`reg query` + `for /f`) a été testée et fonctionne, mais Baptiste a préféré rester sur PowerShell. Snippet, README et CHANGELOG mis à jour, commit `ee7aed9` (3 fichiers stagés à la main, les modifications Codex pets en cours dans le working tree exclues). Baptiste a validé en réel : bouton « Installer les hooks » puis nouvelle instance Claude Code, le démarrage automatique fonctionne.
+
+**Entrées clés :**
+
+- [BDR-079](decisions/BDR-079.md) — SessionStart : chemin de hooky.exe lu dans le registre
+- [LRN-090](learnings/LRN-090.md) — config partagée : résoudre les chemins à l'exécution
+
+---
+
+Session 1 de l'étape 12 (pets Codex), menée dans le même dépôt qu'une autre session (hook d'auto-launch, [BDR-079](decisions/BDR-079.md)) : ses fichiers modifiés sont apparus dans `git status`, et j'ai attendu son commit avant de stager. Livré : commande Rust `list_codex_pets` avec validation de sécurité et scope `asset:` par fichier ([BDR-080](decisions/BDR-080.md)), `SpriteAvatar` en WAAPI `steps()`, union `procedural | sprite`, section « Pets Codex » dans le picker (`AvatarPickerCard` extrait). Le chemin `~/.codex/pets` a été confirmé en lisant le tarball npm de `petdex` ([LRN-094](learnings/LRN-094.md)), qui a aussi révélé le format v2 8×11. Retours de Baptiste après test réel : fenêtre Settings gardée compacte (512), badge gris remplacé par la couleur dominante du pet ; ma première version de l'algorithme échouait sur les vrais pixels ([LRN-092](learnings/LRN-092.md)) et a été refaite avant livraison ([BDR-081](decisions/BDR-081.md)). Baptiste a fourni un pet v2 (`om-nom`) : lignes 0–8 identiques à la v1, lignes 9–10 = 16 poses de regard, d'où l'Étape 13 réservée aux v2 avec badge « œil » ([BDR-082](decisions/BDR-082.md)) ; le nombre de frames varie selon le pet ([LRN-091](learnings/LRN-091.md)). Le navigateur intégré a refusé les origines locales ([BLK-034](blockers/BLK-034.md)), le test a été refait dans Node ([LRN-096](learnings/LRN-096.md)). Clôture : changelog, react-doctor (0 problème sur les fichiers modifiés), commit `4fc3018` (sans push). Reste à confirmer dans l'app : la lecture du canvas sur une image `asset:` (couleur du badge).
+
+**Entrées clés :**
+
+- [BDR-080](decisions/BDR-080.md) — scope asset: par fichier validé, à l'exécution
+- [BDR-081](decisions/BDR-081.md) — couleur du badge échantillonnée sur les pixels
+- [BDR-082](decisions/BDR-082.md) — pets v2 acceptés, suivi du regard en Étape 13
+- [BLK-034](blockers/BLK-034.md) — navigateur intégré : origines locales refusées
+
+---
+
+Session 2 de l'étape 12 (pets Codex piloté par les hooks). Livré (commit `1381ac4`) : champ optionnel `codexAnimation` dans le catalogue, `codexOverrideFor()` qui n'applique la surcharge que si l'état agrégé est celui du hook, `codexRowNameFor()` et une prop `codexRow` jusqu'à `SpriteAvatar`, libellé « ligne Codex » dans les cartes de l'onglet Animation et dans l'overlay debug du pet flottant, colonne « Ligne Codex » dans `docs/EVENTS.md`. Seules 3 surcharges ont été posées (`waving` sur `SessionStart`, `auth_success`, `quota_auto_resume_fired`) : les autres prévues par la roadmap étaient déjà données par le repli par état. Baptiste a tranché `bored` → `idle` et `waving` en boucle sur `SessionStart`, puis demandé une marge entre le pet et les quotas : essai à 8 px réservé aux sprites, finalement 4 px pour tous les avatars (`USAGE_PANEL_GAP`, pris sur la marge basse déjà réservée, fenêtre inchangée). Mon premier récap de validation visuelle n'était pas clair (« à valider » sans cas concrets) : refait en liste de cas avec résultat attendu, puis validation sur le vrai pet par deux passes de 13 hooks rejoués via un `Monitor`. Reste pour la session 3 : comptage des frames par pet, `sleeping` ralenti avec badge Zzz, `run-left/right` au drag, perf des cartes, gestion d'erreur image, README.
+
+**Entrées clés :**
+
+- [BDR-083](decisions/BDR-083.md) — surcharge par hook seulement si elle diffère de l'état
+
+---
+
+Session 3 de l'étape 12 (pets Codex), la dernière : finitions du picker et des animations, validée par Baptiste puis clôturée (commit `aed1432`). Livré : titres « Avatars » et « Pets Codex » avec leur bouton de téléchargement (Petdex ajouté, `PickerSectionHeader`), `run-left`/`run-right` pendant le drag pour les pets Codex seulement, `sleeping` en `idle` ralentie, comptage réel des frames par ligne ([BDR-085](decisions/BDR-085.md), validé sur les 8 pets installés en Pillow puis dans un vrai canvas, [LRN-097](learnings/LRN-097.md)), repli sur Cubee quand l'image d'un pet est illisible ([BDR-087](decisions/BDR-087.md)), README FR/EN, `EVENTS.md`, `CHANGELOG`. Baptiste a écarté le rendu paresseux des cartes (8 pets tournent très bien, [BDR-086](decisions/BDR-086.md)) et reporté le bump 0.3.0 après l'étape 13 ([BDR-089](decisions/BDR-089.md)). Deux changements de direction dus à mes erreurs : l'atténuation à 60 % de `sleeping` rendait le pet « transparent en permanence », car c'est l'état par défaut ([ZBLK-035](archive/blockers/ZBLK-035.md), [BDR-084](decisions/BDR-084.md) qui révise en partie [BDR-078](decisions/BDR-078.md), [LRN-098](learnings/LRN-098.md)) ; la carte « Aucune session » (`SessionEnd`) ne forçait pas l'état faute d'avoir lu `resolve_state` ([ZBLK-036](archive/blockers/ZBLK-036.md), [BDR-088](decisions/BDR-088.md)). Un pane du navigateur intégré rouvert d'emblée a accepté l'origine locale, ce qui nuance [BLK-034](blockers/BLK-034.md) (toujours ouvert). Reste : l'étape 13 (suivi du regard), puis le bump 0.3.0.
+
+**Entrées clés :**
+
+- [BDR-084](decisions/BDR-084.md) — sleeping ralenti, sans atténuation
+- [BDR-085](decisions/BDR-085.md) — frames par ligne mesurées, table en repli
+- [ZBLK-036](archive/blockers/ZBLK-036.md) — carte « Aucune session » qui ne forçait pas l'état
+
+---
+
+Étape 13 (pets Codex), dernière phase de la roadmap : le « suivi du regard » a été recadré avec Baptiste, puis implémenté et committé (`a5da7d0`). Sa remarque de départ : une animation est toujours jouée (elle vient des hooks), donc un regard qui remplace `idle` n'a pas de place ; il n'a de sens qu'en `sleeping`, quand aucun hook ne parle. D'où le principe « réveil au regard » : un pet v2 (8×11, `om-nom` et `blobby` vérifiés) en `sleeping` regarde le curseur quand il approche (polling de `cursorPosition()` à 100 ms limité à cet état, 16 poses lignes 9–10, sens horaire depuis le haut confirmé sur planche de contact), et retombe dans son sommeil quand il s'éloigne. Cubee et les avatars procéduraux restent écartés. Après un premier essai à 2 s, Baptiste a trouvé le délai avant le retour au sommeil trop long : 1,2 s. Il a aussi voulu un badge œil sur les cartes du picker (retiré puis réintroduit), pas un simple « v2 ». `react-doctor` a signalé `effect-needs-cleanup` à tort ; trois essais avant de comprendre le motif de détection. Non testé avec un vrai curseur : rayons 260/340 px, délai 1,2 s et multi-écrans restent à valider en usage réel (noté dans la roadmap, Étape 13 cochée).
+
+**Entrées clés :**
+
+- [BDR-090](decisions/BDR-090.md) — regard uniquement en sleeping, sans réglage
+- [BDR-091](decisions/BDR-091.md) — rayons 260/340 px et 1,2 s avant de dormir
+- [LRN-099](learnings/LRN-099.md) — comportement ambiant sur l'état « sans signal »

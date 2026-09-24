@@ -13,6 +13,8 @@ interface AnimationOverlayProps {
   animation: AnimationName;
   revision: number;
   enabled: boolean;
+  /** Le pet suit le curseur (cf. useCursorGaze) : il « veille », les Zzz sont masqués. */
+  gazing?: boolean;
   /** Taille réelle de l'avatar (peut être < la fenêtre, cf. Settings) -- les badges
    * (icône, "zZz") doivent s'ancrer à ce carré, pas au coin de la fenêtre entière,
    * sous peine de flotter dans le vide transparent quand l'avatar est réduit. */
@@ -58,6 +60,7 @@ export function AnimationOverlay({
   animation,
   revision,
   enabled,
+  gazing = false,
   avatarSize,
   icon: Icon,
   badgeIconColor,
@@ -179,7 +182,7 @@ export function AnimationOverlay({
 
   // "bored" reste sans overlay -- l'engine seul (posture affaissée) suffit à le lire,
   // le "zZz" est réservé à "sleeping" où c'est le seul signal visuel de l'état.
-  const isSleeping = animation === "sleeping";
+  const isSleeping = animation === "sleeping" && !gazing;
 
   // Proportionnel à `avatarSize` -- un badge à taille fixe devient minuscule sur un avatar
   // à 240px et disproportionné sur une mini-carte de preview à 56px (Settings). Réduit par

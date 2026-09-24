@@ -78,3 +78,20 @@ register: decisions
 | [BDR-073](decisions/BDR-073.md) | 2026-09-11 | Refresh OAuth direct en HTTP plutôt qu'un subprocess `claude`                      | #oauth #refresh-token #usage-panel #reqwest #atomic-write #tauri                               | actif  |
 | [BDR-074](decisions/BDR-074.md) | 2026-09-11 | Event `hooky-usage-error` dédié, message différencié sans détail CLI               | #usage-panel #ux #tauri-event #error-state #minimalist-ui                                      | actif  |
 | [BDR-075](decisions/BDR-075.md) | 2026-09-12 | `monitor.workArea` remplace la résolution physique pour le clamp de drag           | #tauri #workarea #edge-padding #multi-monitor #window-drag #taskbar                            | actif  |
+| [BDR-076](decisions/BDR-076.md) | 2026-09-23 | Exception ciblée à BDR-074 : détail CLI affiché pour le cas "refresh token mort"   | #usage-panel #ux #oauth #refresh-token #reconnect #error-state                                 | actif  |
+| [BDR-077](decisions/BDR-077.md) | 2026-09-23 | Pets Codex : scan live, union `procedural \| sprite`, mapping 3 niveaux | #codex-pets #spritesheet #animation-mapping #asset-protocol #security #roadmap | actif |
+| [BDR-078](decisions/BDR-078.md) | 2026-09-23 | Pets Codex : sleeping en idle ralentie, effets gardés, rendu lissé | #codex-pets #sleeping #image-rendering #drag #effects #ux | révisé |
+| [BDR-079](decisions/BDR-079.md) | 2026-09-24 | SessionStart : chemin de hooky.exe lu dans le registre | #hooks #sessionstart #nsis #registry #powershell #settings-json | actif |
+| [BDR-080](decisions/BDR-080.md) | 2026-09-24 | Pets Codex : scope asset: par fichier validé, à l'exécution | #codex-pets #tauri #asset-protocol #security #scope #spritesheet | actif |
+| [BDR-081](decisions/BDR-081.md) | 2026-09-24 | Pets Codex : couleur du badge échantillonnée sur les pixels | #codex-pets #badge #color #canvas #wcag #spritesheet | actif |
+| [BDR-082](decisions/BDR-082.md) | 2026-09-24 | Pets v2 (8×11) acceptés, suivi du regard en Étape 13 | #codex-pets #spritesheet-v2 #eye-tracking #roadmap #badge #picker | actif |
+| [BDR-083](decisions/BDR-083.md) | 2026-09-24 | Pets Codex : surcharge par hook seulement si elle diffère de l'état | #codex-pets #animation-mapping #hooks #override #multi-session #roadmap | actif |
+| [BDR-084](decisions/BDR-084.md) | 2026-09-24 | Pets Codex : sleeping ralenti, sans atténuation | #codex-pets #sleeping #ux #opacity #revision | actif |
+| [BDR-085](decisions/BDR-085.md) | 2026-09-24 | Pets Codex : frames par ligne mesurées, table en repli | #codex-pets #frames #spritesheet #canvas #measurement | actif |
+| [BDR-086](decisions/BDR-086.md) | 2026-09-24 | Pets Codex : pas de rendu paresseux des cartes | #codex-pets #performance #intersection-observer #yagni #picker | actif |
+| [BDR-087](decisions/BDR-087.md) | 2026-09-24 | Pets Codex : image illisible → repli sur Cubee | #codex-pets #error-handling #fallback #webview #store | actif |
+| [BDR-088](decisions/BDR-088.md) | 2026-09-24 | Carte « Aucune session » rejoue idle_prompt | #animation-tab #sleeping #preview #aggregation #idle-prompt | actif |
+| [BDR-089](decisions/BDR-089.md) | 2026-09-24 | Bump 0.3.0 reporté après l'étape 13 | #release #versioning #roadmap #codex-pets #changelog | actif |
+| [BDR-090](decisions/BDR-090.md) | 2026-09-24 | Regard des pets v2 : uniquement en sleeping, sans réglage | #codex-pets #eye-tracking #sleeping #polling #scope-cut #roadmap | actif |
+| [BDR-091](decisions/BDR-091.md) | 2026-09-24 | Transition du regard : rayons 260/340 px, 1,2 s avant de dormir | #codex-pets #eye-tracking #hysteresis #ux #tuning #sleeping | actif |
+| [BDR-092](decisions/BDR-092.md) | 2026-09-24 | Badge œil (pas « v2 ») sur les cartes des pets à regard | #codex-pets #badge #picker #eye-tracking #ux | actif |

@@ -1,3 +1,5 @@
+mod codex_pets;
+
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
@@ -538,6 +540,31 @@ fn token_expiring_soon(creds: &Value) -> bool {
     expires_at_ms - now_ms < 5 * 60 * 1000
 }
 
+/// `true` si `refreshTokenExpiresAt` est passé -- dans ce cas `refresh_oauth_token` échouera
+/// TOUJOURS (l'API renvoie 429 au lieu d'un 401 propre, cf. ZBLK-033), pas la peine de
+/// l'appeler : `fetch_usage` retourne directement `REFRESH_TOKEN_EXPIRED_ERR` pour que le
+/// front affiche "reconnexion requise" au lieu de marteler l'endpoint en boucle sous un
+/// message "Quotas indisponibles" qui ne dit pas quoi faire. Seule une vraie session
+/// interactive (`claude auth login`/session CLI) régénère ce champ.
+fn refresh_token_expired(creds: &Value) -> bool {
+    let Some(expires_at_ms) = creds
+        .get("claudeAiOauth")
+        .and_then(|o| o.get("refreshTokenExpiresAt"))
+        .and_then(Value::as_i64)
+    else {
+        return false;
+    };
+    let now_ms = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as i64)
+        .unwrap_or(0);
+    expires_at_ms <= now_ms
+}
+
+/// Marqueur d'erreur (pas un message utilisateur) que `spawn_usage_poller` compare pour
+/// distinguer "reconnexion requise" d'un échec réseau/API classique, cf. `refresh_token_expired`.
+const REFRESH_TOKEN_EXPIRED_ERR: &str = "refresh_token_expired";
+
 /// Client OAuth public du CLI officiel `claude` (identique pour tous ses utilisateurs, pas
 /// un secret propre à Hooky) -- documenté par la communauté (cf. gist
 /// ben-vargas/c7c7cbfebbb47278f45feca9cef309d1), `claude auth status` s'est avéré NE PAS
@@ -647,6 +674,9 @@ async fn fetch_usage() -> Result<Value, String> {
     let mut creds: Value = serde_json::from_str(&raw).map_err(|e| e.to_string())?;
 
     if token_expiring_soon(&creds) {
+        if refresh_token_expired(&creds) {
+            return Err(REFRESH_TOKEN_EXPIRED_ERR.to_string());
+        }
         if let Err(e) = refresh_oauth_token(&path, &mut creds).await {
             eprintln!("[hooky-usage] refresh du token OAuth échoué : {e}");
         }
@@ -680,6 +710,16 @@ async fn fetch_usage() -> Result<Value, String> {
 /// EN PLUS d'écouter `hooky-usage`, au lieu de dépendre uniquement d'un event qui a pu être
 /// émis avant que quiconque écoute.
 type LastUsage = Arc<Mutex<Option<Value>>>;
+
+/// Payload de `hooky-usage-error` -- `reconnect_required` distingue "refresh token mort,
+/// `claude auth login` nécessaire" (cf. REFRESH_TOKEN_EXPIRED_ERR) d'un échec réseau/API
+/// classique qui se résorbera seul, pour qu'UsagePanel affiche le bon message.
+#[derive(serde::Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+struct UsageError {
+    consecutive_failures: u32,
+    reconnect_required: bool,
+}
 
 #[tauri::command]
 fn get_cached_usage(state: tauri::State<LastUsage>) -> Option<Value> {
@@ -750,7 +790,13 @@ fn spawn_usage_poller(app_handle: AppHandle, last_usage: LastUsage) {
                     // échec) : sans ça, le front ne peut pas distinguer "premier chargement
                     // en cours" de "échoue en boucle depuis 1h" -- les deux se traduisent
                     // par `limits === null` côté UsagePanel, cf. BLK-032.
-                    let _ = app_handle.emit("hooky-usage-error", consecutive_failures);
+                    let _ = app_handle.emit(
+                        "hooky-usage-error",
+                        UsageError {
+                            consecutive_failures,
+                            reconnect_required: error == REFRESH_TOKEN_EXPIRED_ERR,
+                        },
+                    );
                     let backoff = usage_backoff_delay(consecutive_failures - 1);
                     tokio::time::sleep(backoff).await;
                 }
@@ -923,7 +969,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             write_text_file,
             install_claude_hooks,
-            get_cached_usage
+            get_cached_usage,
+            codex_pets::list_codex_pets
         ])
         .setup(move |app| {
             let app_handle = app.handle().clone();

@@ -7,6 +7,37 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Codex pets: any pet installed in `~/.codex/pets` now shows up in a new "Pets Codex"
+  section of the Avatar tab in the settings (install one with
+  `npx petdex install <name>`). Pick one and it becomes your desktop pet, animated from its
+  spritesheet and following what Claude Code is doing, with the status badge colored after
+  the pet's own colors. A Codex pet waves when a session starts, when a login succeeds or
+  when Claude Code resumes after a quota pause, and the Animation tab shows which
+  spritesheet row each hook plays. A Codex pet also runs left or right while you drag it,
+  and dozes off (slower) when no session is active. If a pet's image goes missing
+  or can't be read, Hooky falls back to Cubee instead of showing an invisible pet
+- "Aucune session" card in the Animation tab, to preview the sleeping state even while real sessions are open
+- "Télécharger sur Petdex" button next to the Codex pets, to browse and download new ones
+- Newer Codex pets (v2 spritesheets) now look at your cursor while they sleep: come close and they wake up and follow it, move away and they doze off again after a moment. These pets get an eye icon on their card in the Avatar tab
+
+### Changed
+
+- The Avatar tab now has an "Avatars" title for the built-in skins, with its own
+  "Créer ou télécharger" button, matching the new "Pets Codex" section
+- The settings window is taller, so the pet grids get more room
+- A little more space between the pet and the quota rings
+
+### Fixed
+
+- When the local Claude Code login itself has expired (not just the short-lived token),
+  the quota rings now show "Reconnexion requise" telling you to run `claude auth login`,
+  instead of a generic "unavailable" message that never went away
+- Hooky now auto-launches on Claude Code startup wherever it is installed (e.g. `D:\`),
+  instead of only from the default `%LOCALAPPDATA%\Hooky` folder. Click "Installer les
+  hooks" in the settings once to update your existing hook
+
 ## [0.2.2] - 2026-09-12
 
 ### Fixed

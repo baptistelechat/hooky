@@ -4,6 +4,7 @@ import {
   type AvatarBundle,
   type AvatarColorOverride,
 } from "@/components/avatarDefinition";
+import { useCodexPets } from "@/hooks/useCodexPets";
 import { useCustomAvatars } from "@/hooks/useCustomAvatars";
 
 /** Bundle live d'un avatar, override couleur appliqué (persisté par avatarId dans
@@ -18,10 +19,11 @@ export function useAvatarBundle(
   colorOverride: AvatarColorOverride | undefined,
 ): AvatarBundle {
   const [customAvatars] = useCustomAvatars();
+  const codexPets = useCodexPets();
   const body = colorOverride?.body;
   const eyes = colorOverride?.eyes;
   return useMemo(
-    () => getAvatarBundle(avatarId, { body, eyes }, customAvatars),
-    [avatarId, body, eyes, customAvatars],
+    () => getAvatarBundle(avatarId, { body, eyes }, customAvatars, codexPets),
+    [avatarId, body, eyes, customAvatars, codexPets],
   );
 }

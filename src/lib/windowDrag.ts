@@ -7,6 +7,9 @@ import {
 } from "@tauri-apps/api/window";
 import { EDGE_PADDING } from "./layout";
 
+/** Déplacement horizontal minimal (px écran) pour changer de sens de course. */
+const DIRECTION_THRESHOLD_PX = 3;
+
 interface Rect {
   x: number;
   y: number;
@@ -61,6 +64,7 @@ export function startClampedDrag(
   startScreenY: number,
   windowWidth: number,
   windowHeight: number,
+  onHorizontalDirection?: (direction: "left" | "right" | null) => void,
 ): void {
   void emit("hooky-bubble-dismiss");
 
@@ -129,7 +133,25 @@ export function startClampedDrag(
         );
     };
 
+    // Sens horizontal du drag pour les pets Codex (`run-left`/`run-right`) : mis à jour
+    // seulement quand la souris a parcouru `DIRECTION_THRESHOLD_PX` depuis le dernier
+    // changement, pour que le tremblement d'un pixel ne fasse pas clignoter la course ; un
+    // mouvement purement vertical garde le dernier sens. `null` au relâchement.
+    let directionAnchorX = startScreenX;
+    let direction: "left" | "right" | null = null;
+
     const onMouseMove = (moveEvent: MouseEvent) => {
+      if (onHorizontalDirection) {
+        const deltaX = moveEvent.screenX - directionAnchorX;
+        if (Math.abs(deltaX) >= DIRECTION_THRESHOLD_PX) {
+          directionAnchorX = moveEvent.screenX;
+          const next = deltaX > 0 ? "right" : "left";
+          if (next !== direction) {
+            direction = next;
+            onHorizontalDirection(next);
+          }
+        }
+      }
       pendingX = Math.min(
         Math.max(startWin.x + (moveEvent.screenX - startScreenX), avatarMinX),
         avatarMaxX,
@@ -148,6 +170,7 @@ export function startClampedDrag(
       window.removeEventListener("mousemove", onMouseMove);
       window.removeEventListener("mouseup", onMouseUp);
       if (rafId !== null) cancelAnimationFrame(rafId);
+      onHorizontalDirection?.(null);
     };
 
     window.addEventListener("mousemove", onMouseMove);

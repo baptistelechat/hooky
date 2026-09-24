@@ -6,6 +6,7 @@ import { FittedAvatarEngine } from "@/components/FittedAvatarEngine";
 import { useAnimationEffects } from "@/hooks/useAnimationEffects";
 import { useAvatarBundle } from "@/hooks/useAvatarBundle";
 import { useSettings } from "@/hooks/useSettings";
+import { codexRowNameFor } from "@/lib/codexPets";
 import { triggerPreview } from "@/lib/eventTrigger";
 
 const PREVIEW_SIZE = 56;
@@ -70,6 +71,7 @@ export function AnimationCard({ entry, isLive, onSelect }: AnimationCardProps) {
           key={avatarBundleKey(bundle)}
           bundle={bundle}
           animation={animation}
+          codexRow={entry.codexAnimation}
           size={PREVIEW_SIZE}
           className="animate-in fade-in duration-300"
         />
@@ -90,6 +92,11 @@ export function AnimationCard({ entry, isLive, onSelect }: AnimationCardProps) {
         {Icon && <Icon size={12} className="shrink-0" />}
         {animation}
       </span>
+      {bundle.kind === "sprite" && (
+        <span className="font-mono text-[0.7rem] text-muted-foreground">
+          Codex : {codexRowNameFor(animation, entry.codexAnimation)}
+        </span>
+      )}
       <span className="text-[0.7rem] leading-snug text-muted-foreground">
         {note}
       </span>
