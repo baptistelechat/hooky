@@ -12,6 +12,9 @@ project adheres to [Semantic Versioning](https://semver.org/).
 - When the local Claude Code login itself has expired (not just the short-lived token),
   the quota rings now show "Reconnexion requise" telling you to run `claude auth login`,
   instead of a generic "unavailable" message that never went away
+- Hooky now auto-launches on Claude Code startup wherever it is installed (e.g. `D:\`),
+  instead of only from the default `%LOCALAPPDATA%\Hooky` folder. Click "Installer les
+  hooks" in the settings once to update your existing hook
 
 ## [0.2.2] - 2026-09-12
 

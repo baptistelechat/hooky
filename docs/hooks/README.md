@@ -13,17 +13,18 @@ axum embarqué dans l'app Tauri.
 > script à copier en plus. Tous les autres events du snippet restent en `"http"`
 > natif, qui fonctionne normalement partout ailleurs.
 >
-> Ce hook `SessionStart` fait aussi office d'**auto-launch**, sur le même principe de
-> portabilité que ci-dessus : la commande reste `curl` en direct (aucun interpréteur
-> shell/PowerShell explicite), suivi d'un `|| start "" "%LOCALAPPDATA%\Hooky\Hooky.exe"`
-> — `||` (shell par défaut de l'OS) déclenche le lancement seulement si le `curl` échoue
-> (code non-nul, app pas encore lancée). `start` détache le lancement (n'attend pas que
-> Hooky se ferme). Le côté droit du `||` est Windows-only (Hooky ne cible que Windows
-> pour l'instant), mais rien n'impose un interpréteur spécifique côté gauche, contrairement
-> à un wrapper `powershell -Command` qui casserait la portabilité même en théorie sur les
-> autres OS. Pas de retry immédiat : le prochain event (`UserPromptSubmit` par ex.) sera
-> reçu normalement une fois l'app démarrée et le port 4242 bindé. Toujours inline dans le
-> JSON — pas de script séparé à copier, mêmes raisons que ci-dessus.
+> Ce hook `SessionStart` fait aussi office d'**auto-launch** : la commande reste `curl` en
+> direct, suivi d'un `|| powershell -NoProfile -Command "Start-Process (...)"` — `||`
+> déclenche le lancement seulement si le `curl` échoue (code non-nul, app pas encore
+> lancée). Le chemin de `hooky.exe` n'est **pas codé en dur** : il est lu dans la clé de
+> désinstallation NSIS (`HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\Hooky`,
+> valeur `InstallLocation`, entre guillemets d'où le `.Trim([char]34)`), donc le même
+> `settings.json` marche quel que soit le dossier d'installation (C:, D:, custom) et peut
+> être partagé entre plusieurs postes. PowerShell ne démarre que quand l'app est fermée.
+> Le côté droit du `||` est Windows-only (Hooky ne cible que Windows pour l'instant). Pas
+> de retry immédiat : le prochain event (`UserPromptSubmit` par ex.) sera reçu normalement
+> une fois l'app démarrée et le port 4242 bindé. Toujours inline dans le JSON — pas de
+> script séparé à copier, mêmes raisons que ci-dessus.
 
 ## 1. Fusionner le snippet dans `settings.json`
 

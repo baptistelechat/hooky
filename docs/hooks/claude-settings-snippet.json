@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "curl -s -m 5 -X POST http://127.0.0.1:4242/event -H \"Content-Type: application/json\" -d @- || start \"\" \"%LOCALAPPDATA%\\Hooky\\Hooky.exe\""
+            "command": "curl -s -m 5 -X POST http://127.0.0.1:4242/event -H \"Content-Type: application/json\" -d @- || powershell -NoProfile -Command \"Start-Process ((gp HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Hooky).InstallLocation.Trim([char]34) + '\\hooky.exe')\""
           }
         ]
       }
