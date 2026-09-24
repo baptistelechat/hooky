@@ -1,3 +1,5 @@
+mod codex_pets;
+
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
@@ -967,7 +969,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             write_text_file,
             install_claude_hooks,
-            get_cached_usage
+            get_cached_usage,
+            codex_pets::list_codex_pets
         ])
         .setup(move |app| {
             let app_handle = app.handle().clone();

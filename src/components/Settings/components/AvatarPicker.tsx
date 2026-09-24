@@ -1,11 +1,9 @@
 import {
-  avatarBundleKey,
   avatarRegistry,
   buildAvatarBundle,
+  buildSpriteBundle,
   DEFAULT_AVATAR_ID,
-  type AnimationName,
   type AvatarBundle,
-  type AvatarColorOverride,
   type RawAvatarDefinition,
 } from "@/components/avatarDefinition";
 import {
@@ -17,7 +15,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import {
@@ -28,202 +25,19 @@ import {
   FieldTitle,
 } from "@/components/ui/field";
 import { Separator } from "@/components/ui/separator";
-import { FittedAvatarEngine } from "@/components/FittedAvatarEngine";
-import { useAvatarBundle } from "@/hooks/useAvatarBundle";
+import { useCodexPets } from "@/hooks/useCodexPets";
 import { useCustomAvatars } from "@/hooks/useCustomAvatars";
 import { useSettings } from "@/hooks/useSettings";
+import { codexPetForAvatarId } from "@/lib/codexPets";
+import { AVATAR_PREVIEW_SIZE } from "@/lib/layout";
 import { cn } from "@/lib/utils";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { ExternalLink, Palette, Plus, RotateCcw, Trash2 } from "lucide-react";
+import { ExternalLink, Palette, Plus, RotateCcw } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { AvatarPickerCard } from "./AvatarPickerCard";
+import { CodexPetsSection } from "./CodexPetsSection";
 
 const COMMUNITY_URL = "https://avatars.bible-strong.app/";
-
-const PREVIEW_SIZE = 56;
-
-function pickRandomAnimation(
-  animationOrder: AnimationName[],
-  exclude?: AnimationName,
-): AnimationName {
-  const pool =
-    exclude && animationOrder.length > 1
-      ? animationOrder.filter((name) => name !== exclude)
-      : animationOrder;
-  return pool[Math.floor(Math.random() * pool.length)];
-}
-
-// Durée réelle d'un passage complet de l'animation (somme des holdMs/transitionMs de ses
-// steps) -- pas une durée arbitraire, pour relancer une nouvelle animation aléatoire
-// exactement quand la précédente a fini son cycle plutôt qu'à un instant qui coupe une pose.
-function animationCycleDuration(
-  bundle: AvatarBundle,
-  animation: AnimationName,
-): number {
-  return bundle.definition.animations[animation].steps.reduce(
-    (total, step) => total + step.holdMs + step.transitionMs,
-    0,
-  );
-}
-
-interface AvatarPickerCardProps {
-  bundle: AvatarBundle;
-  isSelected: boolean;
-  isCustom: boolean;
-  colorOverride: AvatarColorOverride | undefined;
-  onSelect: () => void;
-  onResetColors: () => void;
-  onDelete?: () => void;
-}
-
-// Chaque carte pioche indépendamment (Math.random() propre à son instance) et relance une
-// nouvelle animation aléatoire dès que la précédente a fini son cycle -- desynchronise
-// naturellement les cartes entre elles (plus "vivant" qu'un pool figé sur "idle" partagé).
-function AvatarPickerCard({
-  bundle,
-  isSelected,
-  isCustom,
-  colorOverride,
-  onSelect,
-  onResetColors,
-  onDelete,
-}: AvatarPickerCardProps) {
-  const animationOrder = bundle.definition.animationOrder as AnimationName[];
-  const [animation, setAnimation] = useState<AnimationName>(() =>
-    pickRandomAnimation(animationOrder),
-  );
-  const [resetDialogOpen, setResetDialogOpen] = useState(false);
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  // Reflète l'override couleur de CET avatar (pas seulement le sélectionné) -- même hook
-  // que le pet flottant et la grille d'animation, pour une couleur cohérente partout.
-  const liveBundle = useAvatarBundle(bundle.id, colorOverride);
-
-  useEffect(() => {
-    const id = setTimeout(
-      () =>
-        setAnimation((current) => pickRandomAnimation(animationOrder, current)),
-      animationCycleDuration(bundle, animation),
-    );
-    return () => clearTimeout(id);
-  }, [animation, animationOrder, bundle]);
-
-  return (
-    <div className="relative">
-      <button
-        type="button"
-        onClick={onSelect}
-        className={`flex w-full cursor-pointer flex-col items-center gap-1.5 rounded-lg border p-3 text-center transition-colors ${
-          isSelected
-            ? "border-primary bg-primary/10"
-            : "border-border bg-muted/30 hover:bg-muted/60"
-        }`}
-      >
-        <div
-          className="relative drop-shadow-[0_4px_6px_rgba(0,0,0,0.2)]"
-          style={{ width: PREVIEW_SIZE, height: PREVIEW_SIZE }}
-        >
-          <FittedAvatarEngine
-            key={avatarBundleKey(liveBundle)}
-            bundle={liveBundle}
-            animation={animation}
-            size={PREVIEW_SIZE}
-            className="animate-in fade-in duration-300"
-          />
-        </div>
-        <span className="text-xs font-medium">{bundle.name}</span>
-      </button>
-
-      {/* Suppression réservée aux avatars custom (les avatars par défaut viennent du repo, pas
-          retirables) -- coin haut-gauche pour ne pas collisionner avec le reset couleur
-          (haut-droit). Confirmation requise, même garde que le reset (cf. LRN-110). */}
-      {isCustom && (
-        <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-          <AlertDialogTrigger
-            render={
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-xs"
-                className="absolute top-1 left-1 rounded-full bg-background/80 backdrop-blur-sm"
-                onClick={(e) => e.stopPropagation()}
-                aria-label={`Supprimer ${bundle.name}`}
-              />
-            }
-          >
-            <Trash2 className="size-3" />
-          </AlertDialogTrigger>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Supprimer {bundle.name} ?</AlertDialogTitle>
-              <AlertDialogDescription>
-                Cet avatar sera définitivement retiré de la liste. Si c'est
-                l'avatar en cours, l'avatar par défaut sera sélectionné à la
-                place.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Annuler</AlertDialogCancel>
-              <AlertDialogAction
-                variant="destructive"
-                onClick={() => {
-                  onDelete?.();
-                  setDeleteDialogOpen(false);
-                }}
-              >
-                Supprimer
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      )}
-
-      {/* Reset au niveau de la carte de l'avatar édité (pas seulement celui sélectionné) --
-          n'importe quel avatar avec des couleurs éditées peut être réinitialisé depuis sa
-          propre carte, sans avoir à d'abord le sélectionner. Confirmation requise (cf.
-          LRN-110) : même geste destructif que les boutons du footer, même garde. */}
-      {colorOverride && (
-        <AlertDialog open={resetDialogOpen} onOpenChange={setResetDialogOpen}>
-          <AlertDialogTrigger
-            render={
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-xs"
-                className="absolute top-1 right-1 rounded-full bg-background/80 backdrop-blur-sm"
-                onClick={(e) => e.stopPropagation()}
-                aria-label={`Réinitialiser les couleurs de ${bundle.name}`}
-              />
-            }
-          >
-            <RotateCcw className="size-3" />
-          </AlertDialogTrigger>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>
-                Réinitialiser les couleurs de {bundle.name} ?
-              </AlertDialogTitle>
-              <AlertDialogDescription>
-                Les couleurs éditées pour cet avatar reviendront à celles
-                d'origine. Les modifications actuelles seront perdues.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Annuler</AlertDialogCancel>
-              <AlertDialogAction
-                variant="destructive"
-                onClick={() => {
-                  onResetColors();
-                  setResetDialogOpen(false);
-                }}
-              >
-                Réinitialiser
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      )}
-    </div>
-  );
-}
 
 interface AddCustomAvatarCardProps {
   onFileSelected: (file: File) => void;
@@ -241,7 +55,7 @@ function AddCustomAvatarCard({ onFileSelected }: AddCustomAvatarCardProps) {
       type="button"
       onClick={() => inputRef.current?.click()}
       className="flex w-full cursor-pointer flex-col items-center justify-center gap-1.5 rounded-lg border border-dashed border-border bg-muted/30 p-3 text-center text-muted-foreground transition-colors hover:bg-muted/60"
-      style={{ minHeight: PREVIEW_SIZE + 44 }}
+      style={{ minHeight: AVATAR_PREVIEW_SIZE + 44 }}
     >
       <input
         ref={inputRef}
@@ -394,13 +208,25 @@ export function AvatarPicker() {
       ),
     [customAvatars],
   );
-  const selectedBundle =
+  const codexPets = useCodexPets();
+  const selectedCodexPet = codexPetForAvatarId(settings.avatarId, codexPets);
+  const selectedBundle: AvatarBundle =
     avatarRegistry[settings.avatarId] ??
     customBundles.find((bundle) => bundle.id === settings.avatarId) ??
+    (selectedCodexPet && buildSpriteBundle(selectedCodexPet)) ??
     avatarRegistry[DEFAULT_AVATAR_ID];
   const override = settings.avatarColorOverrides[selectedBundle.id];
-  const bodyColor = override?.body ?? selectedBundle.definition.colors.body;
-  const eyesColor = override?.eyes ?? selectedBundle.definition.colors.eyes;
+  // Un pet Codex n'a ni body ni eyes : la section Couleurs est masquée (cf. plus bas).
+  const bodyColor =
+    override?.body ??
+    (selectedBundle.kind === "procedural"
+      ? selectedBundle.definition.colors.body
+      : "");
+  const eyesColor =
+    override?.eyes ??
+    (selectedBundle.kind === "procedural"
+      ? selectedBundle.definition.colors.eyes
+      : "");
   const hasAnyOverride = Object.keys(settings.avatarColorOverrides).length > 0;
 
   function setColor(key: "body" | "eyes", value: string) {
@@ -493,41 +319,49 @@ export function AvatarPicker() {
         Créer ou télécharger un avatar
       </button>
 
-      <div className="grid min-h-0 flex-1 grid-cols-[repeat(auto-fill,minmax(120px,1fr))] content-start gap-2 overflow-y-auto pr-1">
-        {Object.values(avatarRegistry).map((bundle) => (
-          <AvatarPickerCard
-            key={bundle.id}
-            bundle={bundle}
-            isSelected={bundle.id === settings.avatarId}
-            isCustom={false}
-            colorOverride={settings.avatarColorOverrides[bundle.id]}
-            onSelect={() => setSettings({ ...settings, avatarId: bundle.id })}
-            onResetColors={() => resetColors(bundle.id)}
+      {/* Une seule zone défilante : la grille des avatars du repo/customs, puis la section des
+          pets Codex (lus depuis le disque, cf. CodexPetsSection). */}
+      <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto pr-1">
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] content-start gap-2">
+          {Object.values(avatarRegistry).map((bundle) => (
+            <AvatarPickerCard
+              key={bundle.id}
+              bundle={bundle}
+              isSelected={bundle.id === settings.avatarId}
+              isCustom={false}
+              colorOverride={settings.avatarColorOverrides[bundle.id]}
+              onSelect={() => setSettings({ ...settings, avatarId: bundle.id })}
+              onResetColors={() => resetColors(bundle.id)}
+            />
+          ))}
+          {customBundles.map((bundle) => (
+            <AvatarPickerCard
+              key={bundle.id}
+              bundle={bundle}
+              isSelected={bundle.id === settings.avatarId}
+              isCustom
+              colorOverride={settings.avatarColorOverrides[bundle.id]}
+              onSelect={() => setSettings({ ...settings, avatarId: bundle.id })}
+              onResetColors={() => resetColors(bundle.id)}
+              onDelete={() => deleteCustomAvatar(bundle.id)}
+            />
+          ))}
+          <AddCustomAvatarCard
+            onFileSelected={(file) => void handleFileSelected(file)}
           />
-        ))}
-        {customBundles.map((bundle) => (
-          <AvatarPickerCard
-            key={bundle.id}
-            bundle={bundle}
-            isSelected={bundle.id === settings.avatarId}
-            isCustom
-            colorOverride={settings.avatarColorOverrides[bundle.id]}
-            onSelect={() => setSettings({ ...settings, avatarId: bundle.id })}
-            onResetColors={() => resetColors(bundle.id)}
-            onDelete={() => deleteCustomAvatar(bundle.id)}
-          />
-        ))}
-        <AddCustomAvatarCard
-          onFileSelected={(file) => void handleFileSelected(file)}
-        />
+        </div>
+
+        <CodexPetsSection />
       </div>
 
       {importError && <p className="text-xs text-destructive">{importError}</p>}
 
       <Separator />
 
-      <FieldGroup>
-        {/* `orientation="responsive"` (cf. field.tsx) : même comportement que le Switch
+      {/* Pas de couleurs à éditer pour un pet Codex (spritesheet figée, ni body ni eyes). */}
+      {selectedBundle.kind === "procedural" && (
+        <FieldGroup>
+          {/* `orientation="responsive"` (cf. field.tsx) : même comportement que le Switch
             "Effets visuels" (label+description à gauche, contrôle à droite) mais qui
             repasse sous le label dès que le conteneur `field-group` (posé par FieldGroup
             lui-même, cf. `@container/field-group`) devient trop étroit -- le Switch reste
@@ -539,51 +373,52 @@ export function AvatarPicker() {
             changer) -- deux positions dans deux conteneurs flex différents, impossible à
             obtenir avec un seul élément + `order` CSS. Les <AlertDialog> restent uniques
             (state partagé), seuls les boutons déclencheurs sont dupliqués. */}
-        <Field orientation="responsive">
-          <FieldContent>
-            <FieldTitle>
-              <Palette className="size-4" />
-              Couleurs
-            </FieldTitle>
-            <FieldDescription>
-              Personnalise le corps et les yeux de l'avatar sélectionné.
-            </FieldDescription>
+          <Field orientation="responsive">
+            <FieldContent>
+              <FieldTitle>
+                <Palette className="size-4" />
+                Couleurs
+              </FieldTitle>
+              <FieldDescription>
+                Personnalise le corps et les yeux de l'avatar sélectionné.
+              </FieldDescription>
+              <ResetButtons
+                className="hidden @md/field-group:mt-2 @md/field-group:flex @md/field-group:flex-row @md/field-group:flex-wrap"
+                selectedName={selectedBundle.name}
+                canResetCurrent={!!override}
+                canResetAll={hasAnyOverride}
+                onResetCurrentClick={() => setResetCurrentDialogOpen(true)}
+                onResetAllClick={() => setResetAllDialogOpen(true)}
+              />
+            </FieldContent>
+            <div className="flex items-center gap-6">
+              <ColorSwatch
+                id="avatar-color-body"
+                label="Corps"
+                value={bodyColor}
+                onChange={(value) => setColor("body", value)}
+              />
+              <ColorSwatch
+                id="avatar-color-eyes"
+                label="Yeux"
+                value={eyesColor}
+                onChange={(value) => setColor("eyes", value)}
+              />
+            </div>
+          </Field>
+
+          <Field className="@md/field-group:hidden">
             <ResetButtons
-              className="hidden @md/field-group:mt-2 @md/field-group:flex @md/field-group:flex-row @md/field-group:flex-wrap"
+              className="flex flex-col"
               selectedName={selectedBundle.name}
               canResetCurrent={!!override}
               canResetAll={hasAnyOverride}
               onResetCurrentClick={() => setResetCurrentDialogOpen(true)}
               onResetAllClick={() => setResetAllDialogOpen(true)}
             />
-          </FieldContent>
-          <div className="flex items-center gap-6">
-            <ColorSwatch
-              id="avatar-color-body"
-              label="Corps"
-              value={bodyColor}
-              onChange={(value) => setColor("body", value)}
-            />
-            <ColorSwatch
-              id="avatar-color-eyes"
-              label="Yeux"
-              value={eyesColor}
-              onChange={(value) => setColor("eyes", value)}
-            />
-          </div>
-        </Field>
-
-        <Field className="@md/field-group:hidden">
-          <ResetButtons
-            className="flex flex-col"
-            selectedName={selectedBundle.name}
-            canResetCurrent={!!override}
-            canResetAll={hasAnyOverride}
-            onResetCurrentClick={() => setResetCurrentDialogOpen(true)}
-            onResetAllClick={() => setResetAllDialogOpen(true)}
-          />
-        </Field>
-      </FieldGroup>
+          </Field>
+        </FieldGroup>
+      )}
 
       <AlertDialog
         open={resetCurrentDialogOpen}

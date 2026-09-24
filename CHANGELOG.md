@@ -7,6 +7,14 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Codex pets: any pet installed in `~/.codex/pets` now shows up in a new "Pets Codex"
+  section of the Avatar tab in the settings (install one with
+  `npx petdex install <name>`). Pick one and it becomes your desktop pet, animated from its
+  spritesheet and following what Claude Code is doing, with the status badge colored after
+  the pet's own colors
+
 ### Fixed
 
 - When the local Claude Code login itself has expired (not just the short-lived token),

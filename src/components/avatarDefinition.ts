@@ -2,6 +2,13 @@ import {
   createAvatar,
   type CreatedAvatarComponent,
 } from "@bible-strong/avatar-react";
+import { convertFileSrc } from "@tauri-apps/api/core";
+import {
+  codexAvatarId,
+  codexPetForAvatarId,
+  SPRITE_BADGE_ICON_COLOR,
+  type CodexPet,
+} from "../lib/codexPets";
 // Import statique gardé uniquement pour le TYPE (schéma bible-strong partagé par tous
 // les avatars, cf. plus bas) -- le chargement runtime des définitions passe par
 // `import.meta.glob` (voir requireAvatarModules).
@@ -143,12 +150,12 @@ function hexToRgb(hex: string): [number, number, number] {
   return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
 }
 
-function rgbToHex(r: number, g: number, b: number): string {
+export function rgbToHex(r: number, g: number, b: number): string {
   const toHex = (c: number) => Math.round(c).toString(16).padStart(2, "0");
   return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
 }
 
-function rgbToHsl([r, g, b]: [number, number, number]): [
+export function rgbToHsl([r, g, b]: [number, number, number]): [
   number,
   number,
   number,
@@ -200,7 +207,7 @@ const LIGHTNESS_STEP = 0.02;
 // couleur sans rapport avec le body), on assombrit body (même teinte/saturation, L
 // réduite en HSL) jusqu'au seuil de lisibilité -- l'icône reste visuellement liée à
 // l'avatar plutôt que de piocher une couleur arbitraire.
-function ensureReadableOnWhite(hex: string): string {
+export function ensureReadableOnWhite(hex: string): string {
   if (contrastAgainstWhite(hex) >= MIN_BADGE_ICON_CONTRAST) return hex;
 
   const [h, s, initialL] = rgbToHsl(hexToRgb(hex));
@@ -231,7 +238,9 @@ function loadAvatarDefinitions(): {
   }));
 }
 
-export interface AvatarBundle {
+/** Avatar rendu par le moteur procédural bible-strong (défauts du repo + customs importés). */
+export interface ProceduralAvatarBundle {
+  kind: "procedural";
   id: string;
   name: string;
   definition: RawAvatarDefinition;
@@ -240,12 +249,38 @@ export interface AvatarBundle {
   badgeIconColor: string;
 }
 
+/** Pet Codex rendu depuis sa spritesheet (cf. SpriteAvatar) : pas de `definition` -- donc ni
+ * couleurs éditables ni liste d'animations propre, seulement la table STATE_TO_ROW. */
+export interface SpriteAvatarBundle {
+  kind: "sprite";
+  id: string;
+  name: string;
+  /** URL `asset:` de la spritesheet (déjà dans le scope, cf. `list_codex_pets`). */
+  spriteUrl: string;
+  rows: number;
+  badgeIconColor: string;
+}
+
+export type AvatarBundle = ProceduralAvatarBundle | SpriteAvatarBundle;
+
+export function buildSpriteBundle(pet: CodexPet): SpriteAvatarBundle {
+  return {
+    kind: "sprite",
+    id: codexAvatarId(pet.folder),
+    name: pet.displayName,
+    spriteUrl: convertFileSrc(pet.spritesheetPath, "asset"),
+    rows: pet.rows,
+    badgeIconColor: pet.badgeColor ?? SPRITE_BADGE_ICON_COLOR,
+  };
+}
+
 export function buildAvatarBundle(
   id: string,
   rawDefinition: RawAvatarDefinition,
-): AvatarBundle {
+): ProceduralAvatarBundle {
   const definition = clampDefinition(rawDefinition);
   return {
+    kind: "procedural",
     id,
     name: definition.name,
     definition,
@@ -258,12 +293,13 @@ export function buildAvatarBundle(
 // Registre calculé une seule fois au chargement du module (peu d'avatars, JSON léger) --
 // évite de rappeler `createAvatar` (donc de remonter le SVG) à chaque changement de
 // sélection dans les settings.
-export const avatarRegistry: Record<string, AvatarBundle> = Object.fromEntries(
-  loadAvatarDefinitions().map(({ id, definition }) => [
-    id,
-    buildAvatarBundle(id, definition),
-  ]),
-);
+export const avatarRegistry: Record<string, ProceduralAvatarBundle> =
+  Object.fromEntries(
+    loadAvatarDefinitions().map(({ id, definition }) => [
+      id,
+      buildAvatarBundle(id, definition),
+    ]),
+  );
 
 export const avatarIds = Object.keys(avatarRegistry);
 // "cubee" explicite -- `avatarIds[0]` dépendait de l'ordre de résolution du glob (Vite
@@ -278,6 +314,7 @@ export const DEFAULT_AVATAR_ID = "cubee";
  * transition dédiée "changement de couleur" séparée, complexité qui s'est avérée non
  * désirée à l'usage. */
 export function avatarBundleKey(bundle: AvatarBundle): string {
+  if (bundle.kind === "sprite") return `${bundle.id}:${bundle.spriteUrl}`;
   return `${bundle.id}:${bundle.definition.colors.body}:${bundle.definition.colors.eyes}`;
 }
 
@@ -285,16 +322,21 @@ export type AvatarColorOverride = Partial<{ body: string; eyes: string }>;
 
 /** Résout un id d'avatar vers son bundle ; retombe sur le premier avatar disponible si
  * l'id stocké (settings persistés) ne correspond plus à un fichier présent -- cas d'un
- * avatar retiré de ./avatars/ après avoir été sélectionné. Un `colorOverride` reconstruit
+ * avatar retiré de ./avatars/ (ou d'un pet Codex supprimé du disque) après avoir été
+ * sélectionné. Un `colorOverride` reconstruit
  * le bundle à la volée (nouveau `createAvatar`, donc remount du SVG -- acceptable, ne se
  * déclenche que sur une action volontaire dans le color picker des settings) plutôt que
  * de muter le registre figé au chargement : `badgeIconColor` reste ainsi recalculé en
- * cohérence avec la couleur éditée. */
+ * cohérence avec la couleur éditée. Sans effet sur un pet Codex (pas de couleurs). */
 export function getAvatarBundle(
   id: string,
   colorOverride?: AvatarColorOverride,
   customRegistry?: Record<string, RawAvatarDefinition>,
+  codexPets: Record<string, CodexPet> = {},
 ): AvatarBundle {
+  const codexPet = codexPetForAvatarId(id, codexPets);
+  if (codexPet) return buildSpriteBundle(codexPet);
+
   const customDefinition = customRegistry?.[id];
   const base = avatarRegistry[id]
     ? avatarRegistry[id]

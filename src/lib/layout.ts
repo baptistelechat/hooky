@@ -1,3 +1,7 @@
+/** Taille de l'aperçu d'un avatar sur une carte du picker (Avatar) -- partagée entre la
+ * carte, la carte "+" (même gabarit) et la section Pets Codex. */
+export const AVATAR_PREVIEW_SIZE = 56;
+
 export const BUBBLE_MAX_WIDTH = 260;
 /** Bien plus large que `BUBBLE_MAX_WIDTH` -- la fenêtre "bubble" est toujours centrée
  * exactement sur l'avatar (jamais clampée au moniteur, cf. useBubbleWindow), donc peut

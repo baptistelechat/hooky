@@ -1,11 +1,16 @@
 import { useLayoutEffect, useRef, useState } from "react";
-import type { AnimationName, AvatarBundle } from "./avatarDefinition";
+import type {
+  AnimationName,
+  AvatarBundle,
+  ProceduralAvatarBundle,
+} from "./avatarDefinition";
+import { SpriteAvatar } from "./SpriteAvatar";
 
 // Même constante que `computeFitScale` (avatarDefinition.ts) -- viewBox fixe du moteur.
 const VIEWBOX_HALF_EXTENT = 150;
 
-interface FittedAvatarEngineProps {
-  bundle: AvatarBundle;
+interface FittedAvatarEngineProps<B extends AvatarBundle = AvatarBundle> {
+  bundle: B;
   animation: AnimationName;
   size: number;
   className?: string;
@@ -36,13 +41,13 @@ function measureOverflowScale(svg: SVGSVGElement): number {
  * d'animation, pas chaque expression traversée en cours de cycle -- suffisant en pratique
  * vu la fréquence des remounts (avatarBundleKey change à chaque avatar/couleur, animation
  * change à chaque step), un polling continu serait disproportionné ici. */
-export function FittedAvatarEngine({
+function FittedProceduralEngine({
   bundle,
   animation,
   size,
   className,
   style,
-}: FittedAvatarEngineProps) {
+}: FittedAvatarEngineProps<ProceduralAvatarBundle>) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(bundle.avatarFitScale);
 
@@ -64,5 +69,18 @@ export function FittedAvatarEngine({
         }}
       />
     </div>
+  );
+}
+
+/** Point d'entrée unique pour les 3 consommateurs (pet flottant, cartes du picker, grille
+ * Animation) : aiguille selon le type de bundle, ils n'ont pas à connaître la différence. */
+export function FittedAvatarEngine({
+  bundle,
+  ...props
+}: FittedAvatarEngineProps) {
+  return bundle.kind === "sprite" ? (
+    <SpriteAvatar bundle={bundle} {...props} />
+  ) : (
+    <FittedProceduralEngine bundle={bundle} {...props} />
   );
 }

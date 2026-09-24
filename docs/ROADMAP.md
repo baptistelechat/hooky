@@ -33,7 +33,8 @@ initial du brief :
       palette d'animations existante, aucun ajout d'animation) — voir table mise à jour plus bas
       pour le détail et pour ce qui reste volontairement non mappé
 - [x] Étape 9 — Migration du moteur copié vers le package npm `@bible-strong/avatar-react` (licence AGPL-3.0-only inchangée)
-- [ ] Étape 12 — Support des pets Codex (spritesheets `~/.codex/pets`) — voir plus bas, 3 sessions prévues
+- [ ] Étape 12 — Support des pets Codex (spritesheets `~/.codex/pets`) — voir plus bas, 3 sessions prévues (**session 1/3 faite**, session 2 à lancer)
+- [ ] Étape 13 — Suivi du regard, pets Codex v2 uniquement (lignes 9–10 de la spritesheet) + badge « regard » dans l'onglet Avatar — dernière phase, après l'étape 12, **à cadrer**
 - [x] En-têtes `NOTICE` (licence AGPL) ajoutés dans `src/avatar/*`, `LICENSE` (AGPL-3.0 complète) créée à la racine
 - [x] **Fusionner `hooks/claude-settings-snippet.json` dans le `settings.json` global**
       — fait. La cause du blocage initial n'était pas un verrou de process (mauvais
@@ -113,7 +114,10 @@ procéduraux internes, pas mouse-driven). Le contournement testé (lean du corps
 vers le curseur) a été jugé pas satisfaisant — retiré à la demande de Baptiste, backend
 et frontend nettoyés (plus d'event `hooky-cursor`, plus de dépendance à
 `cursor_position()`). L'avatar est maintenant **simplement centré**, sans effet
-additionnel. À reconsidérer si le moteur expose un jour ce type de hook.
+additionnel. À reconsidérer si le moteur expose un jour ce type de hook — **rouvert
+partiellement par l'[Étape 13](#étape-13--suivi-du-regard-pets-codex-v2-uniquement--à-cadrer)**,
+uniquement pour les pets Codex v2 dont la spritesheet contient des poses de regard (pas de
+changement pour Cubee et les avatars procéduraux).
 
 ## Étape 6 — États supplémentaires
 
@@ -416,6 +420,18 @@ correspondance (même principe que `EVENT_ANIMATIONS` pour Cubee). Chantier déc
 - Spritesheet : **1536 × 1872 px = 8 colonnes × 9 lignes, cellule 192 × 208 px** (identique sur
   les 4 pets), WebP avec canal alpha (VP8L / VP8X non animé). Cellules inutilisées d'une ligne =
   transparentes (une ligne n'a pas toujours 8 frames).
+- **Format v2 (découvert en session 1, absent des 4 pets mesurés)** : la spec de la CLI `petdex`
+  (README du package npm) accepte aussi une grille **8 × 11 (1536 × 2288)** — c'est l'export
+  ChatGPT — et « une mise à l'échelle propre » de chaque format. Vérifié ensuite sur pièce avec
+  `om-nom` (v2, 1536 × 2288, `pet.json` avec `"spriteVersionNumber": 2`) : même cellule
+  192 × 208, **lignes 0–8 = les mêmes 9 états dans le même ordre que la v1** (idle, run-right,
+  run-left, waving, jumping, failed, waiting, running, review — vérifié à l'œil sur une planche
+  de contact, comme sur `work-blue-cat`), et **lignes 9–10 = 16 poses de regard** (voir
+  [Étape 13](#étape-13--suivi-du-regard-pets-codex-v2-uniquement--à-cadrer)). Le code lit `rows`
+  au lieu de supposer 9 et ignore les lignes 9–10 pour l'instant.
+  ⚠️ Un texte de recherche web (généré, non sourcé) donnait un autre ordre pour les lignes 0–8
+  (« Running » en ligne 1, « Success » en ligne 4…) : **contredit par les deux sheets mesurées**,
+  à ne pas utiliser. Il est juste sur les lignes 9–10.
 - ⚠️ `id` ≠ nom du dossier (dossier `ddo-zvzo-2` → `id: "ddo-zvzo"`) : l'identité côté Hooky
   est le **nom du dossier**, jamais l'`id` du JSON (collisions possibles).
 - `displayName` peut être non latin (ex. chinois) → prévoir une police de repli dans les cartes.
@@ -439,8 +455,11 @@ correspondance (même principe que `EVENT_ANIMATIONS` pour Cubee). Chantier déc
    `[{ folder, displayName, description, spritesheetPath }]`. Scan **en direct** (pas de copie
    dans Hooky) : un `npx petdex install` apparaît sans étape d'import. Rescan à l'ouverture
    des settings + bouton "Rafraîchir".
-2. **Servir l'image** : protocole `asset:` de Tauri (feature `protocol-asset` + scope limité à
-   `$HOME/.codex/pets/**`), pas de base64 via IPC.
+2. **Servir l'image** : protocole `asset:` de Tauri (feature `protocol-asset`), pas de base64 via
+   IPC. Scope **ajouté à l'exécution, fichier par fichier** (`asset_protocol_scope().allow_file`
+   dans `list_codex_pets`, uniquement pour une sheet déjà validée) plutôt que le scope statique
+   `$HOME/.codex/pets/**` prévu initialement : plus strict (jamais le dossier entier), et le
+   scope échappe le chemin (`escaped_pattern`, lu dans le source de `tauri 2.11.5`).
 3. **Renderer** : nouvelle union `kind: "procedural" | "sprite"` autour de `AvatarBundle` —
    aujourd'hui tout (`Avatar`, `AvatarPicker`, `AnimationCard`, `useAvatarBundle`) suppose le
    moteur procédural. Nouveau composant `SpriteAvatar` : `background-image` +
@@ -494,25 +513,57 @@ correspondance (même principe que `EVENT_ANIMATIONS` pour Cubee). Chantier déc
 
 ### Plan par session
 
-**Session 1 — "Voir mes pets" (socle)**
+**Session 1 — "Voir mes pets" (socle)** ✅ code + gates verts ; **reste à valider visuellement
+dans l'app** (voir la dernière case)
 
-- [ ] Vérifier le chemin d'installation de `npx petdex install` (docs Petdex non lisibles par
-      WebFetch — à tester réellement) et si `CODEX_HOME` est respecté
-- [ ] Rust : `list_codex_pets` + validations sécurité + feature `protocol-asset` + scope
-- [ ] `SpriteAvatar` + table `CODEX_ROWS` (fps provisoires)
-- [ ] Union `procedural | sprite`, id `codex:<dossier>`, `getAvatarBundle` / `useAvatarBundle`
-- [ ] Picker : section "Pets Codex", cartes animées, section Couleurs masquée pour un sprite
-      (pas de body/eyes), pas de bouton Supprimer (le dossier appartient à Codex), état vide
-      ("aucun pet dans `~/.codex/pets`"), bouton Rafraîchir
-- [ ] Gates : `pnpm lint`, `pnpm build`, `cargo check`
+- [x] Chemin d'installation vérifié en lisant le package npm `petdex@1.3.0` (les docs web ne
+      sont pas lisibles) : `petdex install` écrit dans `~/.petdex/pets/<slug>/` **et**
+      `~/.codex/pets/<slug>/` → `~/.codex/pets` confirmé. `CODEX_HOME` n'apparaît nulle part
+      dans la CLI : **non supporté** (on scanne `~/.codex/pets`, comme Petdex l'écrit).
+- [x] Rust : `src-tauri/src/codex_pets.rs` — `list_codex_pets` (scan en direct), validations
+      (chemin relatif sans `..` + canonicalisation + appartenance au dossier, `.webp`/`.png`,
+      ≤ 10 Mo, `pet.json` ≤ 64 Ko, dimensions lues dans l'en-tête WebP/PNG sans dépendance,
+      grille 8×9 ou 8×11 ≤ 3072 px de large), feature `protocol-asset`, scope par fichier.
+      5 tests unitaires (dont un sur les 32 octets réels d'un pet installé, et les tentatives
+      `../`, `/etc/…`, `C:\…`).
+- [x] `SpriteAvatar` (WAAPI + `steps(N, jump-none)`, zéro re-render par frame) + `CODEX_ROWS`
+      (fps provisoires) + niveau B `STATE_TO_ROW` **partiel** : le moteur compte 23 animations,
+      Hooky n'en émet que 10 (lib.rs et catalogue concordent) — les 13 autres retombent sur
+      `idle` (`codexRowFor`), pas de mapping spéculatif.
+- [x] Union `ProceduralAvatarBundle | SpriteAvatarBundle` (`kind`), id `codex:<dossier>`,
+      `getAvatarBundle` / `useAvatarBundle` ; pet disparu du disque → repli `cubee`. Le pet
+      flottant, les cartes du picker et la grille Animation n'ont pas eu à changer :
+      `FittedAvatarEngine` aiguille selon `kind`.
+- [x] Store `useCodexPets` (`useSyncExternalStore`, un scan par webview) + diffusion
+      `hooky-codex-pets` : le pet flottant apprend un nouveau pet quand les settings le
+      détectent, il ne rescanne jamais seul.
+- [x] Picker : section « Pets Codex », état vide, bouton Rafraîchir, Couleurs masquées pour un
+      sprite, pas de bouton Supprimer. `AvatarPickerCard` extrait de `AvatarPicker.tsx` (647 →
+      482 lignes) pour être réutilisé sans import circulaire.
+- [x] Gates : `pnpm typecheck`, `pnpm lint` (0 erreur, 1 warning `ui/button.tsx` pré-existant),
+      `pnpm build`, `cargo check`, `cargo test codex_pets`.
+- [x] Vérifié hors app avec une page témoin reprenant le même CSS/WAAPI sur la vraie sheet :
+      les 9 lignes se découpent proprement (aucun débordement de cellule voisine) et
+      `steps(N, jump-none)` donne exactement N colonnes (k/7 × 100 %) pour chaque ligne.
+- [x] Retours d'usage validés par Baptiste (« ça fonctionne ») : fenêtre Settings agrandie de
+      570 à 712 px de haut (+25 %, `settingsWindow.ts`, `minHeight` inchangé), badge coloré (voir
+      session 2).
+- [x] Validation dans l'app par Baptiste (`tauri dev`) : l'URL `asset:` charge bien dans
+      WebView2 (préfixe `\\?\` retiré, scope `allow_file`), la section s'affiche, le pet
+      sélectionné apparaît en flottant. Note : **un seul pet installé** sur la machine de dev
+      (`work-blue-cat`), pas 4 comme mesuré initialement.
 
 **Session 2 — "Piloté par les hooks"**
 
 - [ ] Tables niveaux B + C, `codexAnimation` dans le catalogue, `findMappingEntry` étendu
 - [ ] Pet flottant (`Avatar.tsx`) : ligne Codex résolue depuis (état, hook, notification)
 - [ ] Onglet Animation : cartes rendues avec le pet sélectionné + libellé de la ligne Codex
-- [ ] Couleur d'icône du badge pour un sprite (`badgeIconColor` : échantillonnage canvas de la
-      couleur dominante, ou neutre fixe) — contraste WCAG déjà géré par `ensureReadableOnWhite`
+- [x] Couleur d'icône du badge pour un sprite — **fait en retour d'usage de la session 1**
+      (`src/lib/spriteColor.ts`) : plage de teinte dominante de la ligne `idle` (canvas,
+      12 plages de 30°), puis `ensureReadableOnWhite`. Un premier essai « couleur exacte la plus
+      fréquente » échouait sur le pet de test (le vert du t-shirt ne pesait que 2 % à cause de
+      l'ombrage, retombait sur le gris) — mesuré, d'où le regroupement par teinte (8 %).
+      Résultat sur `work-blue-cat` : `#57a072`. Repli gris `#475569` si le calcul échoue.
 - [ ] Brancher les effets ponctuels (confettis/bounce/shake, `useAnimationEffects`) sur un
       sprite — conservés, décision tranchée
 - [ ] `docs/EVENTS.md` : colonne "Ligne Codex"
@@ -541,6 +592,12 @@ correspondance (même principe que `EVENT_ANIMATIONS` pour Cubee). Chantier déc
   l'utilisateur. À rappeler dans le README.
 - **Spec non officielle** : la structure 8×9 vient de l'observation de 4 pets, pas d'un
   document de spécification lu ; un pet hors format doit être ignoré proprement, pas planter.
+- **Nombre de frames variable d'un pet à l'autre** (constaté en session 1) : `idle` compte 6
+  frames sur `work-blue-cat` (v1) mais **7 sur `om-nom`** (v2) — un seul échantillon de chaque,
+  impossible de dire si c'est une différence v1/v2 ou propre au pet. `CODEX_ROWS` fige 6 :
+  la 7ᵉ frame d'`om-nom` n'est jamais jouée (sans gravité visuelle, mais faux). À traiter en
+  session 2/3 en comptant les cellules pleines par ligne, dans la même passe canvas que
+  `spriteColor.ts`, plutôt qu'un nombre codé en dur.
 
 ### Décisions tranchées (2026-09-23)
 
@@ -552,3 +609,48 @@ correspondance (même principe que `EVENT_ANIMATIONS` pour Cubee). Chantier déc
    cellule 192 px → `avatarSize` n'est pas entier, `pixelated` donnerait des pixels de
    largeurs inégales et un scintillement. Réglage par pet à envisager seulement si un pet
    paraît flou.
+
+## Étape 13 — Suivi du regard (pets Codex v2 uniquement) — à cadrer
+
+Dernière phase, après les 3 sessions de l'étape 12. Réintroduit le « mouse tracking » retiré à
+l'[étape 5](#étape-5--eye-tracking-souris--retiré) (le moteur procédural n'expose aucune API de
+regard), mais **uniquement pour les pets dont la spritesheet contient des poses de regard** : les
+pets v2. Cubee et les avatars procéduraux restent inchangés (pas de suivi).
+
+### Établi (mesuré sur `om-nom`, à l'œil sur une planche de contact des 11 lignes)
+
+- Grille v2 8 × 11 : lignes 0–8 = les 9 états habituels, **lignes 9 et 10 = 16 poses de regard**
+  (8 par ligne, 8 cellules pleines chacune) : la tête et les pupilles font un tour complet.
+- Ligne 9 : de « regard en haut » (colonne 0) vers la droite jusqu'à « bas-droite » (colonne 7) ;
+  ligne 10 : de « regard en bas » (colonne 0) vers la gauche jusqu'à « haut-gauche » (colonne 7).
+  Soit **sens horaire à partir du haut, pas d'environ 22,5°**. Formule envisagée :
+  `index = round(angle / 22,5°) mod 16`, `ligne = 9 + (index ≥ 8 ? 1 : 0)`, `colonne = index mod 8`.
+- `pet.json` d'`om-nom` porte `"spriteVersionNumber": 2` (absent des pets v1 mesurés).
+
+### À valider
+
+- **Alignement exact des 16 pas** : la formule ci-dessus vient d'une lecture visuelle (le premier
+  pas est bien « haut », mais un décalage d'un demi-pas n'est pas exclu) — à confirmer en
+  affichant chaque pose et en la comparant à l'angle attendu, pas seulement en regardant la
+  planche.
+- **Un seul pet v2 mesuré** (`om-nom`) : confirmer sur d'autres avant de généraliser.
+- **Critère de détection** : `rows === 11` (ce que le code fait déjà) ou
+  `spriteVersionNumber === 2` du manifeste ? Un pet 8×11 sans le champ (ou l'inverse) est
+  possible ; le champ n'est pas encore lu par `codex_pets.rs`.
+- **Source** : une recherche web (texte généré, non sourcé) décrit aussi les lignes 9–10 comme
+  « 16 directions du regard, sens horaire » — cohérent avec la mesure, mais la même réponse se
+  trompe sur l'ordre des lignes 0–8 (cf. étape 12, « Format v2 ») : à ne pas prendre pour une
+  spec. Source primaire non trouvée.
+
+### Pistes d'implémentation (à cadrer, rien de décidé)
+
+- Position du curseur via `cursorPosition()` de `@tauri-apps/api/window` (vérifier la permission
+  correspondante dans `gen/schemas/acl-manifests.json` avant de l'ajouter, cf. GLRN-256),
+  échantillonnée à fréquence limitée depuis la fenêtre « main » — aucun code résiduel de
+  l'étape 5 à réutiliser.
+- Angle centre du pet → curseur → un des 16 index → **une pose statique** affichée à la place de
+  l'`idle`. Quand l'activer (seulement en `idle` ? seuil de distance ?), réglage on/off dans les
+  Settings et respect de `prefers-reduced-motion` : à décider.
+- **Badge dans l'onglet Avatar** : une icône « œil » (ex. `Eye` de lucide) sur la carte des pets
+  qui ont le suivi du regard, rien sur les autres, avec une info-bulle « Suit le curseur ».
+  Pas de suivi ni de badge pour Cubee et les avatars procéduraux.
