@@ -34,7 +34,7 @@ initial du brief :
       pour le détail et pour ce qui reste volontairement non mappé
 - [x] Étape 9 — Migration du moteur copié vers le package npm `@bible-strong/avatar-react` (licence AGPL-3.0-only inchangée)
 - [ ] Étape 12 — Support des pets Codex (spritesheets `~/.codex/pets`) — voir plus bas, 3 sessions prévues (**sessions 1 à 3 faites**, session 3 validée)
-- [ ] Étape 13 — Suivi du regard, pets Codex v2 uniquement (lignes 9–10 de la spritesheet) + badge « regard » dans l'onglet Avatar — dernière phase, après l'étape 12, **à cadrer**
+- [x] Étape 13 — Réveil au regard : pet Codex v2 en `sleeping` qui suit le curseur quand il approche (lignes 9–10 de la spritesheet) — dernière phase, faite (réglages à l'œil à confirmer en usage, cf. plus bas)
 - [x] En-têtes `NOTICE` (licence AGPL) ajoutés dans `src/avatar/*`, `LICENSE` (AGPL-3.0 complète) créée à la racine
 - [x] **Fusionner `hooks/claude-settings-snippet.json` dans le `settings.json` global**
       — fait. La cause du blocage initial n'était pas un verrou de process (mauvais
@@ -652,47 +652,58 @@ dans l'app** (voir la dernière case)
    largeurs inégales et un scintillement. Réglage par pet à envisager seulement si un pet
    paraît flou.
 
-## Étape 13 — Suivi du regard (pets Codex v2 uniquement) — à cadrer
+## Étape 13 — Réveil au regard (pets Codex v2 uniquement)
 
 Dernière phase, après les 3 sessions de l'étape 12. Réintroduit le « mouse tracking » retiré à
 l'[étape 5](#étape-5--eye-tracking-souris--retiré) (le moteur procédural n'expose aucune API de
 regard), mais **uniquement pour les pets dont la spritesheet contient des poses de regard** : les
-pets v2. Cubee et les avatars procéduraux restent inchangés (pas de suivi).
+pets v2. Cubee et les avatars procéduraux restent sans regard (écarté, trop coûteux à intégrer).
 
-### Établi (mesuré sur `om-nom`, à l'œil sur une planche de contact des 11 lignes)
+### Principe (tranché avec Baptiste, 2026-09-24)
+
+Une animation est toujours en cours, pilotée par les hooks : un regard qui remplacerait l'`idle`
+entrerait en conflit avec l'état réel de Claude Code. Le regard n'existe donc que dans le seul
+état où aucun hook ne parle : **`sleeping`**.
+
+| Situation | Comportement |
+|---|---|
+| Un hook est actif (`working`, `thinking`…) | Aucun regard, les hooks gardent la priorité |
+| `sleeping` + curseur loin | `idle` ralentie + Zzz (inchangé) |
+| `sleeping` + curseur dans le rayon de réveil | Pose de regard statique vers le curseur, Zzz masqués |
+| Curseur qui s'éloigne (au-delà du rayon de sommeil) | Le pet continue de regarder 1,2 s, puis retour à `sleeping` |
+| Un hook arrive pendant le regard | Regard interrompu, l'état hook reprend |
+
+- **Badge « œil »** sur la carte des pets v2 dans l'onglet Avatar (info-bulle « Suit le curseur en
+  veille »), rien sur les autres (ajouté après un premier essai sans badge). **Pas de réglage
+  on/off** dans les Settings (ajoutable si l'effet gêne à l'usage). `prefers-reduced-motion`
+  respecté (regard désactivé).
+- **Hystérésis** : rayon de réveil < rayon de sommeil (260 / 340 px logiques, mesurés depuis le
+  centre du pet) pour éviter le clignotement quand le curseur reste au bord, plus un **délai de
+  1,2 s** hors du rayon avant de se rendormir (le pet suit encore le curseur pendant ce temps).
+- **Polling limité à `sleeping`** : `cursorPosition()` (permission `allow-cursor-position` déjà
+  couverte par `core:default`, lecture seule) toutes les 100 ms, arrêté dès qu'un hook arrive —
+  aucun événement souris de la fenêtre (le rayon dépasse la fenêtre, et `setIgnoreCursorEvents`
+  n'est pas fiable sur Windows, cf. LRN-043).
+- **Détection** : `rows === 11` (déjà transmis au front par `codex_pets.rs`) ; `spriteVersionNumber`
+  n'est pas lu.
+
+### Format (mesuré sur `om-nom`, confirmé sur `blobby`)
 
 - Grille v2 8 × 11 : lignes 0–8 = les 9 états habituels, **lignes 9 et 10 = 16 poses de regard**
-  (8 par ligne, 8 cellules pleines chacune) : la tête et les pupilles font un tour complet.
+  (8 par ligne) : la tête et les pupilles font un tour complet.
 - Ligne 9 : de « regard en haut » (colonne 0) vers la droite jusqu'à « bas-droite » (colonne 7) ;
   ligne 10 : de « regard en bas » (colonne 0) vers la gauche jusqu'à « haut-gauche » (colonne 7).
-  Soit **sens horaire à partir du haut, pas d'environ 22,5°**. Formule envisagée :
+  Soit **sens horaire à partir du haut, pas de 22,5°** :
   `index = round(angle / 22,5°) mod 16`, `ligne = 9 + (index ≥ 8 ? 1 : 0)`, `colonne = index mod 8`.
-- `pet.json` d'`om-nom` porte `"spriteVersionNumber": 2` (absent des pets v1 mesurés).
+- Pets v2 vus : `om-nom` et `blobby` (tous deux `spriteVersionNumber: 2`, 1536 × 2288).
 
-### À valider
+### État (2026-09-24)
 
-- **Alignement exact des 16 pas** : la formule ci-dessus vient d'une lecture visuelle (le premier
-  pas est bien « haut », mais un décalage d'un demi-pas n'est pas exclu) — à confirmer en
-  affichant chaque pose et en la comparant à l'angle attendu, pas seulement en regardant la
-  planche.
-- **Un seul pet v2 mesuré** (`om-nom`) : confirmer sur d'autres avant de généraliser.
-- **Critère de détection** : `rows === 11` (ce que le code fait déjà) ou
-  `spriteVersionNumber === 2` du manifeste ? Un pet 8×11 sans le champ (ou l'inverse) est
-  possible ; le champ n'est pas encore lu par `codex_pets.rs`.
-- **Source** : une recherche web (texte généré, non sourcé) décrit aussi les lignes 9–10 comme
-  « 16 directions du regard, sens horaire » — cohérent avec la mesure, mais la même réponse se
-  trompe sur l'ordre des lignes 0–8 (cf. étape 12, « Format v2 ») : à ne pas prendre pour une
-  spec. Source primaire non trouvée.
-
-### Pistes d'implémentation (à cadrer, rien de décidé)
-
-- Position du curseur via `cursorPosition()` de `@tauri-apps/api/window` (vérifier la permission
-  correspondante dans `gen/schemas/acl-manifests.json` avant de l'ajouter, cf. GLRN-256),
-  échantillonnée à fréquence limitée depuis la fenêtre « main » — aucun code résiduel de
-  l'étape 5 à réutiliser.
-- Angle centre du pet → curseur → un des 16 index → **une pose statique** affichée à la place de
-  l'`idle`. Quand l'activer (seulement en `idle` ? seuil de distance ?), réglage on/off dans les
-  Settings et respect de `prefers-reduced-motion` : à décider.
-- **Badge dans l'onglet Avatar** : une icône « œil » (ex. `Eye` de lucide) sur la carte des pets
-  qui ont le suivi du regard, rien sur les autres, avec une info-bulle « Suit le curseur ».
-  Pas de suivi ni de badge pour Cubee et les avatars procéduraux.
+- [x] Code : `gazeIndexFor` / `gazePose` / `hasGaze` (`src/lib/codexPets.ts`, vérifiés : haut = 0,
+      droite = 4, bas = 8, gauche = 12), `useCursorGaze` (polling 100 ms, hystérésis 260 / 340 px,
+      `prefers-reduced-motion`), pose statique dans `SpriteAvatar` (`gazeIndex`), Zzz masqués
+      (`AnimationOverlay`, prop `gazing`). Lint et build passent.
+- [x] Sens des 16 poses relu sur planche de contact de `blobby` : horaire depuis le haut, aligné
+      avec la formule (idx 0 = haut, 4 = droite, 8 = bas, 12 = gauche).
+- [ ] **À valider en usage réel** : pose affichée vs position réelle du curseur (décalage d'un
+      demi-pas ?), rayons 260 / 340 px, délai de 1,2 s avant de se rendormir, multi-écrans / mise à l'échelle Windows ≠ 100 %.

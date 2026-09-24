@@ -20,6 +20,7 @@ project adheres to [Semantic Versioning](https://semver.org/).
   or can't be read, Hooky falls back to Cubee instead of showing an invisible pet
 - "Aucune session" card in the Animation tab, to preview the sleeping state even while real sessions are open
 - "Télécharger sur Petdex" button next to the Codex pets, to browse and download new ones
+- Newer Codex pets (v2 spritesheets) now look at your cursor while they sleep: come close and they wake up and follow it, move away and they doze off again after a moment. These pets get an eye icon on their card in the Avatar tab
 
 ### Changed
 

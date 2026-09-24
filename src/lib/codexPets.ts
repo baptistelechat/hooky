@@ -73,6 +73,33 @@ export const CODEX_ROWS: Record<
   review: { row: 8, frames: 6, fps: 5 },
 };
 
+/** Pets v2 (grille 8 x 11) : les lignes 9 et 10 portent 16 poses de regard, sens horaire depuis
+ * le haut, 22,5° par pas (8 colonnes par ligne). Le suivi du regard (cf. roadmap, étape 13) est
+ * réservé aux pets qui les ont. */
+const CODEX_GAZE_FIRST_ROW = 9;
+const CODEX_GAZE_STEPS = 16;
+const CODEX_GAZE_STEP_DEG = 360 / CODEX_GAZE_STEPS;
+
+export function hasGaze(rows: number): boolean {
+  return rows === CODEX_GAZE_FIRST_ROW + 2;
+}
+
+/** Pose de regard (0..15) pour un curseur à `(dx, dy)` du centre du pet (y vers le bas, comme
+ * l'écran) : 0 = haut, puis sens horaire. */
+export function gazeIndexFor(dx: number, dy: number): number {
+  const degrees = (Math.atan2(dx, -dy) * 180) / Math.PI;
+  const step = Math.round(degrees / CODEX_GAZE_STEP_DEG);
+  return ((step % CODEX_GAZE_STEPS) + CODEX_GAZE_STEPS) % CODEX_GAZE_STEPS;
+}
+
+/** Cellule (ligne, colonne) de la pose `index` : 8 poses par ligne. */
+export function gazePose(index: number): { row: number; column: number } {
+  return {
+    row: CODEX_GAZE_FIRST_ROW + Math.floor(index / CODEX_COLUMNS),
+    column: index % CODEX_COLUMNS,
+  };
+}
+
 /** Niveau B de la table de correspondance : état agrégé (mêmes noms que les animations de
  * Cubee) -> ligne Codex. Seulement les 10 états que Hooky émet réellement (cf. lib.rs) -- le
  * moteur en compte 23, les 13 autres (`excited`, `angry`...) ne sont jamais déclenchés et

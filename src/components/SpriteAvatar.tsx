@@ -3,6 +3,7 @@ import {
   CODEX_CELL_ASPECT,
   CODEX_COLUMNS,
   codexRowFor,
+  gazePose,
   type CodexRowName,
 } from "../lib/codexPets";
 import type { AnimationName, SpriteAvatarBundle } from "./avatarDefinition";
@@ -13,6 +14,8 @@ interface SpriteAvatarProps {
   /** Surcharge par hook (niveau C de la table de correspondance) -- sinon la ligne se déduit
    * de `animation` (niveau B), cf. `codexRowNameFor`. */
   codexRow?: CodexRowName;
+  /** Pose de regard (0..15, cf. `gazeIndexFor`) : remplace l'animation par une pose statique. */
+  gazeIndex?: number;
   /** Appelé si la spritesheet ne se charge pas (fichier supprimé ou corrompu). */
   onLoadError?: () => void;
   size: number;
@@ -31,6 +34,7 @@ export function SpriteAvatar({
   bundle,
   animation,
   codexRow,
+  gazeIndex,
   onLoadError,
   size,
   className,
@@ -41,6 +45,7 @@ export function SpriteAvatar({
   // Frames mesurées sur ce pet (cf. spriteFrames.ts), sinon valeur par défaut de la ligne ;
   // `|| ` et non `??` : 0 (ligne vide) retombe aussi sur le défaut.
   const frames = bundle.rowFrames?.[row] || defaultFrames;
+  const gaze = gazeIndex === undefined ? undefined : gazePose(gazeIndex);
 
   // Un `background-image` CSS n'expose aucune erreur de chargement : on sonde la même URL
   // avec un `Image` (déjà en cache du navigateur, pas de second décodage à payer).
@@ -56,7 +61,7 @@ export function SpriteAvatar({
 
   useEffect(() => {
     const frame = frameRef.current;
-    if (!frame) return;
+    if (!frame || gaze) return;
     // Colonne k à `k / (COLUMNS - 1)` de la largeur (sémantique des % de background-position).
     // `jump-none` : `frames` paliers exactement, chacun tenu 1/frames de la durée.
     const lastColumn = ((frames - 1) / (CODEX_COLUMNS - 1)) * 100;
@@ -72,7 +77,7 @@ export function SpriteAvatar({
       },
     );
     return () => animationHandle.cancel();
-  }, [frames, fps]);
+  }, [frames, fps, gaze]);
 
   return (
     <div
@@ -96,7 +101,11 @@ export function SpriteAvatar({
           backgroundImage: `url("${bundle.spriteUrl}")`,
           backgroundRepeat: "no-repeat",
           backgroundSize: `${CODEX_COLUMNS * 100}% ${bundle.rows * 100}%`,
-          backgroundPositionY: `${(row / (bundle.rows - 1)) * 100}%`,
+          backgroundPositionY: `${((gaze?.row ?? row) / (bundle.rows - 1)) * 100}%`,
+          // Pose de regard : colonne fixe (sinon `background-position-x` est piloté par l'animation).
+          backgroundPositionX: gaze
+            ? `${(gaze.column / (CODEX_COLUMNS - 1)) * 100}%`
+            : undefined,
         }}
       />
     </div>

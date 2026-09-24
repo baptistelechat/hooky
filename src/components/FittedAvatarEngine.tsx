@@ -15,6 +15,8 @@ interface FittedAvatarEngineProps<B extends AvatarBundle = AvatarBundle> {
   animation: AnimationName;
   /** Ignoré par un avatar procédural -- ne concerne que les pets Codex (cf. SpriteAvatar). */
   codexRow?: CodexRowName;
+  /** Idem : pose de regard (cf. SpriteAvatar), ignorée par un avatar procédural. */
+  gazeIndex?: number;
   /** Idem : ne concerne qu'un pet Codex, appelé si sa spritesheet ne se charge pas. */
   onSpriteError?: () => void;
   size: number;

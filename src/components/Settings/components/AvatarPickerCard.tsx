@@ -18,9 +18,13 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { useAvatarBundle } from "@/hooks/useAvatarBundle";
-import { SPRITE_ANIMATION_ORDER, spriteCycleMs } from "@/lib/codexPets";
+import {
+  SPRITE_ANIMATION_ORDER,
+  hasGaze,
+  spriteCycleMs,
+} from "@/lib/codexPets";
 import { AVATAR_PREVIEW_SIZE } from "@/lib/layout";
-import { RotateCcw, Trash2 } from "lucide-react";
+import { Eye, RotateCcw, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 
 function pickRandomAnimation(
@@ -120,6 +124,19 @@ export function AvatarPickerCard({
             il ne doit pas déformer la grille. */}
         <span className="line-clamp-2 text-xs font-medium">{bundle.name}</span>
       </button>
+
+      {/* Pet Codex v2 : suit le curseur en veille (`sleeping`, cf. useCursorGaze). Coin haut-gauche,
+          libre pour un pet Codex (suppression = avatars custom, reset = couleurs éditées). */}
+      {bundle.kind === "sprite" && hasGaze(bundle.rows) && (
+        <span
+          role="img"
+          title="Suit le curseur en veille"
+          aria-label="Suit le curseur en veille"
+          className="absolute top-1 left-1 flex size-5 items-center justify-center rounded-full bg-background/80 text-muted-foreground backdrop-blur-sm"
+        >
+          <Eye className="size-3" />
+        </span>
+      )}
 
       {/* Suppression réservée aux avatars custom (les avatars par défaut viennent du repo, pas
           retirables) -- coin haut-gauche pour ne pas collisionner avec le reset couleur

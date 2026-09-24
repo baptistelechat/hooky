@@ -6,9 +6,14 @@ import { useAvatarBundle } from "../hooks/useAvatarBundle";
 import { useBubbleWindow } from "../hooks/useBubbleWindow";
 import { reportBrokenCodexPet } from "../hooks/useCodexPets";
 import { useClaudeUsage } from "../hooks/useClaudeUsage";
+import { useCursorGaze } from "../hooks/useCursorGaze";
 import { useSettings } from "../hooks/useSettings";
 import { codexOverrideFor, findMappingEntry } from "../lib/animationCatalog";
-import { codexRowNameFor, type CodexRowName } from "../lib/codexPets";
+import {
+  codexRowNameFor,
+  hasGaze,
+  type CodexRowName,
+} from "../lib/codexPets";
 import { debugZoneClass } from "../lib/debugZone";
 import {
   AVATAR_SHADOW_GAP,
@@ -144,6 +149,14 @@ export function PetAvatar({
   const mappingEntry = findMappingEntry(lastEvent, animation, notificationType);
   const codexRow = dragRow ?? codexOverrideFor(mappingEntry, animation);
   const isSprite = bundle.kind === "sprite";
+  // Regard vers le curseur : seulement en `sleeping` (aucun hook ne parle), pet v2, sans course.
+  const gazeIndex = useCursorGaze(
+    containerRef,
+    animation === "sleeping" &&
+      !codexRow &&
+      bundle.kind === "sprite" &&
+      hasGaze(bundle.rows),
+  );
   const bundleId = bundle.id;
   // Image du pet illisible (supprimé du disque, corrompu) : repli sur l'avatar par défaut.
   const handleSpriteError = useCallback(
@@ -221,6 +234,7 @@ export function PetAvatar({
             bundle={bundle}
             animation={animation}
             codexRow={codexRow}
+            gazeIndex={gazeIndex ?? undefined}
             onSpriteError={handleSpriteError}
             size={renderedAvatarSize}
             className="animate-in fade-in duration-300"
@@ -250,6 +264,7 @@ export function PetAvatar({
           animation={animation}
           revision={revision}
           enabled={settings.effectsEnabled}
+          gazing={gazeIndex !== null}
           avatarSize={renderedAvatarSize}
           icon={mappingEntry?.icon}
           badgeIconColor={bundle.badgeIconColor}
