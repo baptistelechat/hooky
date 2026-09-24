@@ -15,6 +15,10 @@ export interface CodexPet {
   /** Couleur d'icône du badge, calculée côté front à partir des pixels du sprite (cf.
    * spriteColor.ts) -- absente tant que le calcul asynchrone n'a pas abouti (ou s'il échoue). */
   badgeColor?: string;
+  /** Frames réellement dessinées par ligne (cf. spriteFrames.ts) -- le nombre varie d'un pet à
+   * l'autre (`idle` : 6 en v1, 7 en v2). Absent tant que le calcul n'a pas abouti : on retombe
+   * sur `CODEX_ROWS`. */
+  rowFrames?: number[];
 }
 
 /** Préfixe de l'`avatarId` d'un pet Codex (`codex:<dossier>`) : aucune collision possible avec
@@ -52,7 +56,8 @@ export type CodexRowName =
   | "review";
 
 /** Lignes de la grille (mesurées sur les pets réels, `pet.json` ne les décrit pas -- contrat
- * implicite). `fps` = valeurs PROVISOIRES à régler à l'œil : le manifeste n'en donne aucune. */
+ * implicite). `frames` = valeur par défaut, remplacée par le compte réel du pet quand il est
+ * connu (`CodexPet.rowFrames`). `fps` = réglage à l'œil : le manifeste n'en donne aucune. */
 export const CODEX_ROWS: Record<
   CodexRowName,
   { row: number; frames: number; fps: number }
@@ -82,8 +87,9 @@ export const STATE_TO_ROW: Partial<Record<AnimationName, CodexRowName>> = {
   celebrate: "jumping",
   bored: "idle",
   waking: "waving",
-  // Pas de ligne dédiée dans la spritesheet : `idle` provisoirement, traitement dédié (idle
-  // ralentie + atténuée + badge Zzz) prévu en session 3.
+  // Pas de ligne dédiée dans la spritesheet : `idle` ralentie (cf.
+  // `codexRowFor`), le badge "zZz" vient d'AnimationOverlay. Pas d'atténuation : essayée à 60 %,
+  // elle donnait un pet "transparent en permanence" (sleeping est l'état par défaut).
   sleeping: "idle",
 };
 
@@ -101,9 +107,23 @@ export function codexRowNameFor(
   return override ?? STATE_TO_ROW[animation] ?? "idle";
 }
 
+/** `sleeping` n'a pas de ligne Codex : il joue `idle` en plus lent. Une surcharge
+ * explicite (ex. course pendant un drag) reprend la main et joue normalement. */
+export function isCodexSleeping(
+  animation: AnimationName,
+  override?: CodexRowName,
+): boolean {
+  return animation === "sleeping" && !override;
+}
+
+const SLEEPING_FPS_FACTOR = 0.4;
+
 /** Ligne de spritesheet (position, frames, fps) à jouer pour une animation Hooky. */
 export function codexRowFor(animation: AnimationName, override?: CodexRowName) {
-  return CODEX_ROWS[codexRowNameFor(animation, override)];
+  const row = CODEX_ROWS[codexRowNameFor(animation, override)];
+  return isCodexSleeping(animation, override)
+    ? { ...row, fps: row.fps * SLEEPING_FPS_FACTOR }
+    : row;
 }
 
 /** Durée d'affichage d'une animation sur une carte de picker : deux passages de la ligne,
@@ -113,6 +133,6 @@ export function spriteCycleMs(animation: AnimationName): number {
   return (frames / fps) * 1000 * 2;
 }
 
-/** Gris ardoise neutre (contraste ~7.6:1 sur blanc) : une sheet n'a ni `colors.body` à
- * assombrir ni couleur dominante connue -- échantillonnage prévu en session 2. */
+/** Gris ardoise neutre (contraste ~7.6:1 sur blanc) : repli quand la couleur dominante d'une
+ * sheet n'a pas pu être calculée (cf. spriteColor.ts). */
 export const SPRITE_BADGE_ICON_COLOR = "#475569";

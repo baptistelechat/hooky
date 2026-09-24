@@ -31,11 +31,11 @@ import { useSettings } from "@/hooks/useSettings";
 import { codexPetForAvatarId } from "@/lib/codexPets";
 import { AVATAR_PREVIEW_SIZE } from "@/lib/layout";
 import { cn } from "@/lib/utils";
-import { openUrl } from "@tauri-apps/plugin-opener";
-import { ExternalLink, Palette, Plus, RotateCcw } from "lucide-react";
+import { Palette, Plus, RotateCcw } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AvatarPickerCard } from "./AvatarPickerCard";
 import { CodexPetsSection } from "./CodexPetsSection";
+import { PickerSectionHeader } from "./PickerSectionHeader";
 
 const COMMUNITY_URL = "https://avatars.bible-strong.app/";
 
@@ -310,46 +310,48 @@ export function AvatarPicker() {
 
   return (
     <div className="flex flex-1 flex-col gap-3 overflow-hidden">
-      <button
-        type="button"
-        onClick={() => void openUrl(COMMUNITY_URL)}
-        className="flex items-center gap-1.5 self-start text-xs text-muted-foreground transition-colors hover:text-foreground"
-      >
-        <ExternalLink className="size-3" />
-        Créer ou télécharger un avatar
-      </button>
-
       {/* Une seule zone défilante : la grille des avatars du repo/customs, puis la section des
           pets Codex (lus depuis le disque, cf. CodexPetsSection). */}
       <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto pr-1">
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] content-start gap-2">
-          {Object.values(avatarRegistry).map((bundle) => (
-            <AvatarPickerCard
-              key={bundle.id}
-              bundle={bundle}
-              isSelected={bundle.id === settings.avatarId}
-              isCustom={false}
-              colorOverride={settings.avatarColorOverrides[bundle.id]}
-              onSelect={() => setSettings({ ...settings, avatarId: bundle.id })}
-              onResetColors={() => resetColors(bundle.id)}
-            />
-          ))}
-          {customBundles.map((bundle) => (
-            <AvatarPickerCard
-              key={bundle.id}
-              bundle={bundle}
-              isSelected={bundle.id === settings.avatarId}
-              isCustom
-              colorOverride={settings.avatarColorOverrides[bundle.id]}
-              onSelect={() => setSettings({ ...settings, avatarId: bundle.id })}
-              onResetColors={() => resetColors(bundle.id)}
-              onDelete={() => deleteCustomAvatar(bundle.id)}
-            />
-          ))}
-          <AddCustomAvatarCard
-            onFileSelected={(file) => void handleFileSelected(file)}
+        <section className="flex flex-col gap-2" aria-label="Avatars">
+          <PickerSectionHeader
+            title="Avatars"
+            linkLabel="Créer ou télécharger"
+            linkUrl={COMMUNITY_URL}
           />
-        </div>
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] content-start gap-2">
+            {Object.values(avatarRegistry).map((bundle) => (
+              <AvatarPickerCard
+                key={bundle.id}
+                bundle={bundle}
+                isSelected={bundle.id === settings.avatarId}
+                isCustom={false}
+                colorOverride={settings.avatarColorOverrides[bundle.id]}
+                onSelect={() =>
+                  setSettings({ ...settings, avatarId: bundle.id })
+                }
+                onResetColors={() => resetColors(bundle.id)}
+              />
+            ))}
+            {customBundles.map((bundle) => (
+              <AvatarPickerCard
+                key={bundle.id}
+                bundle={bundle}
+                isSelected={bundle.id === settings.avatarId}
+                isCustom
+                colorOverride={settings.avatarColorOverrides[bundle.id]}
+                onSelect={() =>
+                  setSettings({ ...settings, avatarId: bundle.id })
+                }
+                onResetColors={() => resetColors(bundle.id)}
+                onDelete={() => deleteCustomAvatar(bundle.id)}
+              />
+            ))}
+            <AddCustomAvatarCard
+              onFileSelected={(file) => void handleFileSelected(file)}
+            />
+          </div>
+        </section>
 
         <CodexPetsSection />
       </div>

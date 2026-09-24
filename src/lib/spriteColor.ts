@@ -57,7 +57,7 @@ function largest(accumulators: Iterable<Accumulator>): Accumulator | undefined {
   return best;
 }
 
-function loadImage(url: string): Promise<HTMLImageElement> {
+export function loadImage(url: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const image = new Image();
     // Le protocole `asset:` répond avec `Access-Control-Allow-Origin` (cf. tauri

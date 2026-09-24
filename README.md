@@ -52,6 +52,7 @@
 - **Real-time reactions**: `SessionStart`, `PreToolUse`, `Notification`, `Stop`... every Claude Code hook drives a matching animation, live.
 - **Zero code awareness**: Hooky only receives event payloads over a local HTTP server — it never touches your files or your prompts.
 - **10+ swappable skins**: pick Cubee, Freddy, Kirby, Nova, Sunee and more from the Settings panel, each with its own color overrides.
+- **Codex pets**: any pet installed in `~/.codex/pets` (e.g. with `npx petdex install <name>`) shows up in Settings → Avatar and reacts to hooks like the built-in skins. Browse more on [Petdex](https://petdex.dev/).
 - **Notification bubbles**: a speech bubble pops up next to the avatar when Claude needs you or just finished.
 - **One-click hook install**: merges the required config into `~/.claude/settings.json` without touching your existing hooks.
 - **Update badge**: a small badge appears on the avatar when a new release is out — no silent auto-update.
@@ -63,6 +64,16 @@
 | **Frontend**  | ![Vite](https://shieldcn.dev/badge/Vite-7-purple.svg) ![React](https://shieldcn.dev/badge/React-19-blue.svg) ![Tailwind](https://shieldcn.dev/badge/Tailwind-4-cyan.svg) `shadcn/ui` |
 | **Backend**   | ![Tauri](https://shieldcn.dev/badge/Tauri-v2-24C8DB.svg) `axum` + `tokio` — local HTTP server (`127.0.0.1:4242`) that receives hooks and relays them to the frontend                 |
 | **Animation** | [`@bible-strong/avatar-react`](https://github.com/smontlouis/bible-strong-avatar-lab) — procedural SVG engine, no external animation library                                         |
+
+## 🐾 Codex pets
+
+Hooky reads the pets installed for [Codex](https://petdex.dev/) straight from `~/.codex/pets` (`C:\Users\<you>\.codex\pets` on Windows) — nothing is copied or bundled. Install one, open **Settings → Avatar**, hit the refresh button next to **Pets Codex**, and pick it.
+
+```bash
+npx petdex install <name>
+```
+
+A Codex pet plays the spritesheet row that matches what Claude Code is doing (see the "Ligne Codex" column in [`docs/EVENTS.md`](docs/EVENTS.md)), runs left or right while you drag it, and dozes off when no session is active. Each pet belongs to its own author and comes with its own license: Hooky doesn't redistribute any of them, it only displays the ones already on your machine.
 
 ## 📦 Installation
 

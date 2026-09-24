@@ -52,6 +52,7 @@
 - **Réactions en temps réel** : `SessionStart`, `PreToolUse`, `Notification`, `Stop`... chaque hook Claude Code déclenche une animation correspondante, en direct.
 - **Zéro accès au code** : Hooky reçoit uniquement les payloads d'events via un serveur HTTP local — elle ne touche jamais à tes fichiers ni à tes prompts.
 - **10+ skins interchangeables** : choisis Cubee, Freddy, Kirby, Nova, Sunee et bien d'autres depuis les Paramètres, chacun avec ses propres couleurs personnalisables.
+- **Pets Codex** : tout pet installé dans `~/.codex/pets` (ex. avec `npx petdex install <nom>`) apparaît dans Paramètres → Avatar et réagit aux hooks comme les skins intégrés. Plus de choix sur [Petdex](https://petdex.dev/).
 - **Bulles de notification** : une bulle de texte apparaît à côté de l'avatar quand Claude a besoin de toi ou vient de terminer.
 - **Installation des hooks en un clic** : fusionne la config nécessaire dans `~/.claude/settings.json` sans toucher à tes hooks existants.
 - **Badge de mise à jour** : un petit badge apparaît sur l'avatar quand une nouvelle version est disponible — pas d'auto-update silencieux.
@@ -63,6 +64,16 @@
 | **Frontend**  | ![Vite](https://shieldcn.dev/badge/Vite-7-purple.svg) ![React](https://shieldcn.dev/badge/React-19-blue.svg) ![Tailwind](https://shieldcn.dev/badge/Tailwind-4-cyan.svg) `shadcn/ui` |
 | **Backend**   | ![Tauri](https://shieldcn.dev/badge/Tauri-v2-24C8DB.svg) `axum` + `tokio` — serveur HTTP local (`127.0.0.1:4242`) qui reçoit les hooks et les relaie au frontend                     |
 | **Animation** | [`@bible-strong/avatar-react`](https://github.com/smontlouis/bible-strong-avatar-lab) — moteur SVG procédural, aucune librairie d'animation externe                                  |
+
+## 🐾 Pets Codex
+
+Hooky lit les pets installés pour [Codex](https://petdex.dev/) directement dans `~/.codex/pets` (`C:\Users\<toi>\.codex\pets` sous Windows) — rien n'est copié ni embarqué. Installe-en un, ouvre **Paramètres → Avatar**, clique sur le bouton rafraîchir à côté de **Pets Codex**, puis choisis-le.
+
+```bash
+npx petdex install <nom>
+```
+
+Un pet Codex joue la ligne de sa spritesheet qui correspond à ce que fait Claude Code (voir la colonne « Ligne Codex » de [`docs/EVENTS.md`](docs/EVENTS.md)), court à gauche ou à droite quand tu le déplaces, et s'assoupit quand aucune session n'est active. Chaque pet appartient à son auteur et a sa propre licence : Hooky n'en redistribue aucun, il affiche seulement ceux déjà présents sur ta machine.
 
 ## 📦 Installation
 

@@ -26,7 +26,11 @@ ligne effectivement jouée pour chaque hook. Elle est calculée en deux niveaux
    agrégé multi-session est celui que ce hook produirait seul (`codexOverrideFor`).
 2. **Repli par état** (`STATE_TO_ROW`) : `idle`→`idle`, `listening`→`waiting`, `thinking` et
    `searching`→`review`, `working`→`running`, `confused`→`failed`, `celebrate`→`jumping`,
-   `bored`→`idle`, `sleeping`→`idle`.
+   `bored`→`idle`, `sleeping`→`idle` (ralentie : pas de ligne dédiée).
+
+Hors hooks, un pet Codex joue `run-left` / `run-right` pendant qu'on le déplace (sens du
+déplacement horizontal, `startClampedDrag` dans `src/lib/windowDrag.ts`) : c'est la seule
+surcharge qui ne vient pas du catalogue, et elle prend le pas dessus.
 
 Aucun effet sur Cubee et les autres avatars procéduraux. Comme la table Cubee, elle se tient à
 jour à la main et se valide visuellement dans l'onglet Animation.
@@ -42,7 +46,7 @@ jour à la main et se valide visuellement dans l'onglet Animation.
 | `PostToolUseFailure` | `confused`              |                                                                                                                                                     | `failed`               |
 | `Notification`       | voir sous-table         | Granularité par `notification_type` (payload du hook)                                                                                               | voir sous-table        |
 | `Stop`               | `celebrate`             | Seul moment qui marque une vraie fin de tâche — voir encart dédié ci-dessous                                                                        | `jumping`              |
-| `SessionEnd`         | —                       | Session retirée de la map, pas d'animation propre                                                                                                   | —                      |
+| `SessionEnd`         | —                       | Session retirée de la map, pas d'animation propre (plus aucune session → `sleeping`)                                                                | —                      |
 | `StopFailure`        | `confused`              | Échec d'API pendant `Stop` — même famille que `PostToolUseFailure`                                                                                  | `failed`               |
 | `SubagentStart`      | `working`               | Un sous-agent démarre du travail                                                                                                                    | `running`              |
 | `SubagentStop`       | `idle`                  | Pause entre deux actions (le sous-agent n'est pas _la_ tâche que l'utilisateur a demandée)                                                          | `idle`                 |

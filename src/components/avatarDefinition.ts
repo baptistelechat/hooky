@@ -258,6 +258,8 @@ export interface SpriteAvatarBundle {
   /** URL `asset:` de la spritesheet (déjà dans le scope, cf. `list_codex_pets`). */
   spriteUrl: string;
   rows: number;
+  /** Frames réelles par ligne, quand mesurées (cf. `CodexPet.rowFrames`). */
+  rowFrames?: number[];
   badgeIconColor: string;
 }
 
@@ -270,6 +272,7 @@ export function buildSpriteBundle(pet: CodexPet): SpriteAvatarBundle {
     name: pet.displayName,
     spriteUrl: convertFileSrc(pet.spritesheetPath, "asset"),
     rows: pet.rows,
+    rowFrames: pet.rowFrames,
     badgeIconColor: pet.badgeColor ?? SPRITE_BADGE_ICON_COLOR,
   };
 }

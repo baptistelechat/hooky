@@ -31,7 +31,7 @@ export async function openSettingsWindow(): Promise<void> {
     // Volontairement compacte (agrandir à 712 a été essayé puis annulé) : un nouvel utilisateur
     // n'a pas forcément de pets Codex installés, donc la vue par défaut montre les avatars du
     // repo d'un coup ; la section Pets Codex se rejoint en scrollant.
-    height: 512,
+    height: 570,
     // max/min Width doivent être fournis en paire avec Height pour être pris en compte
     // (quirk de l'API Tauri, cf. LRN-012) -- généreux sur l'axe non contraint.
     maxWidth: 620,

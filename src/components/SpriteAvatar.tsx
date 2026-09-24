@@ -13,6 +13,8 @@ interface SpriteAvatarProps {
   /** Surcharge par hook (niveau C de la table de correspondance) -- sinon la ligne se déduit
    * de `animation` (niveau B), cf. `codexRowNameFor`. */
   codexRow?: CodexRowName;
+  /** Appelé si la spritesheet ne se charge pas (fichier supprimé ou corrompu). */
+  onLoadError?: () => void;
   size: number;
   className?: string;
   style?: React.CSSProperties;
@@ -29,12 +31,28 @@ export function SpriteAvatar({
   bundle,
   animation,
   codexRow,
+  onLoadError,
   size,
   className,
   style,
 }: SpriteAvatarProps) {
   const frameRef = useRef<HTMLDivElement>(null);
-  const { row, frames, fps } = codexRowFor(animation, codexRow);
+  const { row, frames: defaultFrames, fps } = codexRowFor(animation, codexRow);
+  // Frames mesurées sur ce pet (cf. spriteFrames.ts), sinon valeur par défaut de la ligne ;
+  // `|| ` et non `??` : 0 (ligne vide) retombe aussi sur le défaut.
+  const frames = bundle.rowFrames?.[row] || defaultFrames;
+
+  // Un `background-image` CSS n'expose aucune erreur de chargement : on sonde la même URL
+  // avec un `Image` (déjà en cache du navigateur, pas de second décodage à payer).
+  useEffect(() => {
+    if (!onLoadError) return;
+    const probe = new Image();
+    probe.onerror = onLoadError;
+    probe.src = bundle.spriteUrl;
+    return () => {
+      probe.onerror = null;
+    };
+  }, [bundle.spriteUrl, onLoadError]);
 
   useEffect(() => {
     const frame = frameRef.current;

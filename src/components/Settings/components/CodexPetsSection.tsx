@@ -3,8 +3,11 @@ import { Button } from "@/components/ui/button";
 import { useCodexPets, refreshCodexPets } from "@/hooks/useCodexPets";
 import { useSettings } from "@/hooks/useSettings";
 import { AvatarPickerCard } from "./AvatarPickerCard";
+import { PickerSectionHeader } from "./PickerSectionHeader";
 import { RefreshCw } from "lucide-react";
 import { useMemo } from "react";
+
+const PETDEX_URL = "https://petdex.dev/";
 
 /** Pets installés dans `~/.codex/pets` (ex. via `npx petdex install <nom>`), listés en direct
  * depuis le disque -- rien n'est copié dans Hooky. Un pet Codex n'a ni couleurs éditables
@@ -19,10 +22,11 @@ export function CodexPetsSection() {
 
   return (
     <section className="flex flex-col gap-2" aria-label="Pets Codex">
-      <div className="flex items-center justify-between gap-2">
-        <h3 className="text-xs font-medium text-muted-foreground">
-          Pets Codex
-        </h3>
+      <PickerSectionHeader
+        title="Pets Codex"
+        linkLabel="Télécharger sur Petdex"
+        linkUrl={PETDEX_URL}
+      >
         <Button
           type="button"
           variant="ghost"
@@ -32,7 +36,7 @@ export function CodexPetsSection() {
         >
           <RefreshCw className="size-3" />
         </Button>
-      </div>
+      </PickerSectionHeader>
 
       {bundles.length === 0 ? (
         <p className="text-xs text-muted-foreground">

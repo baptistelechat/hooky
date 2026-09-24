@@ -1,13 +1,14 @@
 import { LogicalSize } from "@tauri-apps/api/dpi";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useAnimationEffects } from "../hooks/useAnimationEffects";
 import { useAvatarBundle } from "../hooks/useAvatarBundle";
 import { useBubbleWindow } from "../hooks/useBubbleWindow";
+import { reportBrokenCodexPet } from "../hooks/useCodexPets";
 import { useClaudeUsage } from "../hooks/useClaudeUsage";
 import { useSettings } from "../hooks/useSettings";
 import { codexOverrideFor, findMappingEntry } from "../lib/animationCatalog";
-import { codexRowNameFor } from "../lib/codexPets";
+import { codexRowNameFor, type CodexRowName } from "../lib/codexPets";
 import { debugZoneClass } from "../lib/debugZone";
 import {
   AVATAR_SHADOW_GAP,
@@ -38,6 +39,11 @@ interface PetAvatarProps {
 // manuel (cf. startClampedDrag) qui capture mousemove/mouseup globalement (voir GLRN-212 en
 // mémoire globale -- pattern déjà rencontré ailleurs avec l'ancien `startDragging()`).
 const DOUBLE_CLICK_WINDOW_MS = 300;
+
+const DRAG_ROWS: Record<"left" | "right", CodexRowName> = {
+  left: "run-left",
+  right: "run-right",
+};
 
 /**
  * Avatar + badge + ligne de rings de quotas Claude Code, seuls occupants de la fenêtre
@@ -133,8 +139,17 @@ export function PetAvatar({
     settings.effectsEnabled,
   );
 
+  // Course pendant un drag (pets Codex seulement) : prend le pas sur la surcharge par hook.
+  const [dragRow, setDragRow] = useState<CodexRowName>();
   const mappingEntry = findMappingEntry(lastEvent, animation, notificationType);
-  const codexRow = codexOverrideFor(mappingEntry, animation);
+  const codexRow = dragRow ?? codexOverrideFor(mappingEntry, animation);
+  const isSprite = bundle.kind === "sprite";
+  const bundleId = bundle.id;
+  // Image du pet illisible (supprimé du disque, corrompu) : repli sur l'avatar par défaut.
+  const handleSpriteError = useCallback(
+    () => reportBrokenCodexPet(bundleId),
+    [bundleId],
+  );
   const avatarZoneSize = avatarWindowSize(renderedAvatarSize);
 
   return (
@@ -168,6 +183,10 @@ export function PetAvatar({
           e.screenY,
           avatarZoneSize,
           avatarWindowHeight(renderedAvatarSize, settings.usagePanelEnabled),
+          isSprite
+            ? (direction) =>
+                setDragRow(direction ? DRAG_ROWS[direction] : undefined)
+            : undefined,
         );
       }}
       onContextMenu={(e) => e.preventDefault()}
@@ -202,6 +221,7 @@ export function PetAvatar({
             bundle={bundle}
             animation={animation}
             codexRow={codexRow}
+            onSpriteError={handleSpriteError}
             size={renderedAvatarSize}
             className="animate-in fade-in duration-300"
             style={{
@@ -216,7 +236,7 @@ export function PetAvatar({
             {[
               `animation: ${animation} (rev ${revision})`,
               ...(bundle.kind === "sprite"
-                ? [`ligne Codex: ${codexRowNameFor(animation, codexRow)}`]
+                ? [`Codex: ${codexRowNameFor(animation, codexRow)}`]
                 : []),
               `hook: ${lastEvent ?? "-"}${
                 toolName ? ` tool=${toolName}` : ""

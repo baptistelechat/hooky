@@ -33,7 +33,7 @@ initial du brief :
       palette d'animations existante, aucun ajout d'animation) — voir table mise à jour plus bas
       pour le détail et pour ce qui reste volontairement non mappé
 - [x] Étape 9 — Migration du moteur copié vers le package npm `@bible-strong/avatar-react` (licence AGPL-3.0-only inchangée)
-- [ ] Étape 12 — Support des pets Codex (spritesheets `~/.codex/pets`) — voir plus bas, 3 sessions prévues (**session 1/3 faite**, session 2 à lancer)
+- [ ] Étape 12 — Support des pets Codex (spritesheets `~/.codex/pets`) — voir plus bas, 3 sessions prévues (**sessions 1 à 3 faites**, session 3 validée)
 - [ ] Étape 13 — Suivi du regard, pets Codex v2 uniquement (lignes 9–10 de la spritesheet) + badge « regard » dans l'onglet Avatar — dernière phase, après l'étape 12, **à cadrer**
 - [x] En-têtes `NOTICE` (licence AGPL) ajoutés dans `src/avatar/*`, `LICENSE` (AGPL-3.0 complète) créée à la racine
 - [x] **Fusionner `hooks/claude-settings-snippet.json` dans le `settings.json` global**
@@ -589,14 +589,37 @@ dans l'app** (voir la dernière case)
 
 **Session 3 — "Store + finitions"**
 
-- [ ] Bouton vers Petdex (`https://petdex.dev/`) à côté de "Créer ou télécharger un avatar",
-      avec rappel de la commande `npx petdex install <nom>` et du dossier cible
-- [ ] Perf : animer seulement les cartes visibles/survolées (IntersectionObserver) — risque
-      mémoire ci-dessous ; mesurer avec 4 puis ~30 pets
-- [ ] `run-left` / `run-right` selon la direction du drag, pets Codex uniquement (`windowDrag.ts`)
-- [ ] Traitement de `sleeping` (`idle` ralentie + atténuée + badge Zzz), réglage final des fps
-- [ ] Gestion d'erreur image (`onError` → repli `cubee`), pet supprimé pendant l'exécution
-- [ ] README (section pets Codex + crédit), `CHANGELOG`, BDR mémoire, bump de version
+- [x] Titres de section « Avatars » et « Pets Codex » (`PickerSectionHeader`), chacun avec son
+      bouton de téléchargement à droite : « Créer ou télécharger » (avatars.bible-strong.app,
+      déplacé depuis le haut du picker) et « Télécharger sur Petdex » (`https://petdex.dev/`,
+      à côté de Rafraîchir). Le rappel `npx petdex install <nom>` reste dans l'état vide.
+- ~~Perf : animer seulement les cartes visibles/survolées (IntersectionObserver)~~ —
+  **abandonné (Baptiste)** : 8 pets animés en permanence tournent très bien. À rouvrir seulement
+  si un utilisateur avec des dizaines de pets signale des ralentissements (cf. risque mémoire).
+- [x] `run-left` / `run-right` selon la direction du drag, pets Codex uniquement :
+      `startClampedDrag` reçoit un callback optionnel (seuil 3 px, un mouvement vertical garde
+      le dernier sens, `null` au relâchement) que `Avatar.tsx` ne branche que pour un sprite ;
+      la ligne de course prend le pas sur la surcharge par hook. Aucun changement pour Cubee.
+- [x] `sleeping` : `idle` à 40 % de la vitesse (`codexRowFor` /
+      `isCodexSleeping`), badge « zZz » déjà fourni par `AnimationOverlay`. **Pas d'atténuation** :
+      essayée à 60 %, retirée sur retour de Baptiste (pet « transparent en permanence », `sleeping`
+      étant l'état par défaut hors session). Une surcharge
+      explicite (la course du drag) joue à vitesse normale. **fps inchangés** : aucune
+      retouche faite, à ajuster à l'œil si l'un paraît trop lent ou trop rapide.
+- [x] Frames par ligne **mesurées** (`src/lib/spriteFrames.ts`, cf. LRN-091) : 1 + dernière
+      cellule non vide, sur une vignette 16 px du cœur de chaque cellule. Vérifié sur les 8 pets
+      installés, en Pillow puis dans un vrai canvas (WebView) : `idle` = 7 sur `blobby` et
+      `om-nom` (v2), 6 sur les 6 pets v1, toutes les autres lignes conformes à `CODEX_ROWS`,
+      qui reste la valeur de repli. Calculé avec la couleur du badge, mis en cache par chemin.
+- [x] Erreur d'image : `SpriteAvatar` sonde l'URL avec un `Image` (le CSS `background-image`
+      n'expose pas d'erreur) ; sur le pet flottant, `reportBrokenCodexPet` retire le pet du
+      store de sa webview → `getAvatarBundle` retombe sur `cubee`. Le set est vidé à chaque
+      scan reçu des settings (un pet réinstallé revient). Pas de sonde dans les cartes du
+      picker : une carte cassée reste vide jusqu'au prochain rafraîchissement.
+- [x] README (FR + EN, section pets Codex + rappel des licences), `CHANGELOG`
+- [x] **Validé visuellement par Baptiste** (`tauri dev`) : course pendant le drag (sens,
+      pas de clignotement), `sleeping` (lisibilité du ralenti), un pet dont on supprime
+      la sheet pendant qu'il est sélectionné (repli sur Cubee)
 
 ### Risques
 
@@ -614,13 +637,13 @@ dans l'app** (voir la dernière case)
 - **Nombre de frames variable d'un pet à l'autre** (constaté en session 1) : `idle` compte 6
   frames sur `work-blue-cat` (v1) mais **7 sur `om-nom`** (v2) — un seul échantillon de chaque,
   impossible de dire si c'est une différence v1/v2 ou propre au pet. `CODEX_ROWS` fige 6 :
-  la 7ᵉ frame d'`om-nom` n'est jamais jouée (sans gravité visuelle, mais faux). À traiter en
-  session 2/3 en comptant les cellules pleines par ligne, dans la même passe canvas que
-  `spriteColor.ts`, plutôt qu'un nombre codé en dur.
+  la 7ᵉ frame d'`om-nom` n'est jamais jouée (sans gravité visuelle, mais faux). **Traité en
+  session 3** : `spriteFrames.ts` compte les cellules pleines par ligne (mesuré sur 8 pets, deux
+  v2 à 7 frames d'`idle`), `CODEX_ROWS` ne sert plus que de repli.
 
 ### Décisions tranchées (2026-09-23)
 
-1. **`sleeping`** : `idle` ralentie + atténuée + badge "Zzz" (pas de ligne Codex dédiée).
+1. **`sleeping`** : `idle` ralentie + badge "Zzz" (atténuation abandonnée, cf. session 3) (pas de ligne Codex dédiée).
 2. **Effets ponctuels** (confettis, bounce, shake) : **conservés** sur les sprites, comme pour Cubee.
 3. **`run-left` / `run-right` selon la direction du drag** : retenu, **spécifique aux pets
    Codex** (session 3) — aucun changement pour les avatars procéduraux (Cubee & co).

@@ -15,6 +15,8 @@ interface FittedAvatarEngineProps<B extends AvatarBundle = AvatarBundle> {
   animation: AnimationName;
   /** Ignoré par un avatar procédural -- ne concerne que les pets Codex (cf. SpriteAvatar). */
   codexRow?: CodexRowName;
+  /** Idem : ne concerne qu'un pet Codex, appelé si sa spritesheet ne se charge pas. */
+  onSpriteError?: () => void;
   size: number;
   className?: string;
   style?: React.CSSProperties;
@@ -79,10 +81,11 @@ function FittedProceduralEngine({
  * Animation) : aiguille selon le type de bundle, ils n'ont pas à connaître la différence. */
 export function FittedAvatarEngine({
   bundle,
+  onSpriteError,
   ...props
 }: FittedAvatarEngineProps) {
   return bundle.kind === "sprite" ? (
-    <SpriteAvatar bundle={bundle} {...props} />
+    <SpriteAvatar bundle={bundle} {...props} onLoadError={onSpriteError} />
   ) : (
     <FittedProceduralEngine bundle={bundle} {...props} />
   );

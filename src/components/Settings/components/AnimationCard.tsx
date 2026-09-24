@@ -94,7 +94,7 @@ export function AnimationCard({ entry, isLive, onSelect }: AnimationCardProps) {
       </span>
       {bundle.kind === "sprite" && (
         <span className="font-mono text-[0.7rem] text-muted-foreground">
-          ligne Codex : {codexRowNameFor(animation, entry.codexAnimation)}
+          Codex : {codexRowNameFor(animation, entry.codexAnimation)}
         </span>
       )}
       <span className="text-[0.7rem] leading-snug text-muted-foreground">

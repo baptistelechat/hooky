@@ -55,6 +55,16 @@ export interface AnimationMappingEntry {
 
 export const EVENT_ANIMATIONS: AnimationMappingEntry[] = [
   {
+    // Pas un hook : le vrai état "aucune session" vient de la disparition de la dernière
+    // session (cf. resolve_state, Rust), impossible à forcer tant qu'une vraie session est
+    // ouverte. On rejoue donc `idle_prompt`, l'event réel qui produit aussi `sleeping` : la
+    // session de preview, la plus récente, prend la main sur les vraies sessions.
+    label: "Aucune session",
+    animation: "sleeping",
+    note: "État de repos quand plus aucune session n'est active",
+    trigger: { hookEventName: "Notification", notificationType: "idle_prompt" },
+  },
+  {
     label: "SessionStart",
     animation: "listening",
     note: "Claude Code démarre et attend le premier prompt.",
