@@ -1,11 +1,11 @@
 ---
-id: BLK-037
+id: ZBLK-037
 type: blocker
 date: 2026-09-24
 tags: [react-doctor, effect-needs-cleanup, false-positive, debugging, useeffect]
 ---
 
-# BLK-037 — effect-needs-cleanup persistant après 2 restructurations
+# ZBLK-037 — effect-needs-cleanup persistant après 2 restructurations
 
 | Friction | Cause réelle | Solution | Statut |
 | --- | --- | --- | --- |

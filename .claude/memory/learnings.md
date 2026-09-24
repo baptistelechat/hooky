@@ -103,3 +103,8 @@ register: learnings
 | [LRN-098](learnings/LRN-098.md) | 2026-09-24 | Un effet sur l'état par défaut devient permanent | #ux #default-state #opacity #ambient-ui #feedback #codex-pets |
 | [LRN-099](learnings/LRN-099.md) | 2026-09-24 | Un comportement ambiant se branche sur l'état « sans signal » | #ux #ambient-ui #default-state #event-driven #codex-pets #priority |
 | [LRN-100](learnings/LRN-100.md) | 2026-09-24 | Suivre le curseur hors fenêtre Tauri : polling de cursorPosition | #tauri #tauri2 #cursor-position #polling #windows #capabilities #dpi |
+| [LRN-101](learnings/LRN-101.md) | 2026-09-24 | Orb WebGPU paused avant 1re frame : invisible en sleeping | #webgpu #orb #paused #default-state #first-frame #codex-pets |
+| [LRN-102](learnings/LRN-102.md) | 2026-09-24 | Shaders TypeGPU : unplugin-typegpu avec enforce: pre | #typegpu #unplugin-typegpu #vite #esbuild #enforce-pre #shadercn |
+| [LRN-103](learnings/LRN-103.md) | 2026-09-24 | Licence d'un composant copié : lire l'en-tête des fichiers | #licence #open-source #vendoring #shadcn #shadercn #due-diligence #agpl |
+| [LRN-104](learnings/LRN-104.md) | 2026-09-24 | Déboguer Tauri/WebView2 : remote-debugging-port + CDP | #tauri #webview2 #cdp #remote-debugging #testing #windows #webgpu |
+| [LRN-105](learnings/LRN-105.md) | 2026-09-24 | shadcn add tiers : registryDependencies non namespacé échoue | #shadcn #registry #registryDependencies #cli #workaround #shadercn |

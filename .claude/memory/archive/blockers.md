@@ -40,3 +40,4 @@ register: archive_blockers
 | [ZBLK-033](blockers/ZBLK-033.md) | 2026-09-11 | "Chargement…" persistant malgré le fix backoff, refresh OAuth confirmé le lendemain | #usage-panel #oauth #token-expiry #desktop-app #cli #misdiagnosis #429                    | résolu |
 | [ZBLK-035](blockers/ZBLK-035.md) | 2026-09-24 | Sleeping atténué à 60 % : pet « transparent en permanence » | #codex-pets #sleeping #opacity #ux #feedback | résolu |
 | [ZBLK-036](blockers/ZBLK-036.md) | 2026-09-24 | Carte « Aucune session » (SessionEnd) ne forçait pas l'état | #animation-tab #preview #resolve-state #misdiagnosis #sessionend | résolu |
+| [ZBLK-037](blockers/ZBLK-037.md) | 2026-09-24 | effect-needs-cleanup persistant après 2 restructurations | #react-doctor #effect-needs-cleanup #false-positive #debugging #useeffect | résolu |

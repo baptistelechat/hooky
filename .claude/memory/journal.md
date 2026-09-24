@@ -888,3 +888,15 @@ Session 3 de l'étape 12 (pets Codex), la dernière : finitions du picker et des
 - [BDR-090](decisions/BDR-090.md) — regard uniquement en sleeping, sans réglage
 - [BDR-091](decisions/BDR-091.md) — rayons 260/340 px et 1,2 s avant de dormir
 - [LRN-099](learnings/LRN-099.md) — comportement ambiant sur l'état « sans signal »
+
+---
+
+Exploration de [shadercn.run](https://www.shadercn.run/) (33 « orbs » WebGPU) pour un éventuel Étape 14, à la manière des pets Codex, puis spike réel. Baptiste a demandé si on pouvait les intégrer ; l'analyse a montré une intégration plus simple que les pets Codex (code embarqué, un troisième `kind: "shader"` dans l'union, états `idle`/`thinking`/`speaking` qui se mappent sur les états agrégés). Le spike (branche `spike/shadercn`, ensuite ramené sur `development`) a validé en réel : WebGPU actif par défaut dans WebView2, fenêtre transparente correcte (capture d'écran), coût GPU ~0,6 % sur RTX, `pnpm typecheck` et `pnpm build` verts. Les pièges : plugin `unplugin-typegpu` avec `enforce: "pre"` absent de la doc ([LRN-102](learnings/LRN-102.md)), CLI shadcn en échec sur la dépendance `orb` ([LRN-105](learnings/LRN-105.md)), orb invisible en `paused` avant la première frame ([LRN-101](learnings/LRN-101.md)), et un serveur Vite orphelin sur le port 1420 qui a fait croire que la config était ignorée ([BLK-038](blockers/BLK-038.md)). Le diagnostic a été fait via le port de debug WebView2 et CDP ([LRN-104](learnings/LRN-104.md)), après avoir fermé (avec l'accord de Baptiste) puis relancé son Hooky installé.
+
+Le point de licence a occupé le reste de l'échange : les 33 shaders portent « Non-commercial use only » dans l'en-tête de `gpu.ts`, alors que la doc et la page d'accueil annoncent MIT et « Own Your Code » ([LRN-103](learnings/LRN-103.md)). Baptiste a d'abord demandé pourquoi c'était un problème pour un projet perso, puis pourquoi la doc n'en parlait pas ; j'ai précisé que le problème vient de l'AGPL et de la redistribution, pas de son usage. Il a finalement choisi de tout committer et pousser (`9fde588`, gitmoji WIP 🚧, `SPIKE_ORB = true` codé en dur dans `Avatar.tsx`), contre ma recommandation de ne pas pousser tant que le mode de distribution n'est pas tranché ([BDR-093](decisions/BDR-093.md)). Toutes les entrées de cette session ont été gardées en mémoire locale, aucune en mémoire globale (choix de Baptiste). Reste à faire : cadrer l'Étape 14 (chemins A, B ou C) et corriger le `SPIKE_ORB` qui remplace actuellement Cubee sur `development`.
+
+**Entrées clés :**
+
+- [BDR-093](decisions/BDR-093.md) — spike orbs poussé malgré licence non-commerciale
+- [LRN-103](learnings/LRN-103.md) — la licence se lit dans l'en-tête des fichiers, pas dans la doc
+- [BLK-038](blockers/BLK-038.md) — Vite orphelin sur 1420 masquait la nouvelle config

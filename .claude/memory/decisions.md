@@ -95,3 +95,4 @@ register: decisions
 | [BDR-090](decisions/BDR-090.md) | 2026-09-24 | Regard des pets v2 : uniquement en sleeping, sans réglage | #codex-pets #eye-tracking #sleeping #polling #scope-cut #roadmap | actif |
 | [BDR-091](decisions/BDR-091.md) | 2026-09-24 | Transition du regard : rayons 260/340 px, 1,2 s avant de dormir | #codex-pets #eye-tracking #hysteresis #ux #tuning #sleeping | actif |
 | [BDR-092](decisions/BDR-092.md) | 2026-09-24 | Badge œil (pas « v2 ») sur les cartes des pets à regard | #codex-pets #badge #picker #eye-tracking #ux | actif |
+| [BDR-093](decisions/BDR-093.md) | 2026-09-24 | Spike orbs poussé malgré licence NC, distribution à trancher | #shadercn #orb #webgpu #licence #agpl #codex-pets #roadmap | actif |
