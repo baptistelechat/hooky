@@ -7,6 +7,13 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- The Windows installer now shows the Hooky logo (installer and uninstaller icons, sidebar and
+  header images), offers a French or English language choice at startup, and asks you to accept
+  the AGPL-3.0 license before installing. Hooky is now listed with "Baptiste LECHAT" as publisher
+  and a short description in Windows' installed apps
+
 ## [0.3.0] - 2026-09-24
 
 ### Added
