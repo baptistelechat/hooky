@@ -61,7 +61,7 @@ export const EVENT_ANIMATIONS: AnimationMappingEntry[] = [
     // session de preview, la plus récente, prend la main sur les vraies sessions.
     label: "Aucune session",
     animation: "sleeping",
-    note: "État de repos quand plus aucune session n'est active",
+    note: "État de repos quand plus aucune session n'est active. En sortir joue « wake » (essayer : cliquer cette carte, puis une autre).",
     trigger: { hookEventName: "Notification", notificationType: "idle_prompt" },
   },
   {

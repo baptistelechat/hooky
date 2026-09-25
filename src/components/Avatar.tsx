@@ -4,16 +4,13 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useAnimationEffects } from "../hooks/useAnimationEffects";
 import { useAvatarBundle } from "../hooks/useAvatarBundle";
 import { useBubbleWindow } from "../hooks/useBubbleWindow";
+import { useSoundEffects } from "../hooks/useSoundEffects";
 import { reportBrokenCodexPet } from "../hooks/useCodexPets";
 import { useClaudeUsage } from "../hooks/useClaudeUsage";
 import { useCursorGaze } from "../hooks/useCursorGaze";
 import { useSettings } from "../hooks/useSettings";
 import { codexOverrideFor, findMappingEntry } from "../lib/animationCatalog";
-import {
-  codexRowNameFor,
-  hasGaze,
-  type CodexRowName,
-} from "../lib/codexPets";
+import { codexRowNameFor, hasGaze, type CodexRowName } from "../lib/codexPets";
 import { debugZoneClass } from "../lib/debugZone";
 import {
   AVATAR_SHADOW_GAP,
@@ -128,6 +125,19 @@ export function PetAvatar({
     avatarSize: renderedAvatarSize,
     notificationsEnabled: settings.notificationsEnabled,
     callName: settings.callName,
+  });
+
+  useSoundEffects({
+    animation,
+    lastEvent,
+    notificationType,
+    revision,
+    enabled: settings.soundEnabled,
+    quiet: settings.soundQuietMode,
+    loopEnabled: settings.soundLoopEnabled,
+    volume: settings.soundVolume,
+    ambienceVolume: settings.soundAmbienceVolume,
+    feel: settings.soundFeel,
   });
 
   const lastClickAtRef = useRef(0);

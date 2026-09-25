@@ -7,8 +7,24 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Sounds for the pet's emotions: it now wakes, falls asleep, greets a new session, celebrates a
+  finished task, calls you when it needs your permission or an answer, and reacts to errors
+  and context compaction, each with its own sound. Choose its sound personality among 12 (Minimal,
+  Soft, Glass, Arcade, Mécanique, Organique, Dreamy, Sci-fi, Rubber, Cinématique, Studio, Zen) in
+  the new "Sons" section of the settings, with a volume slider. "Moins bavard" keeps only the
+  essential sounds, and small tool-by-tool sounds play otherwise. An optional "Ambiance de
+  travail" plays a discreet background loop, with its own volume, while Claude is working and
+  fades out as soon as it stops or waits for you. The Animation tab shows the sound each hook
+  plays, with a button to listen to it, and why some hooks stay silent
+
 ### Changed
 
+- The settings are now grouped into collapsible sections (Pet, Sons, Maintenance)
+- The notification bubble no longer plays its own sound: sounds now come from the pet itself,
+  so they also play when the bubble is off
+- The name field in the settings uses the same text size as the other fields
 - The Windows installer now shows the Hooky logo (installer and uninstaller icons, sidebar and
   header images), offers a French or English language choice at startup, and asks you to accept
   the AGPL-3.0 license before installing. Hooky is now listed with "Baptiste LECHAT" as publisher

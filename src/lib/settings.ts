@@ -3,6 +3,7 @@ import {
   DEFAULT_AVATAR_ID,
   type AvatarColorOverride,
 } from "../components/avatarDefinition";
+import { DEFAULT_SOUND_FEEL } from "./sounds";
 
 export interface HookySettings {
   avatarSize: number;
@@ -22,6 +23,17 @@ export interface HookySettings {
   // rafraîchi côté backend toutes les 3min (cf. src-tauri spawn_usage_poller), pas de
   // fetch déclenché par le front. Désactivable pour ceux qui n'utilisent pas Claude Code.
   usagePanelEnabled: boolean;
+  // Sons du pet (cf. lib/sounds.ts) : `soundFeel` = caractère sonore (dossier de cues),
+  // `soundQuietMode` = "moins bavard" (que les cues essentiels), `soundLoopEnabled` = boucle
+  // discrète en fond pendant que Claude travaille (coupée par défaut, peut lasser).
+  soundEnabled: boolean;
+  soundQuietMode: boolean;
+  soundLoopEnabled: boolean;
+  soundFeel: string;
+  // Mixage à la manière d'un jeu, en % (0-100, courbe quadratique cf. toGain) : `soundVolume`
+  // = cues, `soundAmbienceVolume` = boucle de fond, plus bas par défaut pour rester un fond.
+  soundVolume: number;
+  soundAmbienceVolume: number;
 }
 
 export const DEFAULT_SETTINGS: HookySettings = {
@@ -33,6 +45,12 @@ export const DEFAULT_SETTINGS: HookySettings = {
   avatarColorOverrides: {},
   callName: "",
   usagePanelEnabled: true,
+  soundEnabled: true,
+  soundQuietMode: false,
+  soundLoopEnabled: false,
+  soundFeel: DEFAULT_SOUND_FEEL,
+  soundVolume: 100,
+  soundAmbienceVolume: 30,
 };
 
 const STORAGE_KEY = "hooky-settings";

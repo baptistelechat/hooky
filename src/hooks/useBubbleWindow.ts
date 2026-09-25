@@ -58,7 +58,7 @@ export function useBubbleWindow({
     );
     if (!message) return;
 
-    void spawnBubbleWindow({ text: message, avatarSize, lastEvent });
+    void spawnBubbleWindow({ text: message, avatarSize });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [revision]);
 }

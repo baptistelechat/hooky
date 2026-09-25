@@ -107,6 +107,72 @@ Comme `idle`, une session en `celebrate` retombe sur `bored` après `BORED_TIMEO
 sans nouvel event — pas de mécanisme dédié ajouté, `effective_animation()` traite les deux
 identiquement.
 
+## Sons (cues)
+
+Miroir de `src/lib/sounds.ts`. Pack `uisfx` (CC0), un dossier par « feel » (réglage
+`soundFeel`, 12 caractères sonores) ; le mapping ci-dessous ne dépend pas du feel. Joué par
+`useSoundEffects` dans la fenêtre `main` (pas la bulle, éphémère). **Un seul son par émission**,
+et une transition d'état prime sur le cue de l'événement : entrée en `sleeping` → `sleep`,
+sortie de `sleeping` → `wake`, **sauf** sur `SessionStart` qui joue son propre `start`. `wake`
+ne sonne donc que quand un pet endormi reprend vie autrement qu'au démarrage d'une session
+(fin d'un `idle_prompt`, Hooky relancé en cours de session). Ni `idle` (pause entre deux
+outils, permanent) ni `bored` (retombée normale après chaque tâche) ne déclenchent `wake`.
+`idle_prompt` n'a pas de cue propre (il produit `sleeping`). `SessionEnd` n'a pas de cue non
+plus : le backend n'émet pas `SessionEnd` tel quel (`lastEvent` = événement de la session
+dominante restante).
+
+**Réglage « Moins bavard »** (`soundQuietMode`, off par défaut) : ne garde que les cues
+essentiels — `start`, `wake`, `sleep`, `complete`, `mention`, `notification`, `error` — et coupe
+tout le reste (ambiance informative : `send`, `checkpoint`, `unlock`, `play`, `invalid-drop`,
+`collapse`, `seek`, `progress-step`, `queued`).
+
+| Cue                                 | Événements                                                                                                                 |
+| ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `start`                             | `SessionStart`                                                                                                             |
+| `wake`                              | sortie de `sleeping` (hors `SessionStart`)                                                                                 |
+| `sleep`                             | entrée en `sleeping` (`idle_prompt`, plus aucune session)                                                                  |
+| `complete`                          | `Stop`                                                                                                                     |
+| `mention`                           | `permission_prompt`, `agent_needs_input`, `elicitation_dialog`, `elicitation_url_dialog`, `quota_auto_resume_disabled`     |
+| `notification`                      | `Notification` de type inconnu/absent                                                                                      |
+| `checkpoint`                        | `agent_completed`, `elicitation_complete`, `PostCompact`                                                                   |
+| `unlock`                            | `auth_success`                                                                                                             |
+| `send`                              | `UserPromptSubmit`, `elicitation_response`                                                                                 |
+| `play`                              | `quota_auto_resume_fired`, `quota_auto_resume_stale`                                                                       |
+| `error`                             | `StopFailure`                                                                                                              |
+| `invalid-drop`                      | `PostToolUseFailure`                                                                                                       |
+| `collapse`                          | `PreCompact`                                                                                                               |
+| `seek` / `progress-step` / `queued` | `PreToolUse` recherche / autre outil / `SubagentStart` — fréquents : 1 son max toutes les 3 s, coupés par « Moins bavard » |
+
+Silencieux, avec la raison (affichée aussi sur leur carte de l'onglet Animation) :
+
+| Événement           | Raison                                                                                                                                                                                                                |
+| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `PostToolUse`       | Se déclenche après chaque outil : un son à chaque fois serait une rafale. Le début d'outil (`PreToolUse`) a déjà son cue d'ambiance.                                                                                  |
+| `SubagentStop`      | Doublon de la `Notification` `agent_completed` (déjà `checkpoint`) : un seul son par fin de sous-agent.                                                                                                               |
+| `PermissionRequest` | Doublon de `Notification` `permission_prompt` : les deux hooks sont installés et arrivent quasi simultanément pour la même demande. Un seul son `mention`, porté par la Notification (seule à avoir aussi une bulle). |
+| `Elicitation`       | Idem, doublon de `elicitation_dialog`.                                                                                                                                                                                |
+| passage `bored`     | Dérive silencieuse au bout de `BORED_TIMEOUT`, sans hook ni action à signaler.                                                                                                                                        |
+| `SessionEnd`        | Jamais reçu tel quel par le front, cf. plus haut.                                                                                                                                                                     |
+
+**Ambiance de travail** (`soundLoopEnabled`, off par défaut) : boucle `streaming`, jouée en fond
+tant que Claude travaille. Démarre sur `thinking` / `working` /
+`searching`, se coupe (fondu 0,6 s) sur `celebrate` / `listening` (il t'attend) / `bored` /
+`sleeping` ou sur `StopFailure`. `idle` (pause entre deux outils) et `confused` ne changent rien,
+sinon elle clignoterait à chaque outil.
+
+**Mixage façon jeu** : deux curseurs, en % (0-100). `soundVolume` (100 % par défaut) règle les cues,
+`soundAmbienceVolume` (30 % par défaut) règle la boucle de fond. Les fichiers sont tous au même niveau ;
+c'est le curseur d'ambiance, bas par défaut, qui en fait un vrai fond sonore. Courbe quadratique
+(`toGain`) : 50 % ≈ −12 dB, 25 % ≈ −24 dB, pour que le bas du curseur reste utilisable. Relâcher le
+curseur joue un aperçu (cue `complete` / 2,5 s de boucle). Le curseur d'ambiance agit en direct sur
+une boucle déjà en cours, et **son aperçu ne joue pas pendant que Claude travaille** : la fenêtre
+settings a son propre `AudioContext` et ne voit pas la boucle de la fenêtre `main` ; la fenêtre
+`main` publie donc un drapeau (`hooky-loop-active`, localStorage) que l'aperçu consulte, sinon deux
+boucles se superposeraient.
+
+Onglet Animation : tant qu'il est ouvert, il émet `hooky-sound-preview` ; la fenêtre `main`
+lève alors « Moins bavard » et le throttle pour que chaque carte sonne à chaque clic.
+
 ## Volontairement non mappé
 
 Trois catégories distinctes, à ne pas confondre :

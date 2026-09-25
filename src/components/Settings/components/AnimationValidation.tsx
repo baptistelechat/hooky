@@ -1,6 +1,9 @@
+import { emit } from "@tauri-apps/api/event";
+import { Bell, Webhook } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Separator } from "@/components/ui/separator";
 import { endPreviewSession } from "@/lib/eventTrigger";
+import { SOUND_PREVIEW_EVENT } from "@/lib/sounds";
 import { EventAnimationGrid } from "./EventAnimationGrid";
 import { NotificationAnimationGrid } from "./NotificationAnimationGrid";
 
@@ -15,14 +18,21 @@ export function AnimationValidation() {
   const [selectedLabel, setSelectedLabel] = useState<string | null>(null);
 
   useEffect(() => {
-    // Quitter l'onglet ne doit pas laisser une preview polluer l'état agrégé du pet.
-    return () => void endPreviewSession();
+    void emit(SOUND_PREVIEW_EVENT, true);
+    return () => {
+      // Quitter l'onglet ne doit pas laisser une preview polluer l'état agrégé du pet.
+      void emit(SOUND_PREVIEW_EVENT, false);
+      void endPreviewSession();
+    };
   }, []);
 
   return (
     <div className="flex flex-1 flex-col gap-4 overflow-y-auto">
       <section className="flex flex-col gap-2">
-        <h2 className="text-sm font-semibold">Hooks Claude Code</h2>
+        <h2 className="flex items-center gap-2 text-sm font-semibold">
+          <Webhook className="size-4 text-primary" />
+          Hooks Claude Code
+        </h2>
         <EventAnimationGrid
           selectedLabel={selectedLabel}
           onSelect={setSelectedLabel}
@@ -32,7 +42,10 @@ export function AnimationValidation() {
       <Separator />
 
       <section className="flex flex-col gap-2">
-        <h2 className="text-sm font-semibold">Notifications</h2>
+        <h2 className="flex items-center gap-2 text-sm font-semibold">
+          <Bell className="size-4 text-primary" />
+          Notifications
+        </h2>
         <NotificationAnimationGrid
           selectedLabel={selectedLabel}
           onSelect={setSelectedLabel}
