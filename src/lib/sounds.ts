@@ -340,6 +340,8 @@ export function cueForHook(
     };
   }
   if (lastEvent === "PreToolUse") {
+    // Outil qui attend une réponse de l'utilisateur (le backend l'affiche en `listening`).
+    if (animation === "listening") return { cue: "mention", frequent: false };
     return {
       cue: animation === "searching" ? "seek" : "progress-step",
       frequent: true,

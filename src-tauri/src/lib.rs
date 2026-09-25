@@ -81,6 +81,12 @@ struct ServerState {
 // Étape 6 : outils de recherche -> animation "searching" plutôt que "working" générique.
 const SEARCH_TOOLS: &[&str] = &["Grep", "WebSearch", "Glob", "WebFetch"];
 
+// Outils dont l'exécution EST l'attente d'une réponse de l'utilisateur (question posée,
+// approbation d'un plan) : PreToolUse part à l'ouverture du dialogue et PostToolUse seulement
+// à ta réponse. Sans ce cas, "working" restait affiché (et la boucle d'ambiance jouait) tout
+// le temps de la réflexion -- "working" n'ayant aucun timeout, contrairement à idle/celebrate.
+const USER_INPUT_TOOLS: &[&str] = &["AskUserQuestion", "ExitPlanMode"];
+
 /// Table de correspondance events Claude Code -> animations : voir docs/EVENTS.md
 /// (source de vérité, tenue à jour manuellement en miroir de ce match).
 /// `tool_name` n'est consulté que pour `PreToolUse` (granularité working/searching),
@@ -98,7 +104,9 @@ fn animation_for_event(
         "SessionStart" => Some("listening"),
         "UserPromptSubmit" => Some("thinking"),
         "PreToolUse" => {
-            if tool_name.is_some_and(|name| SEARCH_TOOLS.contains(&name)) {
+            if tool_name.is_some_and(|name| USER_INPUT_TOOLS.contains(&name)) {
+                Some("listening")
+            } else if tool_name.is_some_and(|name| SEARCH_TOOLS.contains(&name)) {
                 Some("searching")
             } else {
                 Some("working")

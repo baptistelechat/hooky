@@ -94,6 +94,13 @@ export const EVENT_ANIMATIONS: AnimationMappingEntry[] = [
     trigger: { hookEventName: "PreToolUse", toolName: "Grep" },
   },
   {
+    label: "PreToolUse (question)",
+    animation: "listening",
+    note: "Un outil qui attend ta réponse (AskUserQuestion, ExitPlanMode) : Claude t'attend, il ne travaille pas.",
+    icon: CircleHelpIcon,
+    trigger: { hookEventName: "PreToolUse", toolName: "AskUserQuestion" },
+  },
+  {
     label: "PostToolUse",
     animation: "idle",
     note: "L'outil vient de rendre la main - pause entre deux actions, pas une fin de tâche.",

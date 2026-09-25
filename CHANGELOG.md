@@ -19,6 +19,12 @@ project adheres to [Semantic Versioning](https://semver.org/).
   fades out as soon as it stops or waits for you. The Animation tab shows the sound each hook
   plays, with a button to listen to it, and why some hooks stay silent
 
+### Fixed
+
+- When Claude asks you a question (or waits for you to approve a plan), the pet now shows it is
+  waiting for you instead of "working", and calls you with a sound. Before, it kept looking busy
+  the whole time you were thinking about your answer
+
 ### Changed
 
 - The settings are now grouped into collapsible sections (Pet, Sons, Maintenance)
