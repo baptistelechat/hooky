@@ -108,3 +108,16 @@ register: learnings
 | [LRN-103](learnings/LRN-103.md) | 2026-09-24 | Licence d'un composant copié : lire l'en-tête des fichiers | #licence #open-source #vendoring #shadcn #shadercn #due-diligence #agpl |
 | [LRN-104](learnings/LRN-104.md) | 2026-09-24 | Déboguer Tauri/WebView2 : remote-debugging-port + CDP | #tauri #webview2 #cdp #remote-debugging #testing #windows #webgpu |
 | [LRN-105](learnings/LRN-105.md) | 2026-09-24 | shadcn add tiers : registryDependencies non namespacé échoue | #shadcn #registry #registryDependencies #cli #workaround #shadercn |
+| [LRN-106](learnings/LRN-106.md) | 2026-09-25 | Un git reset d'une autre session efface mon staging | #git #parallel-sessions #reset #reflog #staging #list-sessions #commit-hygiene |
+| [LRN-107](learnings/LRN-107.md) | 2026-09-25 | Retrait manuel : prouver l'équivalence par git diff --stat | #git #cleanup #diff #verification #formatter-hook #revert |
+| [LRN-108](learnings/LRN-108.md) | 2026-09-25 | vite.config.js versionné, réécrit à chaque pnpm build | #vite #tsc #composite #generated-file #build #diff-noise #tauri |
+| [LRN-109](learnings/LRN-109.md) | 2026-09-25 | Habillage NSIS : BMP 24 bits sans alpha, tailles imposées | #tauri #nsis #bmp #installer #assets #system-drawing |
+| [LRN-110](learnings/LRN-110.md) | 2026-09-25 | Langue NSIS mémorisée par publisher : la clé se déplace | #nsis #registry #installer-language #publisher #tauri #windows |
+| [LRN-111](learnings/LRN-111.md) | 2026-09-25 | Installateur GUI : lancer, capturer l'écran, tuer | #nsis #testing #screenshot #makensis #installer #debugging |
+| [LRN-112](learnings/LRN-112.md) | 2026-09-25 | Un état « travail » sans timeout colle si l'outil attend | #hooks #working #timeout #askuserquestion #state-machine #ambience |
+| [LRN-113](learnings/LRN-113.md) | 2026-09-25 | Rallumer un réglage en cours d'état : suivre l'état d'avance | #settings #side-effects #react-hooks #state #loop #ux |
+| [LRN-114](learnings/LRN-114.md) | 2026-09-25 | Pack de sons : mesurer le volume, égaliser par pack | #audio #loudness #normalization #rms #python #soundfile #assets |
+| [LRN-115](learnings/LRN-115.md) | 2026-09-25 | Boucle audio sans trou : OGG + AudioBufferSourceNode | #web-audio #loop #gapless #ogg #mp3 #audiobuffersource #fade |
+| [LRN-116](learnings/LRN-116.md) | 2026-09-25 | Tauri multi-fenêtres : un AudioContext par webview | #tauri #multi-window #web-audio #localstorage #duplicate #preview |
+| [LRN-117](learnings/LRN-117.md) | 2026-09-25 | Tester un moteur audio : Vite SSR + faux AudioContext | #testing #web-audio #vite #ssr #mock #harness #import-meta-glob |
+| [LRN-118](learnings/LRN-118.md) | 2026-09-25 | shadcn add : import `cn` cassé + dépendance npm parasite | #shadcn #cli #cn #select #accordion #registry #workaround |

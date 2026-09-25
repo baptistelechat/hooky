@@ -1,0 +1,18 @@
+---
+id: ZBLK-039
+type: blocker
+date: 2026-09-25
+tags: [git, parallel-sessions, reset, reflog, staging, session-close]
+---
+
+# ZBLK-039 — Revert stagé effacé par le git reset d'une autre session
+
+| Friction                                                                                                                                                                                                                                                                                      | Cause réelle                                                                                                                                                                                                                                                                                                        | Solution                                                                                                                                                                                                                                                                                                                                                                                                                                                | Statut |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
+| Après `git revert --no-commit 9fde588`, une gate lint + build verte et le staging de `/session-close`, `git commit` a répondu « nothing to commit » : le revert avait disparu, les orbs et `typegpu` étaient revenus, et un dossier `src-tauri/installer/` inconnu était apparu dans l'arbre. | La session « Personnalisation de l'installateur Hooky » (même dossier, encore active) a exécuté un `git reset` à 08:19:59 (reflog : `reset: moving to 76b7850`), qui a vidé l'index et l'arbre partagés par les deux sessions. Le premier passage avait aussi été fait en `revert`, ce que Baptiste ne voulait pas. | Diagnostic par `git reflog --date=iso` et `list_sessions`, puis signalement à Baptiste au lieu de refaire en aveugle. Il a demandé un nettoyage manuel sans revert ([BDR-094](../../decisions/BDR-094.md)). Refait à la main, avec seulement les fichiers du retrait stagés par chemins explicites ; `src-tauri/tauri.conf.json` et `src-tauri/installer/` laissés à l'autre session. Commit `47b7f65`, historique intact, `git diff 884a9d2 --stat` vide. | résolu |
+
+## Références
+
+- [LRN-106](../../learnings/LRN-106.md) — le pattern et la marche à suivre devant un staging disparu
+- [LRN-107](../../learnings/LRN-107.md) — la preuve d'équivalence après un retrait manuel
+- [BDR-094](../../decisions/BDR-094.md) — décision de retirer les orbs à la main

@@ -95,4 +95,14 @@ register: decisions
 | [BDR-090](decisions/BDR-090.md) | 2026-09-24 | Regard des pets v2 : uniquement en sleeping, sans réglage | #codex-pets #eye-tracking #sleeping #polling #scope-cut #roadmap | actif |
 | [BDR-091](decisions/BDR-091.md) | 2026-09-24 | Transition du regard : rayons 260/340 px, 1,2 s avant de dormir | #codex-pets #eye-tracking #hysteresis #ux #tuning #sleeping | actif |
 | [BDR-092](decisions/BDR-092.md) | 2026-09-24 | Badge œil (pas « v2 ») sur les cartes des pets à regard | #codex-pets #badge #picker #eye-tracking #ux | actif |
-| [BDR-093](decisions/BDR-093.md) | 2026-09-24 | Spike orbs poussé malgré licence NC, distribution à trancher | #shadercn #orb #webgpu #licence #agpl #codex-pets #roadmap | actif |
+| [BDR-093](decisions/BDR-093.md) | 2026-09-24 | Spike orbs poussé malgré licence NC, distribution à trancher | #shadercn #orb #webgpu #licence #agpl #codex-pets #roadmap | révisé |
+| [BDR-094](decisions/BDR-094.md) | 2026-09-25 | Orbs abandonnés, retirés à la main (sans revert) | #orb #shadercn #spike #git #revert #cleanup #history | actif |
+| [BDR-095](decisions/BDR-095.md) | 2026-09-25 | Bandeaux d'installateur commités, générés à la main | #nsis #installer #tauri #release #ci #assets | actif |
+| [BDR-096](decisions/BDR-096.md) | 2026-09-25 | Installateur : FR+EN, licence AGPL, métadonnées, currentUser | #nsis #installer #tauri #installmode #license #languages #hooks | actif |
+| [BDR-097](decisions/BDR-097.md) | 2026-09-25 | Sons : un cue par émotion, réemploi assumé entre hooks | #sounds #cues #hooks #mapping #sleep-wake #transition | actif |
+| [BDR-098](decisions/BDR-098.md) | 2026-09-25 | Pack uisfx copié dans le repo, 12 feels au choix | #sounds #uisfx #cc0 #feel #assets #settings | actif |
+| [BDR-099](decisions/BDR-099.md) | 2026-09-25 | « Moins bavard » : essentiels gardés, défaut bavard | #sounds #quiet-mode #ux #settings #essential-cues | actif |
+| [BDR-100](decisions/BDR-100.md) | 2026-09-25 | Mixage à deux bus : sons 100 %, ambiance 30 % | #sounds #mixing #volume #quadratic #ambience #settings | actif |
+| [BDR-101](decisions/BDR-101.md) | 2026-09-25 | Boucle d'ambiance : streaming, OGG, pilotée par l'état | #sounds #loop #ambience #web-audio #ogg #aggregated-state | actif |
+| [BDR-102](decisions/BDR-102.md) | 2026-09-25 | Outils en attente de réponse → pet en écoute | #hooks #askuserquestion #listening #backend #working #ambience | actif |
+| [BDR-103](decisions/BDR-103.md) | 2026-09-25 | Réglages en accordéon, titres à icône colorée | #settings #accordion #shadcn #ux #sections #icons | actif |
