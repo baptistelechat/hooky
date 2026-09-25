@@ -9,7 +9,11 @@ import { useClaudeUsage } from "../hooks/useClaudeUsage";
 import { useCursorGaze } from "../hooks/useCursorGaze";
 import { useSettings } from "../hooks/useSettings";
 import { codexOverrideFor, findMappingEntry } from "../lib/animationCatalog";
-import { codexRowNameFor, hasGaze, type CodexRowName } from "../lib/codexPets";
+import {
+  codexRowNameFor,
+  hasGaze,
+  type CodexRowName,
+} from "../lib/codexPets";
 import { debugZoneClass } from "../lib/debugZone";
 import {
   AVATAR_SHADOW_GAP,
@@ -23,9 +27,6 @@ import { startClampedDrag } from "../lib/windowDrag";
 import { AnimationOverlay } from "./AnimationOverlay";
 import { avatarBundleKey, type AnimationName } from "./avatarDefinition";
 import { FittedAvatarEngine } from "./FittedAvatarEngine";
-import Orb01 from "./orbs/orb-01";
-
-const SPIKE_ORB = true; // SPIKE shadercn -- jetable
 import { UsagePanel } from "./UsagePanel";
 
 export type { AnimationName };
@@ -228,35 +229,19 @@ export function PetAvatar({
               apparaître d'un coup ; pas de fade-out symétrique de l'ancien -- demanderait de
               garder les deux montés en parallèle le temps de la transition, disproportionné
               pour un changement rare et volontaire (avatar ou couleur). */}
-          {/* SPIKE shadercn : orb WebGPU à la place de l'avatar (jetable, branche spike/shadercn) */}
-          {SPIKE_ORB ? (
-            <Orb01
-              size={renderedAvatarSize}
-              state={
-                animation === "working"
-                  ? "speaking"
-                  : animation === "thinking" || animation === "searching"
-                    ? "thinking"
-                    : "idle"
-              }
-              paused={animation === "sleeping"}
-              className="animate-in fade-in duration-300"
-            />
-          ) : (
-            <FittedAvatarEngine
-              key={avatarBundleKey(bundle)}
-              bundle={bundle}
-              animation={animation}
-              codexRow={codexRow}
-              gazeIndex={gazeIndex ?? undefined}
-              onSpriteError={handleSpriteError}
-              size={renderedAvatarSize}
-              className="animate-in fade-in duration-300"
-              style={{
-                transition: "width 300ms ease-out, height 300ms ease-out",
-              }}
-            />
-          )}
+          <FittedAvatarEngine
+            key={avatarBundleKey(bundle)}
+            bundle={bundle}
+            animation={animation}
+            codexRow={codexRow}
+            gazeIndex={gazeIndex ?? undefined}
+            onSpriteError={handleSpriteError}
+            size={renderedAvatarSize}
+            className="animate-in fade-in duration-300"
+            style={{
+              transition: "width 300ms ease-out, height 300ms ease-out",
+            }}
+          />
           {/* En bas (pas en haut) : le badge d'état occupe le coin haut-droit (cf.
               AnimationOverlay, BADGE_INSET_PCT) -- un panneau texte en haut s'y superposait. */}
           <pre

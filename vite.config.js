@@ -38,13 +38,12 @@ import path from "node:path";
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
-import typegpu from "unplugin-typegpu/vite";
 var host = process.env.TAURI_DEV_HOST;
 // https://vite.dev/config/
 export default defineConfig(function () { return __awaiter(void 0, void 0, void 0, function () {
     return __generator(this, function (_a) {
         return [2 /*return*/, ({
-                plugins: [react(), tailwindcss(), typegpu({ enforce: "pre" })],
+                plugins: [react(), tailwindcss()],
                 resolve: {
                     alias: {
                         "@": path.resolve(import.meta.dirname, "./src"),
