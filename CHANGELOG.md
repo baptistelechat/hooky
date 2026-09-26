@@ -19,6 +19,9 @@ project adheres to [Semantic Versioning](https://semver.org/).
   fades out as soon as it stops or waits for you. The Animation tab shows the sound each hook
   plays, with a button to listen to it, and why some hooks stay silent
 
+- Right-click on the pet opens a small menu with "Paramètres" and "Quitter", the same entries as
+  the system tray icon. It closes when you click elsewhere or press Escape
+
 ### Fixed
 
 - When Claude asks you a question (or waits for you to approve a plan), the pet now shows it is

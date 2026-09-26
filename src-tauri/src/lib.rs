@@ -1,4 +1,5 @@
 mod codex_pets;
+mod context_menu;
 
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -403,6 +404,13 @@ async fn on_event(State(state): State<ServerState>, Json(payload): Json<Value>) 
     // Les hooks "http" de Claude Code exigent un corps de réponse JSON valide
     // (un simple texte "ok" est rejeté : "must return JSON, but got non-JSON response").
     Json(serde_json::json!({}))
+}
+
+/// Quitte l'application -- appelée par le menu contextuel du pet (fenêtre "menu", cf.
+/// ContextMenuWindow.tsx), même effet que "Quitter" du tray.
+#[tauri::command]
+fn quit_app(app: AppHandle) {
+    app.exit(0);
 }
 
 /// Repositionne la fenêtre dans le coin bas-droit de l'écran principal (position par défaut).
@@ -978,6 +986,8 @@ pub fn run() {
             write_text_file,
             install_claude_hooks,
             get_cached_usage,
+            quit_app,
+            context_menu::watch_menu_dismiss,
             codex_pets::list_codex_pets
         ])
         .setup(move |app| {

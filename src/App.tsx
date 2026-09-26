@@ -23,6 +23,11 @@ const NotificationBubbleWindow = lazy(() =>
     default: m.NotificationBubbleWindow,
   })),
 );
+const ContextMenuWindow = lazy(() =>
+  import("./components/ContextMenuWindow").then((m) => ({
+    default: m.ContextMenuWindow,
+  })),
+);
 const SettingsPanel = lazy(() =>
   import("./components/Settings").then((m) => ({
     default: m.SettingsPanel,
@@ -70,6 +75,14 @@ function App() {
     return (
       <Suspense fallback={null}>
         <SettingsPanel />
+      </Suspense>
+    );
+  }
+
+  if (label === "menu") {
+    return (
+      <Suspense fallback={null}>
+        <ContextMenuWindow />
       </Suspense>
     );
   }

@@ -11,6 +11,7 @@ import { useCursorGaze } from "../hooks/useCursorGaze";
 import { useSettings } from "../hooks/useSettings";
 import { codexOverrideFor, findMappingEntry } from "../lib/animationCatalog";
 import { codexRowNameFor, hasGaze, type CodexRowName } from "../lib/codexPets";
+import { spawnContextMenuWindow } from "../lib/contextMenuWindow";
 import { debugZoneClass } from "../lib/debugZone";
 import {
   AVATAR_SHADOW_GAP,
@@ -71,7 +72,8 @@ const DRAG_ROWS: Record<"left" | "right", CodexRowName> = {
  * test réel, cf. mémoire projet) -- en pilotant nous-mêmes chaque mise à jour de position,
  * un clamp aux limites du moniteur peut réellement s'appliquer en continu.
  *
- * Double-clic (uniquement) ouvre la fenêtre de paramètres (taille, mode debug...).
+ * Double-clic ouvre la fenêtre de paramètres (taille, mode debug...) ; clic droit ouvre un
+ * menu contextuel (mêmes entrées que le tray) dans sa propre fenêtre, cf. contextMenuWindow.ts.
  * En mode debug : fond semi-opaque + overlay texte (animation courante + hook déclencheur).
  */
 export function PetAvatar({
@@ -180,6 +182,9 @@ export function PetAvatar({
       data-zone="window"
       className={`relative flex h-full w-full flex-col ${debugZoneClass(settings.debugMode, "window")}`}
       onMouseDown={(e) => {
+        // Clic gauche seulement : le clic droit ouvre le menu contextuel (cf. onContextMenu)
+        // et ne doit ni démarrer un drag ni compter comme moitié d'un double-clic.
+        if (e.button !== 0) return;
         if (
           !(e.target instanceof Element) ||
           !e.target.closest("[data-drag-handle]")
@@ -212,7 +217,18 @@ export function PetAvatar({
             : undefined,
         );
       }}
-      onContextMenu={(e) => e.preventDefault()}
+      onContextMenu={(e) => {
+        e.preventDefault();
+        if (
+          !(e.target instanceof Element) ||
+          !e.target.closest("[data-drag-handle]")
+        ) {
+          return;
+        }
+        spawnContextMenuWindow(e.screenX, e.screenY).catch((error: unknown) =>
+          console.error("[PetAvatar] menu contextuel échoué", error),
+        );
+      }}
     >
       {/* Zone avatar : carré fixe (`avatarWindowSize`), inchangé que le panneau soit
           affiché ou non -- garde intact tout le calcul de marge/shadow existant
