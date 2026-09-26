@@ -936,3 +936,17 @@ Trois retours d'écoute ont changé la direction. « On entend quasiment rien »
 - [BDR-102](decisions/BDR-102.md) — outils en attente de réponse → pet en écoute
 - [BLK-041](blockers/BLK-041.md) — ambiance en double puis qui ne s'arrête jamais
 - [LRN-114](learnings/LRN-114.md) — mesurer le volume d'un pack avant de croire à un bug de lecture
+
+---
+
+## 2026-09-26
+
+Menu contextuel du pet, à la demande de Baptiste : un clic droit doit ouvrir un menu avec les mêmes options que le tray (Paramètres, Quitter), en composant shadcn/ui. La fenêtre « main » ne fait que la taille de l'avatar, un menu y serait rogné : j'ai retenu une fenêtre Tauri dédiée, posée au curseur et retournée aux bords d'écran, qui affiche un `DropdownMenu` ([BDR-104](decisions/BDR-104.md)). Le CLI shadcn a de nouveau importé `cn` depuis un paquet npm parasite, corrigé et le paquet retiré (déjà noté dans [LRN-118](learnings/LRN-118.md)). Le clic droit ne démarre plus un drag.
+
+Le blocage : le menu ne se fermait pas au clic extérieur ([BLK-042](blockers/BLK-042.md)). Ma première correction attendait un event de focus qui n'arrive jamais, la deuxième (un filet `isFocused()` à 300 ms) le fermait aussitôt ouvert, et Baptiste me l'a signalé à chaque fois. J'ai compris que la fenêtre n'a pas le focus et que je n'avais rien vérifié dessus, alors j'ai changé de mécanisme : un thread Rust qui surveille la souris avec `GetAsyncKeyState`, sans nouvelle dépendance ([BDR-105](decisions/BDR-105.md), [LRN-119](learnings/LRN-119.md)). Baptiste a ensuite vu qu'un clic droit sur le menu rouvrait le menu natif WebView2 (Actualiser, Inspecter) : `contextmenu` est maintenant bloqué sur le document de cette fenêtre ([LRN-120](learnings/LRN-120.md)). Commit `63365f2`, non poussé. Baptiste a demandé de tout garder en local, sans entrée globale. Je n'ai pas pu tester l'app moi-même : chaque retour est venu de lui.
+
+**Entrées clés :**
+
+- [BDR-105](decisions/BDR-105.md) — fermeture par surveillance souris côté Rust, pas le focus
+- [BLK-042](blockers/BLK-042.md) — le menu ne se fermait pas, puis se fermait aussitôt
+- [LRN-119](learnings/LRN-119.md) — popup Tauri : ne pas dépendre du focus pour fermer

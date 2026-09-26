@@ -106,3 +106,5 @@ register: decisions
 | [BDR-101](decisions/BDR-101.md) | 2026-09-25 | Boucle d'ambiance : streaming, OGG, pilotée par l'état | #sounds #loop #ambience #web-audio #ogg #aggregated-state | actif |
 | [BDR-102](decisions/BDR-102.md) | 2026-09-25 | Outils en attente de réponse → pet en écoute | #hooks #askuserquestion #listening #backend #working #ambience | actif |
 | [BDR-103](decisions/BDR-103.md) | 2026-09-25 | Réglages en accordéon, titres à icône colorée | #settings #accordion #shadcn #ux #sections #icons | actif |
+| [BDR-104](decisions/BDR-104.md) | 2026-09-26 | Menu clic droit : fenêtre Tauri dédiée + DropdownMenu shadcn | #tauri #context-menu #shadcn #webviewwindow #multi-window #ux | actif |
+| [BDR-105](decisions/BDR-105.md) | 2026-09-26 | Fermeture du menu : surveillance souris côté Rust, pas le focus | #tauri #rust #win32 #getasynckeystate #dismiss #context-menu | actif |

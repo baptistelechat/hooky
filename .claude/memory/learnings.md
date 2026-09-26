@@ -121,3 +121,5 @@ register: learnings
 | [LRN-116](learnings/LRN-116.md) | 2026-09-25 | Tauri multi-fenêtres : un AudioContext par webview | #tauri #multi-window #web-audio #localstorage #duplicate #preview |
 | [LRN-117](learnings/LRN-117.md) | 2026-09-25 | Tester un moteur audio : Vite SSR + faux AudioContext | #testing #web-audio #vite #ssr #mock #harness #import-meta-glob |
 | [LRN-118](learnings/LRN-118.md) | 2026-09-25 | shadcn add : import `cn` cassé + dépendance npm parasite | #shadcn #cli #cn #select #accordion #registry #workaround |
+| [LRN-119](learnings/LRN-119.md) | 2026-09-26 | Popup Tauri : fermer au clic extérieur sans dépendre du focus | #tauri #windows #focus #popup #dismiss #win32 #polling |
+| [LRN-120](learnings/LRN-120.md) | 2026-09-26 | Chaque fenêtre Tauri secondaire rouvre le menu natif WebView2 | #tauri #webview2 #contextmenu #preventdefault #multi-window |
