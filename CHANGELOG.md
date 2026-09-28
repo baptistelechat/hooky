@@ -27,6 +27,7 @@ project adheres to [Semantic Versioning](https://semver.org/).
 - When Claude asks you a question (or waits for you to approve a plan), the pet now shows it is
   waiting for you instead of "working", and calls you with a sound. Before, it kept looking busy
   the whole time you were thinking about your answer
+- Right-clicking the pet repeatedly and quickly could occasionally crash the app
 
 ### Changed
 
