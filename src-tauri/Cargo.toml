@@ -1,6 +1,6 @@
 [package]
 name = "hooky"
-version = "0.3.0"
+version = "0.3.1"
 description = "A tiny desktop pet that reacts in real time to Claude Code hooks."
 authors = ["Baptiste LECHAT"]
 edition = "2021"
