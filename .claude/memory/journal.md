@@ -943,10 +943,21 @@ Trois retours d'écoute ont changé la direction. « On entend quasiment rien »
 
 Menu contextuel du pet, à la demande de Baptiste : un clic droit doit ouvrir un menu avec les mêmes options que le tray (Paramètres, Quitter), en composant shadcn/ui. La fenêtre « main » ne fait que la taille de l'avatar, un menu y serait rogné : j'ai retenu une fenêtre Tauri dédiée, posée au curseur et retournée aux bords d'écran, qui affiche un `DropdownMenu` ([BDR-104](decisions/BDR-104.md)). Le CLI shadcn a de nouveau importé `cn` depuis un paquet npm parasite, corrigé et le paquet retiré (déjà noté dans [LRN-118](learnings/LRN-118.md)). Le clic droit ne démarre plus un drag.
 
-Le blocage : le menu ne se fermait pas au clic extérieur ([BLK-042](blockers/BLK-042.md)). Ma première correction attendait un event de focus qui n'arrive jamais, la deuxième (un filet `isFocused()` à 300 ms) le fermait aussitôt ouvert, et Baptiste me l'a signalé à chaque fois. J'ai compris que la fenêtre n'a pas le focus et que je n'avais rien vérifié dessus, alors j'ai changé de mécanisme : un thread Rust qui surveille la souris avec `GetAsyncKeyState`, sans nouvelle dépendance ([BDR-105](decisions/BDR-105.md), [LRN-119](learnings/LRN-119.md)). Baptiste a ensuite vu qu'un clic droit sur le menu rouvrait le menu natif WebView2 (Actualiser, Inspecter) : `contextmenu` est maintenant bloqué sur le document de cette fenêtre ([LRN-120](learnings/LRN-120.md)). Commit `63365f2`, non poussé. Baptiste a demandé de tout garder en local, sans entrée globale. Je n'ai pas pu tester l'app moi-même : chaque retour est venu de lui.
+Le blocage : le menu ne se fermait pas au clic extérieur ([ZBLK-042](archive/blockers/ZBLK-042.md)). Ma première correction attendait un event de focus qui n'arrive jamais, la deuxième (un filet `isFocused()` à 300 ms) le fermait aussitôt ouvert, et Baptiste me l'a signalé à chaque fois. J'ai compris que la fenêtre n'a pas le focus et que je n'avais rien vérifié dessus, alors j'ai changé de mécanisme : un thread Rust qui surveille la souris avec `GetAsyncKeyState`, sans nouvelle dépendance ([BDR-105](decisions/BDR-105.md), [LRN-119](learnings/LRN-119.md)). Baptiste a ensuite vu qu'un clic droit sur le menu rouvrait le menu natif WebView2 (Actualiser, Inspecter) : `contextmenu` est maintenant bloqué sur le document de cette fenêtre ([LRN-120](learnings/LRN-120.md)). Commit `63365f2`, non poussé. Baptiste a demandé de tout garder en local, sans entrée globale. Je n'ai pas pu tester l'app moi-même : chaque retour est venu de lui.
 
 **Entrées clés :**
 
 - [BDR-105](decisions/BDR-105.md) — fermeture par surveillance souris côté Rust, pas le focus
-- [BLK-042](blockers/BLK-042.md) — le menu ne se fermait pas, puis se fermait aussitôt
+- [ZBLK-042](archive/blockers/ZBLK-042.md) — le menu ne se fermait pas, puis se fermait aussitôt
 - [LRN-119](learnings/LRN-119.md) — popup Tauri : ne pas dépendre du focus pour fermer
+
+## 2026-09-28
+
+Baptiste a signalé un crash au lancement de `pnpm tauri:dev` (`null pointer dereference` dans `wry`/WebView2, `STATUS_STACK_BUFFER_OVERRUN`), puis précisé qu'en retestant le clic droit sur le pet, le menu contextuel fonctionnait mais qu'un plantage survenait « parfois ». Diagnostic par lecture de code (`context_menu.rs`, `contextMenuWindow.ts`, `ContextMenuWindow.tsx`, `Avatar.tsx`) sans itération ratée : `spawnContextMenuWindow` n'avait aucun garde contre les appels concurrents, contrairement à `useBubbleWindow` qui documentait déjà ce risque (mais pour le double-effet React StrictMode, pas pour une répétition venant de l'utilisateur). Un clic droit répété rapidement pouvait déclencher deux `close()`+`new WebviewWindow("menu")` en parallèle sur le même label, provoquant la collision native.
+
+Correctif : verrou de module (`spawning` bool + try/finally) dans `contextMenuWindow.ts` ([BDR-106](decisions/BDR-106.md), [LRN-121](learnings/LRN-121.md)). Lint, build et `react-doctor --scope changed` (86/100, aucune régression) verts. Commit `ac7d5ca` (🐛), poussé. Je n'ai pas pu reproduire le crash moi-même ni confirmer empiriquement le fix — reste à valider par Baptiste en usage réel.
+
+**Entrées clés :**
+
+- [BDR-106](decisions/BDR-106.md) — verrou anti-concurrence sur le spawn du menu contextuel
+- [LRN-121](learnings/LRN-121.md) — spawn de fenêtre Tauri sans verrou = crash WebView2 possible

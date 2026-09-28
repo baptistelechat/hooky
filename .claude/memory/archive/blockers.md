@@ -44,3 +44,4 @@ register: archive_blockers
 | [ZBLK-038](blockers/ZBLK-038.md) | 2026-09-24 | Config Vite ignorée : serveur orphelin sur le port 1420                             | #tauri-dev #vite #port-1420 #single-instance #debugging #misdiagnosis                     | résolu |
 | [ZBLK-039](blockers/ZBLK-039.md) | 2026-09-25 | Revert stagé effacé par le git reset d'une autre session                            | #git #parallel-sessions #reset #reflog #staging #session-close                            | résolu |
 | [ZBLK-040](blockers/ZBLK-040.md) | 2026-09-25 | Sélecteur de langue NSIS invisible malgré la config                                 | #nsis #installer #registry #publisher #tauri #misdiagnosis                                | résolu |
+| [ZBLK-042](blockers/ZBLK-042.md) | 2026-09-26 | Menu contextuel : ne se fermait pas, puis se fermait aussitôt                       | #tauri #context-menu #focus #dismiss #misdiagnosis #win32                                 | résolu |
