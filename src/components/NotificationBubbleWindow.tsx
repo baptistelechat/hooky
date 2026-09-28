@@ -2,9 +2,6 @@ import { LogicalPosition, LogicalSize } from "@tauri-apps/api/dpi";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
-import notificationSoundUrl from "../assets/sounds/notification.wav";
-import startSoundUrl from "../assets/sounds/start.wav";
-import stopSoundUrl from "../assets/sounds/stop.wav";
 import { useHookyState } from "../hooks/useHookyState";
 import { useSettings } from "../hooks/useSettings";
 import { debugZoneClass } from "../lib/debugZone";
@@ -25,12 +22,6 @@ const HOLD_DURATION_MS = 4500;
 const HIDE_TRANSITION_MS = 170;
 
 type Phase = "measuring" | "positioned" | "revealing";
-
-function soundForEvent(lastEvent?: string): string {
-  if (lastEvent === "Stop") return stopSoundUrl;
-  if (lastEvent === "SessionStart") return startSoundUrl;
-  return notificationSoundUrl;
-}
 
 /**
  * Contenu complet de la fenêtre Tauri "bubble" -- spawnée à la demande par
@@ -88,11 +79,10 @@ export function NotificationBubbleWindow() {
   // Factorisé : utilisé à la fois pour la révélation du message initial (phase
   // "revealing", cf. effet 4 ci-dessous) et pour chaque notification suivante reçue via
   // `hooky-state` pendant que la fenêtre reste déjà ouverte.
-  const showMessage = (message: string, soundUrl: string) => {
+  const showMessage = (message: string) => {
     hasShownRef.current = true;
     setFullText(message);
     setDisplayedText("");
-    void new Audio(soundUrl).play().catch(() => {});
 
     if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
     if (typeTimerRef.current) clearInterval(typeTimerRef.current);
@@ -208,13 +198,10 @@ export function NotificationBubbleWindow() {
   // Fenêtre affichée -- relance le message depuis zéro avec l'effet machine à écrire.
   useEffect(() => {
     if (phase !== "revealing" || fullText === null) return;
-    const lastEventParam = new URLSearchParams(window.location.search).get(
-      "bubbleLastEvent",
-    );
     // Réagit au passage en phase "revealing" -- pas un dérivé de state React local, cf.
     // règle react-hooks/set-state-in-effect.
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    showMessage(fullText, soundForEvent(lastEventParam ?? undefined));
+    showMessage(fullText);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase]);
 
@@ -235,7 +222,7 @@ export function NotificationBubbleWindow() {
     // Réagit à un event externe (revision, IPC Tauri via useHookyState) -- pas un dérivé
     // de state React local, cf. règle react-hooks/set-state-in-effect.
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    showMessage(message, soundForEvent(lastEvent));
+    showMessage(message);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [revision]);
 

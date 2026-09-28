@@ -1,5 +1,8 @@
+import { Volume2, VolumeX } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import type { AnimationMappingEntry } from "@/lib/animationCatalog";
+import { Button } from "@/components/ui/button";
+import { cueForCatalogEntry, playCue, silentReasonFor } from "@/lib/sounds";
 import { avatarBundleKey } from "@/components/avatarDefinition";
 import { AnimationOverlay } from "@/components/AnimationOverlay";
 import { FittedAvatarEngine } from "@/components/FittedAvatarEngine";
@@ -49,57 +52,93 @@ export function AnimationCard({ entry, isLive, onSelect }: AnimationCardProps) {
 
   useAnimationEffects(containerRef, animation, revision, true);
 
+  const cue = cueForCatalogEntry(
+    entry.trigger.hookEventName,
+    entry.trigger.notificationType,
+    animation,
+  );
+  const silentReason = cue
+    ? undefined
+    : silentReasonFor(entry.trigger.hookEventName);
+
   return (
-    <button
-      type="button"
-      onClick={() => {
-        onSelect(label);
-        void triggerPreview(entry);
-      }}
-      className={`flex cursor-pointer flex-col items-center gap-1.5 rounded-lg border p-3 text-center transition-colors ${
-        isLive
-          ? "border-primary bg-primary/10"
-          : "border-border bg-muted/30 hover:bg-muted/60"
-      }`}
-    >
-      <div
-        ref={containerRef}
-        className="relative drop-shadow-[0_4px_6px_rgba(0,0,0,0.2)]"
-        style={{ width: PREVIEW_SIZE, height: PREVIEW_SIZE }}
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => {
+          onSelect(label);
+          void triggerPreview(entry);
+        }}
+        className={`flex h-full w-full cursor-pointer flex-col items-center gap-1.5 rounded-lg border p-3 text-center transition-colors ${
+          isLive
+            ? "border-primary bg-primary/10"
+            : "border-border bg-muted/30 hover:bg-muted/60"
+        }`}
       >
-        <FittedAvatarEngine
-          key={avatarBundleKey(bundle)}
-          bundle={bundle}
-          animation={animation}
-          codexRow={entry.codexAnimation}
-          size={PREVIEW_SIZE}
-          className="animate-in fade-in duration-300"
-        />
-        <AnimationOverlay
-          animation={animation}
-          revision={revision}
-          enabled
-          avatarSize={PREVIEW_SIZE}
-          icon={entry.icon}
-          badgeIconColor={bundle.badgeIconColor}
-        />
-      </div>
-      <span className="font-mono text-xs font-medium break-all">{label}</span>
-      <span className="flex items-center gap-1 rounded bg-primary/10 px-1.5 py-0.5 text-[0.7rem] text-primary">
-        {/* `size` explicite -- les icônes animées (components/icons/) rendent leur SVG
+        <div
+          ref={containerRef}
+          className="relative drop-shadow-[0_4px_6px_rgba(0,0,0,0.2)]"
+          style={{ width: PREVIEW_SIZE, height: PREVIEW_SIZE }}
+        >
+          <FittedAvatarEngine
+            key={avatarBundleKey(bundle)}
+            bundle={bundle}
+            animation={animation}
+            codexRow={entry.codexAnimation}
+            size={PREVIEW_SIZE}
+            className="animate-in fade-in duration-300"
+          />
+          <AnimationOverlay
+            animation={animation}
+            revision={revision}
+            enabled
+            avatarSize={PREVIEW_SIZE}
+            icon={entry.icon}
+            badgeIconColor={bundle.badgeIconColor}
+          />
+        </div>
+        <span className="font-mono text-xs font-medium break-all">{label}</span>
+        <span className="flex items-center gap-1 rounded bg-primary/10 px-1.5 py-0.5 text-[0.7rem] text-primary">
+          {/* `size` explicite -- les icônes animées (components/icons/) rendent leur SVG
             dans un <div> wrapper : la classe Tailwind n'atteint que ce conteneur, pas le
             SVG lui-même (qui a son propre attribut width/height, 28 par défaut). */}
-        {Icon && <Icon size={12} className="shrink-0" />}
-        {animation}
-      </span>
-      {bundle.kind === "sprite" && (
-        <span className="font-mono text-[0.7rem] text-muted-foreground">
-          Codex : {codexRowNameFor(animation, entry.codexAnimation)}
+          {Icon && <Icon size={12} className="shrink-0" />}
+          {animation}
         </span>
+        {cue && (
+          <span className="flex items-center gap-1 font-mono text-[0.7rem] text-muted-foreground">
+            <Volume2 size={12} className="shrink-0" />
+            {cue}
+          </span>
+        )}
+        {silentReason && (
+          <span className="flex items-center gap-1 text-[0.7rem] text-muted-foreground">
+            <VolumeX size={12} className="shrink-0" />
+            Silencieux : {silentReason}
+          </span>
+        )}
+        {bundle.kind === "sprite" && (
+          <span className="font-mono text-[0.7rem] text-muted-foreground">
+            Codex : {codexRowNameFor(animation, entry.codexAnimation)}
+          </span>
+        )}
+        <span className="text-[0.7rem] leading-snug text-muted-foreground">
+          {note}
+        </span>
+      </button>
+      {/* Frère du bouton (pas enfant : <button> imbriqués invalides) -- écoute le cue seul,
+        sans event backend, donc hors transitions sleep/wake du flux réel. */}
+      {cue && (
+        <Button
+          variant="ghost"
+          size="icon-xs"
+          aria-label={`Écouter le son ${cue}`}
+          className="absolute top-1 right-1"
+          onClick={() => playCue(settings.soundFeel, cue, settings.soundVolume)}
+        >
+          <Volume2 />
+        </Button>
       )}
-      <span className="text-[0.7rem] leading-snug text-muted-foreground">
-        {note}
-      </span>
-    </button>
+    </div>
   );
 }

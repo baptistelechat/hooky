@@ -1,4 +1,5 @@
 mod codex_pets;
+mod context_menu;
 
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -81,6 +82,12 @@ struct ServerState {
 // Étape 6 : outils de recherche -> animation "searching" plutôt que "working" générique.
 const SEARCH_TOOLS: &[&str] = &["Grep", "WebSearch", "Glob", "WebFetch"];
 
+// Outils dont l'exécution EST l'attente d'une réponse de l'utilisateur (question posée,
+// approbation d'un plan) : PreToolUse part à l'ouverture du dialogue et PostToolUse seulement
+// à ta réponse. Sans ce cas, "working" restait affiché (et la boucle d'ambiance jouait) tout
+// le temps de la réflexion -- "working" n'ayant aucun timeout, contrairement à idle/celebrate.
+const USER_INPUT_TOOLS: &[&str] = &["AskUserQuestion", "ExitPlanMode"];
+
 /// Table de correspondance events Claude Code -> animations : voir docs/EVENTS.md
 /// (source de vérité, tenue à jour manuellement en miroir de ce match).
 /// `tool_name` n'est consulté que pour `PreToolUse` (granularité working/searching),
@@ -98,7 +105,9 @@ fn animation_for_event(
         "SessionStart" => Some("listening"),
         "UserPromptSubmit" => Some("thinking"),
         "PreToolUse" => {
-            if tool_name.is_some_and(|name| SEARCH_TOOLS.contains(&name)) {
+            if tool_name.is_some_and(|name| USER_INPUT_TOOLS.contains(&name)) {
+                Some("listening")
+            } else if tool_name.is_some_and(|name| SEARCH_TOOLS.contains(&name)) {
                 Some("searching")
             } else {
                 Some("working")
@@ -395,6 +404,13 @@ async fn on_event(State(state): State<ServerState>, Json(payload): Json<Value>) 
     // Les hooks "http" de Claude Code exigent un corps de réponse JSON valide
     // (un simple texte "ok" est rejeté : "must return JSON, but got non-JSON response").
     Json(serde_json::json!({}))
+}
+
+/// Quitte l'application -- appelée par le menu contextuel du pet (fenêtre "menu", cf.
+/// ContextMenuWindow.tsx), même effet que "Quitter" du tray.
+#[tauri::command]
+fn quit_app(app: AppHandle) {
+    app.exit(0);
 }
 
 /// Repositionne la fenêtre dans le coin bas-droit de l'écran principal (position par défaut).
@@ -970,6 +986,8 @@ pub fn run() {
             write_text_file,
             install_claude_hooks,
             get_cached_usage,
+            quit_app,
+            context_menu::watch_menu_dismiss,
             codex_pets::list_codex_pets
         ])
         .setup(move |app| {

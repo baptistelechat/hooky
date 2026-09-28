@@ -51,6 +51,21 @@ export function avatarWindowSize(avatarSize: number): number {
   return avatarSize + AVATAR_SHADOW_GAP * 2;
 }
 
+/** Marge transparente réservée autour du menu contextuel (fenêtre "menu", cf.
+ * ContextMenuWindow) pour que son `shadow-md` ne soit pas rogné par le bord de la fenêtre. */
+export const CONTEXT_MENU_PADDING = 12;
+
+/** Gabarit du menu contextuel lui-même (largeur imposée à `DropdownMenuContent`, hauteur
+ * = 2 items de 28px + `p-1`). Fixe pour pouvoir positionner la fenêtre "menu" (et la
+ * retourner au bord de l'écran) sans attendre de mesure -- cf. contextMenuWindow.ts. */
+export const CONTEXT_MENU_WIDTH = 160;
+export const CONTEXT_MENU_HEIGHT = 64;
+
+export const CONTEXT_MENU_WINDOW_WIDTH =
+  CONTEXT_MENU_WIDTH + CONTEXT_MENU_PADDING * 2;
+export const CONTEXT_MENU_WINDOW_HEIGHT =
+  CONTEXT_MENU_HEIGHT + CONTEXT_MENU_PADDING * 2;
+
 /** Hauteur du panneau de quotas Claude Code (cf. UsagePanel), accolé SOUS la zone avatar
  * quand `settings.usagePanelEnabled` -- même fenêtre "main" (pas une fenêtre séparée à
  * faire suivre pendant le drag, cf. LRN-057 en mémoire projet : une fenêtre suiveuse

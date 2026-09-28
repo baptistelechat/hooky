@@ -11,7 +11,6 @@ import {
 interface SpawnBubbleWindowParams {
   text: string;
   avatarSize: number;
-  lastEvent?: string;
 }
 
 /** Calcule la position/taille initiale de la fenêtre "bubble" (centrée sur l'avatar,
@@ -24,7 +23,6 @@ interface SpawnBubbleWindowParams {
 export async function spawnBubbleWindow({
   text,
   avatarSize,
-  lastEvent,
 }: SpawnBubbleWindowParams): Promise<void> {
   const existing = await WebviewWindow.getByLabel("bubble").catch(() => null);
   if (existing) return;
@@ -69,7 +67,6 @@ export async function spawnBubbleWindow({
 
   const params = new URLSearchParams({
     bubbleText: text,
-    bubbleLastEvent: lastEvent ?? "",
     bubbleX: String(bubbleX),
     bubbleShiftX: String(shiftX),
     avatarTop: String(avatarTop),
