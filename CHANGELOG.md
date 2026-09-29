@@ -7,6 +7,12 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- Updating over an existing install could fail with "Unable to uninstall!" / "Error launching
+  installer": Hooky runs in the tray and its previous `.exe` stayed locked, so the installer
+  couldn't remove it. The pet now closes itself automatically before install and uninstall
+
 ## [0.3.1] - 2026-09-28
 
 ### Added
