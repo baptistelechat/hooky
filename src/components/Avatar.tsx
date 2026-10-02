@@ -1,3 +1,4 @@
+import { invoke } from "@tauri-apps/api/core";
 import { LogicalSize } from "@tauri-apps/api/dpi";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -20,6 +21,7 @@ import {
   avatarWindowHeight,
   avatarWindowSize,
 } from "../lib/layout";
+import { ensureModSprites, spriteKeyFor } from "../lib/modSprites";
 import { openSettingsWindow } from "../lib/settingsWindow";
 import { startClampedDrag } from "../lib/windowDrag";
 import { AnimationOverlay } from "./AnimationOverlay";
@@ -148,6 +150,18 @@ export function PetAvatar({
     settings.avatarId,
     settings.avatarColorOverrides[settings.avatarId],
   );
+
+  // Le backend expose l'avatar actif sur GET /state, lu par le mod Claude Code `hooky-pet`,
+  // et ses sprites sont générés ici (une fois par avatar/couleurs, cf. modSprites.ts).
+  const spriteKey = spriteKeyFor(bundle);
+  useEffect(() => {
+    void invoke("set_current_avatar", {
+      avatarId: settings.avatarId,
+      spriteKey,
+    }).then(() => ensureModSprites(bundle));
+    // `bundle` est recréé quand ses couleurs changent : `spriteKey` suffit comme dépendance.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [settings.avatarId, spriteKey]);
 
   useAnimationEffects(
     containerRef,

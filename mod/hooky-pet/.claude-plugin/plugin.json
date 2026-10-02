@@ -1,0 +1,6 @@
+{
+  "name": "hooky-pet",
+  "version": "0.1.0",
+  "description": "Pet Codex (Hooky) au-dessus du prompt, réagit à la session.",
+  "types": "./types/index.d.ts"
+}

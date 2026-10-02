@@ -7,6 +7,13 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Experimental Claude Code mod `hooky-pet` (`mod/hooky-pet/`): shows your current pet above the
+  prompt of the Claude Code desktop app, playing the same animation as Hooky. Hooky exposes its
+  state on `http://127.0.0.1:4242/state` and renders the pet's sprites for the mod. Sprite
+  generation is not fully reliable yet
+
 ### Fixed
 
 - Updating over an existing install could fail with "Unable to uninstall!" / "Error launching

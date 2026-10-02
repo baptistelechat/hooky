@@ -707,3 +707,31 @@ entrerait en conflit avec l'état réel de Claude Code. Le regard n'existe donc 
       avec la formule (idx 0 = haut, 4 = droite, 8 = bas, 12 = gauche).
 - [ ] **À valider en usage réel** : pose affichée vs position réelle du curseur (décalage d'un
       demi-pas ?), rayons 260 / 340 px, délai de 1,2 s avant de se rendormir, multi-écrans / mise à l'échelle Windows ≠ 100 %.
+
+## Étape 14 — Mod Claude Code `hooky-pet` ⏳
+
+Pet affiché au-dessus du prompt de l'app Claude Code (desktop), synchronisé avec Hooky. Source dans
+`mod/hooky-pet/` (copie vers `~/.claude/mods/`, qui charge tout le dossier).
+
+### Architecture
+
+- **Hooky = source de vérité** : `GET /state` (backend Rust, `publish_state`) renvoie le dernier
+  état émis + `avatarId`, `spriteKey`, `spritesDir`. Le mod ne contient aucune logique d'événements :
+  il lit `/state` toutes les 500 ms et affiche `<spritesDir>/<spriteKey>/<animation>.svg`.
+- **Pourquoi des sprites SVG pré-rendus** : l'API des mods n'a ni script ni DOM (`Svg` en SMIL
+  uniquement, 131 072 caractères max par SVG), et la bande `AbovePrompt` n'accepte qu'un seul mod
+  qui dessine, sauf si chacun appelle `next(e)` (`clock-weather` modifié dans ce sens).
+- **Génération** : `src/lib/modSprites.ts` (moteur `avatar-core` ou spritesheet Codex -> canvas ->
+  strip PNG + SMIL à durées variables), écrit par les commandes Rust `write_mod_sprite` /
+  `mark_mod_sprites_ready` dans `%LOCALAPPDATA%\dev.baptistelechat.hooky\mod-sprites\`.
+
+### État (2026-10-02)
+
+- [x] `GET /state`, `set_current_avatar`, mod en simple lecteur : le pet joue **en sync** avec
+      Hooky de bureau (validé en usage réel avec `om-nom`).
+- [ ] **Automatiser la génération des sprites** : `ensureModSprites` (déclenchée au changement
+      d'avatar depuis `Avatar.tsx`) n'est pas encore fiable en usage réel -- à diagnostiquer
+      (console de la fenêtre pet : `fetch` de la spritesheet `asset:` ? `OffscreenCanvas` ?), ou
+      trouver une alternative (ex. génération côté Rust, ou à la demande depuis les réglages).
+- [ ] Limites connues : ~12 fps (vs 60), bulles / sons / usage ring / regard restent dans la
+      fenêtre Hooky, rien n'est affiché si Hooky est fermé, couleur custom = autre `spriteKey`.

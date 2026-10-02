@@ -7,7 +7,7 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use axum::extract::State;
-use axum::routing::post;
+use axum::routing::{get, post};
 use axum::{Json, Router};
 use serde_json::Value;
 use tauri::menu::{Menu, MenuItem};
@@ -43,6 +43,79 @@ const DUPLICATE_EMIT_WINDOW: Duration = Duration::from_millis(500);
 // livraisons portent la MÊME valeur -- le front peut alors les dédupliquer (`prev` inchangé
 // -> pas de re-render).
 static EMIT_SEQUENCE: AtomicU64 = AtomicU64::new(0);
+
+// Miroir lisible de l'état émis, pour le mod Claude Code `hooky-pet` (cf. `get_state`) : le
+// backend reste la seule source de vérité de l'animation, le mod ne fait que l'afficher.
+static MOD_STATE: Mutex<Option<Value>> = Mutex::new(None);
+static MOD_AVATAR: Mutex<(String, String, String)> = Mutex::new((String::new(), String::new(), String::new()));
+/// Émet `hooky-state` vers le front ET garde le dernier payload pour `GET /state`.
+fn publish_state(app: &AppHandle, payload: Value) {
+    *MOD_STATE.lock().unwrap_or_else(|p| p.into_inner()) = Some(payload.clone());
+    let _ = app.emit("hooky-state", payload);
+}
+
+/// `GET /state` : dernier état émis + avatar actif (`sleeping` tant que rien n'a été émis), et où
+/// lire ses sprites (`spritesDir`/`spriteKey`/`<animation>.svg`, cf. `write_mod_sprite`).
+async fn get_state() -> Json<Value> {
+    let mut state = MOD_STATE
+        .lock()
+        .unwrap_or_else(|p| p.into_inner())
+        .clone()
+        .unwrap_or_else(|| serde_json::json!({ "state": "sleeping", "sequence": 0 }));
+    let (avatar_id, sprite_key, sprites_dir) = MOD_AVATAR.lock().unwrap_or_else(|p| p.into_inner()).clone();
+    state["avatarId"] = Value::String(avatar_id);
+    state["spriteKey"] = Value::String(sprite_key);
+    state["spritesDir"] = Value::String(sprites_dir);
+    Json(state)
+}
+
+/// Dossier des sprites générés pour le mod Claude Code (données locales de Hooky, hors repo).
+fn mod_sprites_dir(app: &AppHandle) -> Result<std::path::PathBuf, String> {
+    Ok(app.path().app_local_data_dir().map_err(|e| e.to_string())?.join("mod-sprites"))
+}
+
+/// Clé de dossier ou nom d'animation : uniquement `[A-Za-z0-9_-]`, jamais un chemin.
+fn is_safe_name(name: &str) -> bool {
+    !name.is_empty() && name.len() <= 64 && name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
+}
+
+/// Appelée par le front à chaque changement d'avatar (id Hooky : `cubee`, `codex:<dossier>`...) :
+/// `sprite_key` désigne le sous-dossier de sprites correspondant (couleurs incluses).
+#[tauri::command]
+fn set_current_avatar(app: AppHandle, avatar_id: String, sprite_key: String) -> Result<(), String> {
+    let dir = mod_sprites_dir(&app)?.to_string_lossy().into_owned();
+    *MOD_AVATAR.lock().unwrap_or_else(|p| p.into_inner()) = (avatar_id, sprite_key, dir);
+    Ok(())
+}
+
+/// Vrai si les sprites de `key` ont déjà été entièrement générés (marqueur `.ready`).
+#[tauri::command]
+fn mod_sprites_ready(app: AppHandle, key: String) -> Result<bool, String> {
+    if !is_safe_name(&key) {
+        return Err("clé invalide".into());
+    }
+    Ok(mod_sprites_dir(&app)?.join(key).join(".ready").exists())
+}
+
+/// Écrit le SVG d'une animation (taille bornée, nom validé : le front ne choisit pas de chemin).
+#[tauri::command]
+fn write_mod_sprite(app: AppHandle, key: String, animation: String, svg: String) -> Result<(), String> {
+    if !is_safe_name(&key) || !is_safe_name(&animation) || svg.len() > 200_000 {
+        return Err("sprite invalide".into());
+    }
+    let dir = mod_sprites_dir(&app)?.join(key);
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    std::fs::write(dir.join(format!("{animation}.svg")), svg).map_err(|e| e.to_string())
+}
+
+/// Marque la génération de `key` comme terminée (cf. `mod_sprites_ready`).
+#[tauri::command]
+fn mark_mod_sprites_ready(app: AppHandle, key: String) -> Result<(), String> {
+    if !is_safe_name(&key) {
+        return Err("clé invalide".into());
+    }
+    std::fs::write(mod_sprites_dir(&app)?.join(key).join(".ready"), "").map_err(|e| e.to_string())
+}
 
 fn next_sequence() -> u64 {
     EMIT_SEQUENCE.fetch_add(1, Ordering::Relaxed) + 1
@@ -389,16 +462,13 @@ async fn on_event(State(state): State<ServerState>, Json(payload): Json<Value>) 
     // requête, l'agrégat peut être dominé par une autre session), absents quand plus
     // aucune session (sleeping).
     if should_emit {
-        let _ = state.app_handle.emit(
-            "hooky-state",
-            serde_json::json!({
+        publish_state(&state.app_handle, serde_json::json!({
                 "state": resolved,
                 "lastEvent": source_event,
                 "toolName": source_tool,
                 "notificationType": source_notification,
                 "sequence": next_sequence(),
-            }),
-        );
+            }));
     }
 
     // Les hooks "http" de Claude Code exigent un corps de réponse JSON valide
@@ -489,16 +559,13 @@ fn spawn_idle_reaper(sessions: Sessions, app_handle: AppHandle, last_emission: L
             };
 
             if should_emit {
-                let _ = app_handle.emit(
-                    "hooky-state",
-                    serde_json::json!({
+                publish_state(&app_handle, serde_json::json!({
                         "state": resolved,
                         "lastEvent": event_name,
                         "toolName": tool_name,
                         "notificationType": notification_type,
                         "sequence": next_sequence(),
-                    }),
-                );
+                    }));
             }
         }
     });
@@ -987,6 +1054,10 @@ pub fn run() {
             install_claude_hooks,
             get_cached_usage,
             quit_app,
+            set_current_avatar,
+            mod_sprites_ready,
+            write_mod_sprite,
+            mark_mod_sprites_ready,
             context_menu::watch_menu_dismiss,
             codex_pets::list_codex_pets
         ])
@@ -1042,6 +1113,7 @@ pub fn run() {
             // externe à autoriser toute origine ici.
             let router = Router::new()
                 .route("/event", post(on_event))
+                .route("/state", get(get_state))
                 .layer(CorsLayer::permissive())
                 .with_state(server_state);
 
