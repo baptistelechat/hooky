@@ -124,3 +124,6 @@ register: learnings
 | [LRN-119](learnings/LRN-119.md) | 2026-09-26 | Popup Tauri : fermer au clic extérieur sans dépendre du focus                       | #tauri #windows #focus #popup #dismiss #win32 #polling                                |
 | [LRN-120](learnings/LRN-120.md) | 2026-09-26 | Chaque fenêtre Tauri secondaire rouvre le menu natif WebView2                       | #tauri #webview2 #contextmenu #preventdefault #multi-window                           |
 | [LRN-121](learnings/LRN-121.md) | 2026-09-28 | Spawn de fenêtre Tauri sans verrou = crash WebView2 possible                        | #tauri #webview2 #webviewwindow #race-condition #crash #spawn-guard                   |
+| [LRN-122](learnings/LRN-122.md) | 2026-10-02 | avatar-core est pur : échantillonnage hors navigateur | #avatar-core #animation #sampling #smil #canvas |
+| [LRN-123](learnings/LRN-123.md) | 2026-10-02 | Bande AbovePrompt : un seul mod dessine, sauf next(e) | #claude-code #mods #abovepromt #next #ui-render |
+| [LRN-124](learnings/LRN-124.md) | 2026-10-02 | Animer un sprite dans un mod : Svg + SMIL discret | #claude-code #mods #svg #smil #sprite |

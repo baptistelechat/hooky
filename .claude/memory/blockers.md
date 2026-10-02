@@ -9,3 +9,6 @@ register: blockers
 | [BLK-029](blockers/BLK-029.md) | 2026-08-31 | Shadow bulle "toujours rogné" après un premier fix placé du mauvais côté | #tauri #notification-bubble #box-shadow #css #debugging #misdiagnosis | ouvert |
 | [BLK-034](blockers/BLK-034.md) | 2026-09-24 | Navigateur intégré : origines locales refusées                           | #claude-browser #localhost #permissions #preview #testing             | ouvert |
 | [BLK-041](blockers/BLK-041.md) | 2026-09-25 | Ambiance jouée en double puis qui ne s'arrête jamais                     | #sounds #loop #duplicate #askuserquestion #tauri #misdiagnosis        | ouvert |
+| [BLK-043](blockers/BLK-043.md) | 2026-10-02 | Pet invisible : clock-weather occupait la bande | #claude-code #mods #abovepromt #misdiagnosis | résolu |
+| [BLK-044](blockers/BLK-044.md) | 2026-10-02 | Mod absent des nouvelles conversations | #claude-code #mods #plugin-dirs #dev-mods | résolu |
+| [BLK-045](blockers/BLK-045.md) | 2026-10-02 | Génération in-app des sprites pas fiable | #mods #sprites #tauri #canvas #offscreencanvas | ouvert |

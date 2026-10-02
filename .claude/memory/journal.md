@@ -961,3 +961,15 @@ Correctif : verrou de module (`spawning` bool + try/finally) dans `contextMenuWi
 
 - [BDR-106](decisions/BDR-106.md) — verrou anti-concurrence sur le spawn du menu contextuel
 - [LRN-121](learnings/LRN-121.md) — spawn de fenêtre Tauri sans verrou = crash WebView2 possible
+
+## 2026-10-02
+
+Baptiste a demandé si Hooky pouvait devenir un mod de Claude Code (pet au-dessus de la barre de prompt de l'app desktop). Après un prototype de blob SVG et plusieurs essais de rendu (bande masquée par `clock-weather`, [BLK-043](blockers/BLK-043.md) ; mod non chargé hors `dev-mods`, [BLK-044](blockers/BLK-044.md)), la v1 reposait sur des sprites générés par scripts Python/Node pour 4 états seulement : Baptiste a relevé que ce n'était pas un portage (animations différentes de Hooky, un seul pet).
+
+Refonte : Hooky devient la source de vérité. Le backend expose `GET /state` (animation, avatar actif, dossier des sprites), le front envoie l'avatar actif et génère lui-même les sprites de chaque animation (canvas, SMIL), le mod n'est plus qu'un lecteur ([BDR-107](decisions/BDR-107.md), [BDR-108](decisions/BDR-108.md)). Validé en usage réel avec `om-nom` : le pet joue en sync avec Hooky de bureau. Reste la génération automatique des sprites, pas fiable ([BLK-045](blockers/BLK-045.md)), notée dans `docs/ROADMAP.md` étape 14. Lint, build et `cargo check` passent ; commit et push sur `feat/claude-code-mod`.
+
+**Entrées clés :**
+
+- [BDR-107](decisions/BDR-107.md) — mod hooky-pet : simple lecteur de GET /state
+- [LRN-123](learnings/LRN-123.md) — bande AbovePrompt : un seul mod dessine, sauf next(e)
+- [BLK-045](blockers/BLK-045.md) — génération in-app des sprites pas fiable (ouvert)

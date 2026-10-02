@@ -109,3 +109,5 @@ register: decisions
 | [BDR-104](decisions/BDR-104.md) | 2026-09-26 | Menu clic droit : fenêtre Tauri dédiée + DropdownMenu shadcn                       | #tauri #context-menu #shadcn #webviewwindow #multi-window #ux                                  | actif  |
 | [BDR-105](decisions/BDR-105.md) | 2026-09-26 | Fermeture du menu : surveillance souris côté Rust, pas le focus                    | #tauri #rust #win32 #getasynckeystate #dismiss #context-menu                                   | actif  |
 | [BDR-106](decisions/BDR-106.md) | 2026-09-28 | Verrou anti-concurrence sur le spawn du menu contextuel                            | #tauri #webviewwindow #context-menu #race-condition #webview2 #crash                           | actif  |
+| [BDR-107](decisions/BDR-107.md) | 2026-10-02 | Mod hooky-pet : simple lecteur de GET /state | #claude-code #mods #tauri #axum #state | actif |
+| [BDR-108](decisions/BDR-108.md) | 2026-10-02 | Sprites du mod générés dans l'app, hors repo | #mods #sprites #tauri #canvas #avatar | actif |
