@@ -5,6 +5,7 @@ import type {
   ProceduralAvatarBundle,
 } from "./avatarDefinition";
 import type { CodexRowName } from "../lib/codexPets";
+import { DotsAvatar } from "./DotsAvatar";
 import { SpriteAvatar } from "./SpriteAvatar";
 
 // Même constante que `computeFitScale` (avatarDefinition.ts) -- viewBox fixe du moteur.
@@ -86,9 +87,22 @@ export function FittedAvatarEngine({
   onSpriteError,
   ...props
 }: FittedAvatarEngineProps) {
-  return bundle.kind === "sprite" ? (
-    <SpriteAvatar bundle={bundle} {...props} onLoadError={onSpriteError} />
-  ) : (
-    <FittedProceduralEngine bundle={bundle} {...props} />
-  );
+  if (bundle.kind === "sprite") {
+    return (
+      <SpriteAvatar bundle={bundle} {...props} onLoadError={onSpriteError} />
+    );
+  }
+  if (bundle.kind === "dots") {
+    const { animation, size, className, style } = props;
+    return (
+      <DotsAvatar
+        bundle={bundle}
+        animation={animation}
+        size={size}
+        className={className}
+        style={style}
+      />
+    );
+  }
+  return <FittedProceduralEngine bundle={bundle} {...props} />;
 }

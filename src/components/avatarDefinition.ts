@@ -9,6 +9,8 @@ import {
   SPRITE_BADGE_ICON_COLOR,
   type CodexPet,
 } from "../lib/codexPets";
+import { customDotsSheetUrl, type CustomDots } from "../lib/customDots";
+import { DOTS_AVATAR_PREFIX, dotsAvatarId } from "../lib/dotsAvatars";
 // Import statique gardé uniquement pour le TYPE (schéma bible-strong partagé par tous
 // les avatars, cf. plus bas) -- le chargement runtime des définitions passe par
 // `import.meta.glob` (voir requireAvatarModules).
@@ -263,7 +265,24 @@ export interface SpriteAvatarBundle {
   badgeIconColor: string;
 }
 
-export type AvatarBundle = ProceduralAvatarBundle | SpriteAvatarBundle;
+/** Personnage Dots Lab rendu depuis sa planche SVG (cf. DotsAvatar) : comme un pet Codex, pas
+ * de `definition` -- donc ni couleurs éditables ni liste d'animations propre, seulement la
+ * table STATE_TO_DOTS. */
+export interface DotsAvatarBundle {
+  kind: "dots";
+  id: string;
+  name: string;
+  /** URL de la planche (8 états), découpée à la demande (cf. useDotsSheet). */
+  sheetUrl: string;
+  /** Repli neutre : la vraie couleur du corps n'est connue qu'une fois la planche chargée
+   * (cf. useAvatarBundle, qui la substitue). */
+  badgeIconColor: string;
+}
+
+export type AvatarBundle =
+  | ProceduralAvatarBundle
+  | SpriteAvatarBundle
+  | DotsAvatarBundle;
 
 export function buildSpriteBundle(pet: CodexPet): SpriteAvatarBundle {
   return {
@@ -305,6 +324,56 @@ export const avatarRegistry: Record<string, ProceduralAvatarBundle> =
   );
 
 export const avatarIds = Object.keys(avatarRegistry);
+
+// "triangle-pills" -> "Triangle Pills" : une planche Dots Lab ne porte pas de nom, celui du
+// fichier fait foi.
+export function dotsDisplayName(fileName: string): string {
+  return fileName
+    .split("-")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+}
+
+/** Personnage Dots Lab importé par l'utilisateur : même bundle qu'une planche du repo, seule
+ * la provenance de la planche change (IndexedDB, cf. lib/customDots.ts). */
+export function buildCustomDotsBundle(
+  id: string,
+  name: string,
+): DotsAvatarBundle {
+  return {
+    kind: "dots",
+    id,
+    name,
+    sheetUrl: customDotsSheetUrl(id),
+    badgeIconColor: SPRITE_BADGE_ICON_COLOR,
+  };
+}
+
+// Un personnage Dots Lab = une planche « Copy SVG sheet » déposée telle quelle dans
+// ./dots/*.svg -- même principe que ./avatars/*.json : aucun changement de code pour en
+// ajouter un. `?url` (et non `?raw`) : les planches pèsent 0,5 à 0,9 Mo chacune, elles restent
+// des fichiers à part chargés à la demande plutôt que d'alourdir le bundle JS.
+function loadDotsBundles(): DotsAvatarBundle[] {
+  const modules = import.meta.glob("./dots/*.svg", {
+    eager: true,
+    query: "?url",
+    import: "default",
+  }) as Record<string, string>;
+  return Object.entries(modules).map(([path, sheetUrl]) => {
+    // "./dots/flame.svg" -> "flame"
+    const fileName = path.replace("./dots/", "").replace(".svg", "");
+    return {
+      kind: "dots",
+      id: dotsAvatarId(fileName),
+      name: dotsDisplayName(fileName),
+      sheetUrl,
+      badgeIconColor: SPRITE_BADGE_ICON_COLOR,
+    };
+  });
+}
+
+export const dotsRegistry: Record<string, DotsAvatarBundle> =
+  Object.fromEntries(loadDotsBundles().map((bundle) => [bundle.id, bundle]));
 // "cubee" explicite -- `avatarIds[0]` dépendait de l'ordre de résolution du glob (Vite
 // résout ./avatars/*.json par ordre alphabétique de chemin, donc "citrus" passait avant
 // "cubee"), un ordre incident plutôt qu'un choix. Cubee est la mascotte du repo.
@@ -318,6 +387,7 @@ export const DEFAULT_AVATAR_ID = "cubee";
  * désirée à l'usage. */
 export function avatarBundleKey(bundle: AvatarBundle): string {
   if (bundle.kind === "sprite") return `${bundle.id}:${bundle.spriteUrl}`;
+  if (bundle.kind === "dots") return bundle.id;
   return `${bundle.id}:${bundle.definition.colors.body}:${bundle.definition.colors.eyes}`;
 }
 
@@ -330,15 +400,22 @@ export type AvatarColorOverride = Partial<{ body: string; eyes: string }>;
  * le bundle à la volée (nouveau `createAvatar`, donc remount du SVG -- acceptable, ne se
  * déclenche que sur une action volontaire dans le color picker des settings) plutôt que
  * de muter le registre figé au chargement : `badgeIconColor` reste ainsi recalculé en
- * cohérence avec la couleur éditée. Sans effet sur un pet Codex (pas de couleurs). */
+ * cohérence avec la couleur éditée. Sans effet sur un pet Codex ni un personnage Dots Lab
+ * (pas de couleurs). */
 export function getAvatarBundle(
   id: string,
   colorOverride?: AvatarColorOverride,
   customRegistry?: Record<string, RawAvatarDefinition>,
   codexPets: Record<string, CodexPet> = {},
+  customDots: CustomDots = {},
 ): AvatarBundle {
   const codexPet = codexPetForAvatarId(id, codexPets);
   if (codexPet) return buildSpriteBundle(codexPet);
+
+  if (id.startsWith(DOTS_AVATAR_PREFIX)) {
+    if (dotsRegistry[id]) return dotsRegistry[id];
+    if (customDots[id]) return buildCustomDotsBundle(id, customDots[id].name);
+  }
 
   const customDefinition = customRegistry?.[id];
   const base = avatarRegistry[id]

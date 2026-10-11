@@ -23,6 +23,7 @@ import {
   hasGaze,
   spriteCycleMs,
 } from "@/lib/codexPets";
+import { DOTS_ANIMATION_ORDER, dotsCycleMs } from "@/lib/dotsAvatars";
 import { AVATAR_PREVIEW_SIZE } from "@/lib/layout";
 import { Eye, RotateCcw, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -41,12 +42,14 @@ function pickRandomAnimation(
 // Durée réelle d'un passage complet de l'animation (somme des holdMs/transitionMs de ses
 // steps) -- pas une durée arbitraire, pour relancer une nouvelle animation aléatoire
 // exactement quand la précédente a fini son cycle plutôt qu'à un instant qui coupe une pose.
-// Un pet Codex n'a pas de steps : durée de sa ligne de spritesheet (cf. spriteCycleMs).
+// Un pet Codex n'a pas de steps : durée de sa ligne de spritesheet (cf. spriteCycleMs) ; un
+// personnage Dots Lab non plus : durée de la boucle de son état (cf. dotsCycleMs).
 function animationCycleDuration(
   bundle: AvatarBundle,
   animation: AnimationName,
 ): number {
   if (bundle.kind === "sprite") return spriteCycleMs(animation);
+  if (bundle.kind === "dots") return dotsCycleMs(animation);
   return bundle.definition.animations[animation].steps.reduce(
     (total, step) => total + step.holdMs + step.transitionMs,
     0,
@@ -78,7 +81,9 @@ export function AvatarPickerCard({
   const animationOrder =
     bundle.kind === "sprite"
       ? SPRITE_ANIMATION_ORDER
-      : (bundle.definition.animationOrder as AnimationName[]);
+      : bundle.kind === "dots"
+        ? DOTS_ANIMATION_ORDER
+        : (bundle.definition.animationOrder as AnimationName[]);
   const [animation, setAnimation] = useState<AnimationName>(() =>
     pickRandomAnimation(animationOrder),
   );

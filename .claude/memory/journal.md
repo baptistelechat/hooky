@@ -961,3 +961,33 @@ Correctif : verrou de module (`spawning` bool + try/finally) dans `contextMenuWi
 
 - [BDR-106](decisions/BDR-106.md) — verrou anti-concurrence sur le spawn du menu contextuel
 - [LRN-121](learnings/LRN-121.md) — spawn de fenêtre Tauri sans verrou = crash WebView2 possible
+
+## 2026-10-11
+
+Baptiste a demandé de supprimer la branche « claude-code-mod » puis d'évaluer les personnages de Dots Lab (dots-lab.pages.dev) pour Hooky, licence comprise. La branche n'existe que sur le remote sous le nom `feat/claude-code-mod`, avec 2 commits jamais fusionnés ; la suppression a été refusée par le garde-fou du mode auto et reste à faire à la main ([BLK-045](blockers/BLK-045.md)).
+
+Dots Lab est une page HTML autonome, sans licence ni dépôt. J'ai d'abord conclu à une zone grise pour un repo AGPL, puis Baptiste a fourni deux captures des réponses de l'auteur sous son tweet de lancement, qui autorisent l'usage y compris dans un projet open source : on livre des exports avec attribution, sans reprendre le code du générateur ([BDR-108](decisions/BDR-108.md)). J'avais proposé un JSON par personnage ; Baptiste a corrigé : l'outil donne une planche SVG (« Copy SVG sheet », 8 états), c'est donc ce fichier qui sert de format, livré comme importé ([BDR-107](decisions/BDR-107.md)).
+
+Export des 12 personnages choisis par Baptiste : `agent-browser` est resté bloqué à l'ouverture de la page ([BLK-044](blockers/BLK-044.md)), puis le navigateur intégré a refusé l'envoi d'une page https vers `localhost`. La solution a été de servir une copie locale de la page depuis un petit serveur Node et de lui poster les planches en même origine (voir aussi GLRN-337). Côté code : nouveau type d'avatar `dots`, `splitDotsSheet`, store `useDotsSheet`, composant `DotsAvatar`, section « Dots Lab » dans le picker, README d'attribution, entrée de changelog. Un `prettier --write` lancé sur un dossier entier a marqué 9 fichiers non concernés comme modifiés (fins de ligne), restaurés avant le staging (voir aussi GLRN-338).
+
+Lint et build verts ; le découpage a été vérifié dans un navigateur sur les 12 planches (96 images sur 96). Je n'ai pas lancé l'app Tauri : le pet flottant et la grille des réglages ne sont pas validés. Commit WIP `3f21e6c` (🚧), non poussé, à la demande de Baptiste qui confirmera dans une nouvelle session. Restent à trancher : chevauchement possible entre la pastille des états Alert/Error/Thinking/Asleep et le badge de Hooky, `waking` mappé sur Alert, environ 1 s de découpage cumulé à l'ouverture du picker, et l'import utilisateur d'une planche, pas commencé. `.claude/launch.json` (config Vite créée pour le test) n'est pas commité.
+
+**Entrées clés :**
+
+- [BDR-107](decisions/BDR-107.md) — planche SVG brute comme format unique, découpée à l'exécution
+- [BDR-108](decisions/BDR-108.md) — livraison sur autorisation publique informelle de l'auteur
+- [BLK-045](blockers/BLK-045.md) — branche distante non supprimée, numéros LRN-122 à 124 sautés
+
+---
+
+Baptiste a confirmé que l'intégration Dots Lab fonctionne, puis demandé les 7 presets restants du site. Les 7 liens étaient tous des ronds, distingués par leurs yeux et leur couleur ([LRN-125](learnings/LRN-125.md)) ; je les ai nommés `round-<yeux>`. Export par la méthode de la session précédente, raccourcie : le script de la page étant dans une IIFE, j'ai exposé `makeSheet` et `readToken` dans la copie locale et généré les 7 planches en un appel, avec `round.svg` régénéré en témoin, identique à celle du repo ([LRN-126](learnings/LRN-126.md)). La section passe à 19 personnages.
+
+Baptiste a ensuite signalé qu'il manquait l'import d'un personnage perso. Planches stockées en IndexedDB avec un index en localStorage, à cause de leur poids ([BDR-109](decisions/BDR-109.md)). Ma première version faisait ouvrir un sélecteur de fichier par la carte « + » et citait un chemin de menu faux ; Baptiste a corrigé les deux avec une capture : la carte colle désormais le presse-papiers, Ctrl+V marche dans tout l'onglet, le fichier `.svg` passe en bouton d'en-tête ([BDR-110](decisions/BDR-110.md), [LRN-127](learnings/LRN-127.md)). Au passage, le code d'écoute Tauri dupliqué dans `useSettings`, `useCustomAvatars` et `useUpdateStatus` a été extrait dans `useBroadcastState`, et `AddAvatarCard` sorti d'`AvatarPicker`.
+
+Lint et build verts, react-doctor sans problème sur les changements (score du repo 78/100). Je n'ai pas piloté l'interface Tauri ; Baptiste a confirmé à l'essai que l'import fonctionne. Un `pnpm build` est resté bloqué plus de 5 minutes avant de passer seul en 41 s ([BLK-046](blockers/BLK-046.md)). Commit `c5c169f` (✨), non poussé, tout comme le WIP `3f21e6c`. Toutes les entrées de cette session sont locales, à la demande de Baptiste. Restent ouverts depuis la session précédente : chevauchement possible de la pastille d'état avec le badge, `waking` mappé sur Alert, temps de découpage à l'ouverture du picker ; s'y ajoutent l'absence de renommage et d'export pour les personnages importés.
+
+**Entrées clés :**
+
+- [BDR-109](decisions/BDR-109.md) — planches importées en IndexedDB, index en localStorage
+- [BDR-110](decisions/BDR-110.md) — la carte « + » colle, le fichier est secondaire
+- [LRN-127](learnings/LRN-127.md) — calquer un import sur le geste réel de l'outil source

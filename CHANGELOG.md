@@ -7,6 +7,23 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Dots Lab characters: 19 new characters made with [Dots Lab](https://dots-lab.pages.dev/) (by
+  Guillaume, @guillaume_rygn) are available in a new "Dots Lab" section of the Avatar tab. Each
+  one has its own animation for idle, listening, thinking, writing, success, alert, error and
+  sleep, matched to what Claude Code is doing
+- Import your own Dots Lab character: in Dots Lab, open the arrow next to "Copy animated SVG" and
+  choose All 8 states → Copy SVG sheet, then click the "Coller un personnage" card (or press
+  Ctrl+V) in the Avatar tab. A sheet saved as an `.svg` file can be added with "Importer un
+  fichier". Imported characters can be removed from their card
+
+### Fixed
+
+- Updating over an existing install could fail with "Unable to uninstall!" / "Error launching
+  installer": Hooky runs in the tray and its previous `.exe` stayed locked, so the installer
+  couldn't remove it. The pet now closes itself automatically before install and uninstall
+
 ## [0.3.1] - 2026-09-28
 
 ### Added
