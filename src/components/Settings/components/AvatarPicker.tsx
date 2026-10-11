@@ -1,6 +1,7 @@
 import {
   avatarRegistry,
   buildAvatarBundle,
+  buildCustomDotsBundle,
   buildSpriteBundle,
   DEFAULT_AVATAR_ID,
   dotsRegistry,
@@ -28,53 +29,19 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { useCodexPets } from "@/hooks/useCodexPets";
 import { useCustomAvatars } from "@/hooks/useCustomAvatars";
+import { useCustomDots } from "@/hooks/useCustomDots";
 import { useSettings } from "@/hooks/useSettings";
 import { codexPetForAvatarId } from "@/lib/codexPets";
-import { AVATAR_PREVIEW_SIZE } from "@/lib/layout";
 import { cn } from "@/lib/utils";
-import { Palette, Plus, RotateCcw } from "lucide-react";
+import { Palette, RotateCcw } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { AddAvatarFileCard } from "./AddAvatarCard";
 import { AvatarPickerCard } from "./AvatarPickerCard";
 import { CodexPetsSection } from "./CodexPetsSection";
 import { DotsAvatarsSection } from "./DotsAvatarsSection";
 import { PickerSectionHeader } from "./PickerSectionHeader";
 
 const COMMUNITY_URL = "https://avatars.bible-strong.app/";
-
-interface AddCustomAvatarCardProps {
-  onFileSelected: (file: File) => void;
-}
-
-/** Carte "+" en fin de grille -- déclenche un `<input type="file">` natif caché plutôt
- * qu'un plugin Tauri fs/dialog : le webview lit le fichier directement via `file.text()`,
- * aucune nouvelle capability requise. Même gabarit que AvatarPickerCard pour rester aligné
- * dans la grille. */
-function AddCustomAvatarCard({ onFileSelected }: AddCustomAvatarCardProps) {
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  return (
-    <button
-      type="button"
-      onClick={() => inputRef.current?.click()}
-      className="flex w-full cursor-pointer flex-col items-center justify-center gap-1.5 rounded-lg border border-dashed border-border bg-muted/30 p-3 text-center text-muted-foreground transition-colors hover:bg-muted/60"
-      style={{ minHeight: AVATAR_PREVIEW_SIZE + 44 }}
-    >
-      <input
-        ref={inputRef}
-        type="file"
-        accept="application/json,.json"
-        className="hidden"
-        onChange={(e) => {
-          const file = e.target.files?.[0];
-          e.target.value = "";
-          if (file) onFileSelected(file);
-        }}
-      />
-      <Plus className="size-6" />
-      <span className="text-xs font-medium">Ajouter un avatar</span>
-    </button>
-  );
-}
 
 interface ColorSwatchProps {
   id: string;
@@ -212,11 +179,15 @@ export function AvatarPicker() {
   );
   const codexPets = useCodexPets();
   const selectedCodexPet = codexPetForAvatarId(settings.avatarId, codexPets);
+  const [customDots] = useCustomDots();
+  const selectedCustomDots = customDots[settings.avatarId];
   const selectedBundle: AvatarBundle =
     avatarRegistry[settings.avatarId] ??
     customBundles.find((bundle) => bundle.id === settings.avatarId) ??
     (selectedCodexPet && buildSpriteBundle(selectedCodexPet)) ??
     dotsRegistry[settings.avatarId] ??
+    (selectedCustomDots &&
+      buildCustomDotsBundle(settings.avatarId, selectedCustomDots.name)) ??
     avatarRegistry[DEFAULT_AVATAR_ID];
   const override = settings.avatarColorOverrides[selectedBundle.id];
   // Un pet Codex n'a ni body ni eyes : la section Couleurs est masquée (cf. plus bas).
@@ -350,7 +321,9 @@ export function AvatarPicker() {
                 onDelete={() => deleteCustomAvatar(bundle.id)}
               />
             ))}
-            <AddCustomAvatarCard
+            <AddAvatarFileCard
+              label="Ajouter un avatar"
+              accept="application/json,.json"
               onFileSelected={(file) => void handleFileSelected(file)}
             />
           </div>

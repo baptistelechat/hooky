@@ -7,6 +7,7 @@ import {
 } from "@/components/avatarDefinition";
 import { useCodexPets } from "@/hooks/useCodexPets";
 import { useCustomAvatars } from "@/hooks/useCustomAvatars";
+import { useCustomDots } from "@/hooks/useCustomDots";
 import { useDotsSheet } from "@/hooks/useDotsSheet";
 
 /** Bundle live d'un avatar, override couleur appliqué (persisté par avatarId dans
@@ -24,9 +25,17 @@ export function useAvatarBundle(
   const codexPets = useCodexPets();
   const body = colorOverride?.body;
   const eyes = colorOverride?.eyes;
+  const [customDots] = useCustomDots();
   const bundle = useMemo(
-    () => getAvatarBundle(avatarId, { body, eyes }, customAvatars, codexPets),
-    [avatarId, body, eyes, customAvatars, codexPets],
+    () =>
+      getAvatarBundle(
+        avatarId,
+        { body, eyes },
+        customAvatars,
+        codexPets,
+        customDots,
+      ),
+    [avatarId, body, eyes, customAvatars, codexPets, customDots],
   );
   // Personnage Dots Lab : la couleur du corps (donc du badge) n'est lisible qu'une fois sa
   // planche chargée -- même enrichissement asynchrone que `badgeColor` pour un pet Codex.

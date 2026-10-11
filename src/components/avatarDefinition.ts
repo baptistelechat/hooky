@@ -9,6 +9,7 @@ import {
   SPRITE_BADGE_ICON_COLOR,
   type CodexPet,
 } from "../lib/codexPets";
+import { customDotsSheetUrl, type CustomDots } from "../lib/customDots";
 import { DOTS_AVATAR_PREFIX, dotsAvatarId } from "../lib/dotsAvatars";
 // Import statique gardé uniquement pour le TYPE (schéma bible-strong partagé par tous
 // les avatars, cf. plus bas) -- le chargement runtime des définitions passe par
@@ -326,11 +327,26 @@ export const avatarIds = Object.keys(avatarRegistry);
 
 // "triangle-pills" -> "Triangle Pills" : une planche Dots Lab ne porte pas de nom, celui du
 // fichier fait foi.
-function dotsDisplayName(fileName: string): string {
+export function dotsDisplayName(fileName: string): string {
   return fileName
     .split("-")
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
     .join(" ");
+}
+
+/** Personnage Dots Lab importé par l'utilisateur : même bundle qu'une planche du repo, seule
+ * la provenance de la planche change (IndexedDB, cf. lib/customDots.ts). */
+export function buildCustomDotsBundle(
+  id: string,
+  name: string,
+): DotsAvatarBundle {
+  return {
+    kind: "dots",
+    id,
+    name,
+    sheetUrl: customDotsSheetUrl(id),
+    badgeIconColor: SPRITE_BADGE_ICON_COLOR,
+  };
 }
 
 // Un personnage Dots Lab = une planche « Copy SVG sheet » déposée telle quelle dans
@@ -391,12 +407,14 @@ export function getAvatarBundle(
   colorOverride?: AvatarColorOverride,
   customRegistry?: Record<string, RawAvatarDefinition>,
   codexPets: Record<string, CodexPet> = {},
+  customDots: CustomDots = {},
 ): AvatarBundle {
   const codexPet = codexPetForAvatarId(id, codexPets);
   if (codexPet) return buildSpriteBundle(codexPet);
 
-  if (id.startsWith(DOTS_AVATAR_PREFIX) && dotsRegistry[id]) {
-    return dotsRegistry[id];
+  if (id.startsWith(DOTS_AVATAR_PREFIX)) {
+    if (dotsRegistry[id]) return dotsRegistry[id];
+    if (customDots[id]) return buildCustomDotsBundle(id, customDots[id].name);
   }
 
   const customDefinition = customRegistry?.[id];

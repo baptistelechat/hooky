@@ -24,7 +24,7 @@ export const DOTS_STATES = [
 export type DotsStateName = (typeof DOTS_STATES)[number];
 
 /** Durée d'une boucle par état (attribut `dur` des planches, identique d'un personnage à
- * l'autre : mesuré sur les 12 planches du repo). */
+ * l'autre : mesuré sur les planches du repo). */
 const DOTS_STATE_MS: Record<DotsStateName, number> = {
   idle: 5500,
   listening: 4000,

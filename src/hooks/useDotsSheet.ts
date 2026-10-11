@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from "react";
+import { loadDotsSheetText } from "../lib/customDots";
 import { splitDotsSheet, type DotsStateName } from "../lib/dotsAvatars";
 
 /** Planche découpée et prête à afficher : une URL `blob:` par état (lue par un `<img>`, donc
@@ -11,7 +12,7 @@ export interface LoadedDotsSheet {
 // Store module-level (une instance par webview), même raison que `useCodexPets` : une planche
 // est partagée par le pet flottant, sa carte de picker et ~25 cartes de la grille Animation --
 // un téléchargement + découpage par consommateur serait absurde. Les URLs `blob:` vivent
-// autant que la webview (12 planches, quelques Mo), jamais révoquées.
+// autant que la webview (quelques Mo au total), jamais révoquées.
 const sheets = new Map<string, LoadedDotsSheet>();
 const loading = new Set<string>();
 const listeners = new Set<() => void>();
@@ -19,11 +20,7 @@ const listeners = new Set<() => void>();
 function load(sheetUrl: string) {
   if (sheets.has(sheetUrl) || loading.has(sheetUrl)) return;
   loading.add(sheetUrl);
-  fetch(sheetUrl)
-    .then((response) => {
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      return response.text();
-    })
+  loadDotsSheetText(sheetUrl)
     .then((text) => {
       const sheet = splitDotsSheet(text);
       if (!sheet)
