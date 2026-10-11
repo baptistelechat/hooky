@@ -7,6 +7,13 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Dots Lab characters: 12 new characters made with [Dots Lab](https://dots-lab.pages.dev/) (by
+  Guillaume, @guillaume_rygn) are available in a new "Dots Lab" section of the Avatar tab. Each
+  one has its own animation for idle, listening, thinking, writing, success, alert, error and
+  sleep, matched to what Claude Code is doing
+
 ### Fixed
 
 - Updating over an existing install could fail with "Unable to uninstall!" / "Error launching

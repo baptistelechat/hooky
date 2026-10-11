@@ -1,11 +1,13 @@
 import { useMemo } from "react";
 import {
+  ensureReadableOnWhite,
   getAvatarBundle,
   type AvatarBundle,
   type AvatarColorOverride,
 } from "@/components/avatarDefinition";
 import { useCodexPets } from "@/hooks/useCodexPets";
 import { useCustomAvatars } from "@/hooks/useCustomAvatars";
+import { useDotsSheet } from "@/hooks/useDotsSheet";
 
 /** Bundle live d'un avatar, override couleur appliqué (persisté par avatarId dans
  * `avatarColorOverrides`, cf. settings.ts). Mémoïsé sur les valeurs primitives body/eyes
@@ -22,8 +24,20 @@ export function useAvatarBundle(
   const codexPets = useCodexPets();
   const body = colorOverride?.body;
   const eyes = colorOverride?.eyes;
-  return useMemo(
+  const bundle = useMemo(
     () => getAvatarBundle(avatarId, { body, eyes }, customAvatars, codexPets),
     [avatarId, body, eyes, customAvatars, codexPets],
+  );
+  // Personnage Dots Lab : la couleur du corps (donc du badge) n'est lisible qu'une fois sa
+  // planche chargée -- même enrichissement asynchrone que `badgeColor` pour un pet Codex.
+  const dotsColor = useDotsSheet(
+    bundle.kind === "dots" ? bundle.sheetUrl : undefined,
+  )?.color;
+  return useMemo(
+    () =>
+      bundle.kind === "dots" && dotsColor
+        ? { ...bundle, badgeIconColor: ensureReadableOnWhite(dotsColor) }
+        : bundle,
+    [bundle, dotsColor],
   );
 }

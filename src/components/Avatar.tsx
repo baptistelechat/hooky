@@ -13,6 +13,7 @@ import { codexOverrideFor, findMappingEntry } from "../lib/animationCatalog";
 import { codexRowNameFor, hasGaze, type CodexRowName } from "../lib/codexPets";
 import { spawnContextMenuWindow } from "../lib/contextMenuWindow";
 import { debugZoneClass } from "../lib/debugZone";
+import { dotsStateFor } from "../lib/dotsAvatars";
 import {
   AVATAR_SHADOW_GAP,
   USAGE_PANEL_GAP,
@@ -277,6 +278,9 @@ export function PetAvatar({
               `animation: ${animation} (rev ${revision})`,
               ...(bundle.kind === "sprite"
                 ? [`Codex: ${codexRowNameFor(animation, codexRow)}`]
+                : []),
+              ...(bundle.kind === "dots"
+                ? [`Dots: ${dotsStateFor(animation)}`]
                 : []),
               `hook: ${lastEvent ?? "-"}${
                 toolName ? ` tool=${toolName}` : ""

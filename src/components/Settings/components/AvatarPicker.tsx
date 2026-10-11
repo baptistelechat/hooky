@@ -3,6 +3,7 @@ import {
   buildAvatarBundle,
   buildSpriteBundle,
   DEFAULT_AVATAR_ID,
+  dotsRegistry,
   type AvatarBundle,
   type RawAvatarDefinition,
 } from "@/components/avatarDefinition";
@@ -35,6 +36,7 @@ import { Palette, Plus, RotateCcw } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AvatarPickerCard } from "./AvatarPickerCard";
 import { CodexPetsSection } from "./CodexPetsSection";
+import { DotsAvatarsSection } from "./DotsAvatarsSection";
 import { PickerSectionHeader } from "./PickerSectionHeader";
 
 const COMMUNITY_URL = "https://avatars.bible-strong.app/";
@@ -214,6 +216,7 @@ export function AvatarPicker() {
     avatarRegistry[settings.avatarId] ??
     customBundles.find((bundle) => bundle.id === settings.avatarId) ??
     (selectedCodexPet && buildSpriteBundle(selectedCodexPet)) ??
+    dotsRegistry[settings.avatarId] ??
     avatarRegistry[DEFAULT_AVATAR_ID];
   const override = settings.avatarColorOverrides[selectedBundle.id];
   // Un pet Codex n'a ni body ni eyes : la section Couleurs est masquée (cf. plus bas).
@@ -352,6 +355,8 @@ export function AvatarPicker() {
             />
           </div>
         </section>
+
+        <DotsAvatarsSection />
 
         <CodexPetsSection />
       </div>
