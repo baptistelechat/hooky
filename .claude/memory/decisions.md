@@ -109,3 +109,7 @@ register: decisions
 | [BDR-104](decisions/BDR-104.md) | 2026-09-26 | Menu clic droit : fenêtre Tauri dédiée + DropdownMenu shadcn                       | #tauri #context-menu #shadcn #webviewwindow #multi-window #ux                                  | actif  |
 | [BDR-105](decisions/BDR-105.md) | 2026-09-26 | Fermeture du menu : surveillance souris côté Rust, pas le focus                    | #tauri #rust #win32 #getasynckeystate #dismiss #context-menu                                   | actif  |
 | [BDR-106](decisions/BDR-106.md) | 2026-09-28 | Verrou anti-concurrence sur le spawn du menu contextuel                            | #tauri #webviewwindow #context-menu #race-condition #webview2 #crash                           | actif  |
+| [BDR-107](decisions/BDR-107.md) | 2026-10-11 | Dots Lab : planche SVG brute comme format unique | #avatar #dots-lab #svg #smil #import-meta-glob #multi-avatar #file-format | actif |
+| [BDR-108](decisions/BDR-108.md) | 2026-10-11 | Dots Lab livrés sur autorisation publique informelle | #licence #dots-lab #attribution #agpl #open-source #due-diligence | actif |
+| [BDR-109](decisions/BDR-109.md) | 2026-10-11 | Dots perso : planche en IndexedDB, index en localStorage | #avatar #dots-lab #indexeddb #localstorage #import #storage #multi-window | actif |
+| [BDR-110](decisions/BDR-110.md) | 2026-10-11 | Import Dots : la carte « + » colle, fichier secondaire | #avatar #dots-lab #import #clipboard #paste #ux #settings | actif |

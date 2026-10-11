@@ -124,3 +124,6 @@ register: learnings
 | [LRN-119](learnings/LRN-119.md) | 2026-09-26 | Popup Tauri : fermer au clic extérieur sans dépendre du focus                       | #tauri #windows #focus #popup #dismiss #win32 #polling                                |
 | [LRN-120](learnings/LRN-120.md) | 2026-09-26 | Chaque fenêtre Tauri secondaire rouvre le menu natif WebView2                       | #tauri #webview2 #contextmenu #preventdefault #multi-window                           |
 | [LRN-121](learnings/LRN-121.md) | 2026-09-28 | Spawn de fenêtre Tauri sans verrou = crash WebView2 possible                        | #tauri #webview2 #webviewwindow #race-condition #crash #spawn-guard                   |
+| [LRN-125](learnings/LRN-125.md) | 2026-10-11 | Lien Dots Lab : `m1` + 8 index base 36 + couleur | #dots-lab #preset #url-token #base36 #avatar #naming |
+| [LRN-126](learnings/LRN-126.md) | 2026-10-11 | Page autonome en IIFE : exposer ses fonctions en local | #claude-browser #export #iife #automation #verification #dots-lab #tooling |
+| [LRN-127](learnings/LRN-127.md) | 2026-10-11 | Calquer un import sur le geste réel de l'outil source | #ux #import #clipboard #third-party-tool #ui-labels #verification #dots-lab |
