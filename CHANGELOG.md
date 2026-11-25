@@ -7,6 +7,8 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-11-25
+
 ### Added
 
 - Open Bot Avatar characters: 23 bots from [Open Bot Avatar](https://dominikscholz.github.io/open-bot-avatar/)
@@ -162,7 +164,8 @@ project adheres to [Semantic Versioning](https://semver.org/).
 - Update check (manual button, silent check on launch, persistent indicator)
 - GitHub Actions release pipeline building and publishing the Windows installer on tag push
 
-[Unreleased]: https://github.com/baptistelechat/hooky/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/baptistelechat/hooky/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/baptistelechat/hooky/releases/tag/v0.5.0
 [0.4.0]: https://github.com/baptistelechat/hooky/releases/tag/v0.4.0
 [0.3.1]: https://github.com/baptistelechat/hooky/releases/tag/v0.3.1
 [0.3.0]: https://github.com/baptistelechat/hooky/releases/tag/v0.3.0
