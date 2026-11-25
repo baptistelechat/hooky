@@ -2,13 +2,17 @@
 id: ZBLK-003
 type: blocker
 date: 2026-08-24
+summary: "Install shadcn/Tailwind bloqué 3x par la quarantaine pnpm"
 tags: [shadcn, pnpm, minimum-release-age, tailwind, install, npmrc]
+status: résolu
 ---
 
 # ZBLK-003 — Install shadcn/Tailwind bloqué 3x par la quarantaine pnpm
 
-| Friction                                                                                                                                                                                                                                   | Cause réelle                                                                                                                                                                                              | Solution                                                                                                                                                       | Statut |
-| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
-| `pnpm dlx shadcn@latest init` échouait à répétition (3 tentatives) avec `ERR_PNPM_NO_MATURE_MATCHING_VERSION`, sur une dépendance transitive de plateforme `rollup` différente à chaque essai (loong64-musl, android-arm64, ppc64-musl...) | Politique globale pnpm `minimum-release-age` (7 jours) déclenchée par les appels `pnpm add` internes du CLI shadcn -- aucun flag possible à lui passer pour la contourner ponctuellement comme d'habitude | `.npmrc` local temporaire (`minimum-release-age=0`) créé à la racine du projet le temps de l'`init`, supprimé juste après -- politique globale jamais modifiée | résolu |
+**Friction** : `pnpm dlx shadcn@latest init` échouait à répétition (3 tentatives) avec `ERR_PNPM_NO_MATURE_MATCHING_VERSION`, sur une dépendance transitive de plateforme `rollup` différente à chaque essai (loong64-musl, android-arm64, ppc64-musl...)
+
+**Cause réelle** : Politique globale pnpm `minimum-release-age` (7 jours) déclenchée par les appels `pnpm add` internes du CLI shadcn -- aucun flag possible à lui passer pour la contourner ponctuellement comme d'habitude
+
+**Solution** : `.npmrc` local temporaire (`minimum-release-age=0`) créé à la racine du projet le temps de l'`init`, supprimé juste après -- politique globale jamais modifiée
 
 Voir aussi GLRN-258 (mémoire globale, hors repo) pour le pattern générique extrait.

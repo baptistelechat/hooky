@@ -2,14 +2,18 @@
 id: ZBLK-040
 type: blocker
 date: 2026-09-25
+summary: "Sélecteur de langue NSIS invisible malgré la config"
 tags: [nsis, installer, registry, publisher, tauri, misdiagnosis]
+status: résolu
 ---
 
 # ZBLK-040 — Sélecteur de langue NSIS invisible malgré displayLanguageSelector
 
-| Friction                                                                                                                                                                                                                                                                                                                                            | Cause réelle                                                                                                                                                                                                                                                                                              | Solution                                                                                                                                                       | Statut |
-| --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
-| `languages: ["French", "English"]` et `displayLanguageSelector: true` étaient configurés, mais Baptiste n'a jamais vu la boîte de choix. Environ 6 essais : `Remove-ItemProperty` refusé (mauvaise clé), relance sans effet, lecture du `installer.nsi`, capture d'écran de l'installateur, mini-installateur de test qui, lui, affichait la boîte. | La langue est mémorisée sous `HKCU\Software\<publisher>\<produit>`. En passant `publisher` à « Baptiste LECHAT », la clé est devenue `Software\Baptiste LECHAT\Hooky`, avec `Installer Language = 1036` déjà écrit, alors que l'inspection portait sur l'ancienne clé `baptistelechat`, restée orpheline. | Lire `MANUFACTURER` dans le `installer.nsi` généré, puis supprimer `Installer Language` dans `HKCU:\Software\Baptiste LECHAT\Hooky`. La config était correcte. | résolu |
+**Friction** : `languages: ["French", "English"]` et `displayLanguageSelector: true` étaient configurés, mais Baptiste n'a jamais vu la boîte de choix. Environ 6 essais : `Remove-ItemProperty` refusé (mauvaise clé), relance sans effet, lecture du `installer.nsi`, capture d'écran de l'installateur, mini-installateur de test qui, lui, affichait la boîte.
+
+**Cause réelle** : La langue est mémorisée sous `HKCU\Software\<publisher>\<produit>`. En passant `publisher` à « Baptiste LECHAT », la clé est devenue `Software\Baptiste LECHAT\Hooky`, avec `Installer Language = 1036` déjà écrit, alors que l'inspection portait sur l'ancienne clé `baptistelechat`, restée orpheline.
+
+**Solution** : Lire `MANUFACTURER` dans le `installer.nsi` généré, puis supprimer `Installer Language` dans `HKCU:\Software\Baptiste LECHAT\Hooky`. La config était correcte.
 
 ## Références
 

@@ -2,14 +2,18 @@
 id: ZBLK-015
 type: blocker
 date: 2026-08-26
+summary: "Color pickers lents/lag lors de l'édition de couleur"
 tags: [avatar, performance, lag, usememo, ipc, color-picker]
+status: résolu
 ---
 
 # ZBLK-015 — Color pickers lents/lag lors de l'édition de couleur
 
-| Friction                                                                                             | Cause réelle                                                                                                                                                                                                                                                                                    | Solution                                                                                                                                                         | Statut |
-| ---------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
-| Éditer une couleur dans le picker rendait l'UI (settings + pet flottant) visiblement lente/saccadée. | Deux causes cumulées : (1) `getAvatarBundle` non mémoïsé rejouait `createAvatar()` à chaque re-render dès qu'un override était actif ; (2) le picker natif committait à chaque event "input" (continu pendant le drag), chaque commit déclenchant un `emit` IPC cross-fenêtre + rebuild avatar. | `useAvatarBundle` avec `useMemo` sur les valeurs primitives body/eyes ; commit différé à l'event "change" natif du picker, aperçu local instantané en attendant. | résolu |
+**Friction** : Éditer une couleur dans le picker rendait l'UI (settings + pet flottant) visiblement lente/saccadée.
+
+**Cause réelle** : Deux causes cumulées : (1) `getAvatarBundle` non mémoïsé rejouait `createAvatar()` à chaque re-render dès qu'un override était actif ; (2) le picker natif committait à chaque event "input" (continu pendant le drag), chaque commit déclenchant un `emit` IPC cross-fenêtre + rebuild avatar.
+
+**Solution** : `useAvatarBundle` avec `useMemo` sur les valeurs primitives body/eyes ; commit différé à l'event "change" natif du picker, aperçu local instantané en attendant.
 
 ## Références
 
