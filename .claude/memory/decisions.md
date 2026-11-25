@@ -113,3 +113,5 @@ register: decisions
 | [BDR-108](decisions/BDR-108.md) | 2026-10-11 | Dots Lab livrés sur autorisation publique informelle | #licence #dots-lab #attribution #agpl #open-source #due-diligence | actif |
 | [BDR-109](decisions/BDR-109.md) | 2026-10-11 | Dots perso : planche en IndexedDB, index en localStorage | #avatar #dots-lab #indexeddb #localstorage #import #storage #multi-window | actif |
 | [BDR-110](decisions/BDR-110.md) | 2026-10-11 | Import Dots : la carte « + » colle, fichier secondaire | #avatar #dots-lab #import #clipboard #paste #ux #settings | actif |
+| [BDR-261125_1629-1](decisions/BDR-261125_1629-1.md) | 2026-11-25 | Open Bot Avatar : 4ᵉ type d'avatar `bot:`, regard libre | #open-bot-avatar #avatar #eye-tracking #mit #multi-avatar #import #localstorage | actif |
+| [BDR-261125_1629-2](decisions/BDR-261125_1629-2.md) | 2026-11-25 | Picker d'avatars en accordéon, réglages bot en footer | #picker #accordion #ui #toggle-group #settings #open-bot-avatar | actif |
