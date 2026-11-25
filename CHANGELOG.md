@@ -17,7 +17,8 @@ project adheres to [Semantic Versioning](https://semver.org/).
   turn cursor following on or off, and edit its body and eye colors
 - Import your own bot: generate one on the Open Bot Avatar site, copy the JSON, then click the
   "Coller un bot" card (or press Ctrl+V) in the Avatar tab, or add a `.json` file with "Importer
-  un fichier". Imported bots can be removed from their card
+  un fichier". Each imported bot gets its own color from the gallery palette (editable like the
+  others), and can be removed from its card
 
 ### Changed
 

@@ -399,15 +399,27 @@ export const dotsRegistry: Record<string, DotsAvatarBundle> =
   Object.fromEntries(loadDotsBundles().map((bundle) => [bundle.id, bundle]));
 // Avatars Open Bot Avatar : les 7 de départ du package, puis la galerie du repo d'origine
 // déposée dans ./bots/*.json (cf. ./bots/README.md) -- même principe que ./avatars/*.json.
+const BOT_GALLERY_COLORS = import.meta.glob("./bots/colors.json", {
+  eager: true,
+  import: "default",
+})["./bots/colors.json"] as Record<string, string>;
+
+// Le JSON du générateur Open Bot n'a pas de couleur (géométrie seule, par conception) : un bot
+// importé prend une couleur de la palette de la galerie, déduite de son id -- stable d'une
+// ouverture à l'autre, sans rien stocker. Éditable ensuite comme les autres (avatarColorOverrides).
+const BOT_PALETTE = [...new Set(Object.values(BOT_GALLERY_COLORS))];
+
+export function botPaletteColor(id: string): string {
+  let hash = 0;
+  for (const char of id) hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
+  return BOT_PALETTE[hash % BOT_PALETTE.length] ?? BOT_DEFAULT_COLOR;
+}
+
 function loadBotBundles(): BotAvatarBundle[] {
   const modules = import.meta.glob(["./bots/*.json", "!./bots/colors.json"], {
     eager: true,
     import: "default",
   }) as Record<string, unknown>;
-  const colors = import.meta.glob("./bots/colors.json", {
-    eager: true,
-    import: "default",
-  })["./bots/colors.json"] as Record<string, string>;
   const gallery = Object.values(modules).flatMap((raw) => {
     const result = validateAvatar(raw);
     return result.ok ? [result.value] : [];
@@ -416,7 +428,7 @@ function loadBotBundles(): BotAvatarBundle[] {
     buildBotBundle(
       botAvatarId(definition.id),
       definition,
-      colors[definition.id],
+      BOT_GALLERY_COLORS[definition.id],
     ),
   );
 }
@@ -490,7 +502,8 @@ export function getAvatarBundle(
   if (id.startsWith(BOT_AVATAR_PREFIX)) {
     const bot =
       botRegistry[id] ??
-      (customBots[id] && buildBotBundle(id, customBots[id]));
+      (customBots[id] &&
+        buildBotBundle(id, customBots[id], botPaletteColor(id)));
     if (bot) {
       return buildBotBundle(
         id,

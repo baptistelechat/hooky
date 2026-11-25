@@ -1,4 +1,5 @@
 import {
+  botPaletteColor,
   botRegistry,
   buildBotBundle,
   DEFAULT_AVATAR_ID,
@@ -31,7 +32,7 @@ export function BotAvatarsSection() {
   const customBundles = useMemo(
     () =>
       Object.entries(customBots).map(([id, definition]) =>
-        buildBotBundle(id, definition),
+        buildBotBundle(id, definition, botPaletteColor(id)),
       ),
     [customBots],
   );
