@@ -3,6 +3,7 @@ import {
   DEFAULT_AVATAR_ID,
   type AvatarColorOverride,
 } from "../components/avatarDefinition";
+import type { BotMaterialName, BotMood } from "./botAvatars";
 import { DEFAULT_SOUND_FEEL } from "./sounds";
 
 export interface HookySettings {
@@ -34,6 +35,11 @@ export interface HookySettings {
   // = cues, `soundAmbienceVolume` = boucle de fond, plus bas par défaut pour rester un fond.
   soundVolume: number;
   soundAmbienceVolume: number;
+  // Avatars Open Bot Avatar (cf. lib/botAvatars.ts) : réglages communs à tous, les couleurs
+  // restent par avatar dans `avatarColorOverrides`.
+  botMood: BotMood;
+  botMaterial: BotMaterialName;
+  botFollowCursor: boolean;
 }
 
 export const DEFAULT_SETTINGS: HookySettings = {
@@ -51,6 +57,9 @@ export const DEFAULT_SETTINGS: HookySettings = {
   soundFeel: DEFAULT_SOUND_FEEL,
   soundVolume: 100,
   soundAmbienceVolume: 30,
+  botMood: "neutral",
+  botMaterial: "flat",
+  botFollowCursor: true,
 };
 
 const STORAGE_KEY = "hooky-settings";

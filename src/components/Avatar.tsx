@@ -13,6 +13,7 @@ import { codexOverrideFor, findMappingEntry } from "../lib/animationCatalog";
 import { codexRowNameFor, hasGaze, type CodexRowName } from "../lib/codexPets";
 import { spawnContextMenuWindow } from "../lib/contextMenuWindow";
 import { debugZoneClass } from "../lib/debugZone";
+import { botStateName } from "../lib/botAvatars";
 import { dotsStateFor } from "../lib/dotsAvatars";
 import {
   AVATAR_SHADOW_GAP,
@@ -263,6 +264,7 @@ export function PetAvatar({
             codexRow={codexRow}
             gazeIndex={gazeIndex ?? undefined}
             onSpriteError={handleSpriteError}
+            followCursor={settings.botFollowCursor}
             size={renderedAvatarSize}
             className="animate-in fade-in duration-300"
             style={{
@@ -281,6 +283,9 @@ export function PetAvatar({
                 : []),
               ...(bundle.kind === "dots"
                 ? [`Dots: ${dotsStateFor(animation)}`]
+                : []),
+              ...(bundle.kind === "bot"
+                ? [`Bot: ${botStateName(animation)}`]
                 : []),
               `hook: ${lastEvent ?? "-"}${
                 toolName ? ` tool=${toolName}` : ""
