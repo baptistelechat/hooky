@@ -15,11 +15,11 @@ import {
 } from "@/lib/customDots";
 import { splitDotsSheet } from "@/lib/dotsAvatars";
 import { readSettings } from "@/lib/settings";
-import { FileUp } from "lucide-react";
+import { FileUp, Shapes } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AddAvatarCard, HiddenFileInput } from "./AddAvatarCard";
 import { AvatarPickerCard } from "./AvatarPickerCard";
-import { PickerSectionHeader } from "./PickerSectionHeader";
+import { PickerSection } from "./PickerSection";
 
 const DOTS_LAB_URL = "https://dots-lab.pages.dev/";
 // Une planche animée pèse 0,5 à 0,9 Mo : au-delà, ce n'est pas un export Dots Lab.
@@ -131,13 +131,16 @@ export function DotsAvatarsSection() {
   }
 
   return (
-    <section className="flex flex-col gap-2" aria-label="Personnages Dots Lab">
-      <PickerSectionHeader
-        title="Dots Lab"
-        linkLabel="Créer sur Dots Lab"
-        linkUrl={DOTS_LAB_URL}
-      >
-        <Button
+    <PickerSection
+      value="dots"
+      icon={Shapes}
+      title="Dots Lab"
+      count={Object.keys(dotsRegistry).length + customBundles.length}
+      linkLabel="Créer sur Dots Lab"
+      linkUrl={DOTS_LAB_URL}
+      actions={
+        <>
+          <Button
           type="button"
           variant="ghost"
           size="xs"
@@ -146,12 +149,14 @@ export function DotsAvatarsSection() {
           <FileUp data-icon="inline-start" />
           Importer un fichier
         </Button>
-        <HiddenFileInput
-          ref={fileInputRef}
-          accept="image/svg+xml,.svg"
-          onFileSelected={(file) => void handleFileSelected(file)}
-        />
-      </PickerSectionHeader>
+          <HiddenFileInput
+            ref={fileInputRef}
+            accept="image/svg+xml,.svg"
+            onFileSelected={(file) => void handleFileSelected(file)}
+          />
+        </>
+      }
+    >
       <div className="grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] content-start gap-2">
         {Object.values(dotsRegistry).map((bundle) => (
           <AvatarPickerCard
@@ -192,6 +197,6 @@ export function DotsAvatarsSection() {
         animated SVG », choisis All 8 states → Copy SVG sheet, puis clique sur «
         Coller un personnage » (ou fais Ctrl+V).
       </p>
-    </section>
+    </PickerSection>
   );
 }

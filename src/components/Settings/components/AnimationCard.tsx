@@ -10,6 +10,7 @@ import { useAnimationEffects } from "@/hooks/useAnimationEffects";
 import { useAvatarBundle } from "@/hooks/useAvatarBundle";
 import { useSettings } from "@/hooks/useSettings";
 import { codexRowNameFor } from "@/lib/codexPets";
+import { botStateName } from "@/lib/botAvatars";
 import { dotsStateFor } from "@/lib/dotsAvatars";
 import { triggerPreview } from "@/lib/eventTrigger";
 
@@ -126,6 +127,11 @@ export function AnimationCard({ entry, isLive, onSelect }: AnimationCardProps) {
         {bundle.kind === "dots" && (
           <span className="font-mono text-[0.7rem] text-muted-foreground">
             Dots Lab : {dotsStateFor(animation)}
+          </span>
+        )}
+        {bundle.kind === "bot" && (
+          <span className="font-mono text-[0.7rem] text-muted-foreground">
+            Open Bot : {botStateName(animation)}
           </span>
         )}
         <span className="text-[0.7rem] leading-snug text-muted-foreground">

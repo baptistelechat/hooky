@@ -2,14 +2,18 @@
 id: ZBLK-018
 type: blocker
 date: 2026-08-26
+summary: "Boutons reset restent full-width malgré la largeur de fenêtre"
 tags: [css, container-query, tailwind, field-group, button]
+status: résolu
 ---
 
 # BLK-018 — Boutons reset restent full-width malgré la largeur de fenêtre
 
-| Friction                                                                                                                                                                                                                                                                                                                    | Cause réelle                                                                                                                                                                                            | Solution                                                                                                                                                                                                                                                                               | Statut |
-| --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
-| Les boutons "Réinitialiser"/"Tout réinitialiser" de l'onglet Avatar restaient en pleine largeur même à la taille par défaut de la fenêtre settings, contrairement aux boutons équivalents de l'onglet Réglages (Exporter/Importer/Réinitialiser) qui passent correctement en largeur au contenu au-delà d'un certain seuil. | Un `@container/field-group` posé à la main sur un `div` interne (au lieu du vrai composant `FieldGroup` ancêtre, cf. `field.tsx`) plutôt que la structure réellement utilisée par `ConfigurationField`. | Restructuration en `FieldGroup` + `Field orientation="responsive"` (mêmes composants que Réglages) -- confirmé visuellement dans la vraie fenêtre Tauri (cf. [LRN-035](../learnings/LRN-035.md)) : les boutons passent bien en largeur au contenu, côte à côte, dès `@md/field-group`. | résolu |
+**Friction** : Les boutons "Réinitialiser"/"Tout réinitialiser" de l'onglet Avatar restaient en pleine largeur même à la taille par défaut de la fenêtre settings, contrairement aux boutons équivalents de l'onglet Réglages (Exporter/Importer/Réinitialiser) qui passent correctement en largeur au contenu au-delà d'un certain seuil.
+
+**Cause réelle** : Un `@container/field-group` posé à la main sur un `div` interne (au lieu du vrai composant `FieldGroup` ancêtre, cf. `field.tsx`) plutôt que la structure réellement utilisée par `ConfigurationField`.
+
+**Solution** : Restructuration en `FieldGroup` + `Field orientation="responsive"` (mêmes composants que Réglages) -- confirmé visuellement dans la vraie fenêtre Tauri (cf. [LRN-035](../learnings/LRN-035.md)) : les boutons passent bien en largeur au contenu, côte à côte, dès `@md/field-group`.
 
 ## Références
 

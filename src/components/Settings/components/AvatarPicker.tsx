@@ -1,13 +1,11 @@
 import {
   avatarRegistry,
   buildAvatarBundle,
-  buildCustomDotsBundle,
-  buildSpriteBundle,
   DEFAULT_AVATAR_ID,
-  dotsRegistry,
   type AvatarBundle,
   type RawAvatarDefinition,
 } from "@/components/avatarDefinition";
+import { Accordion } from "@/components/ui/accordion";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -27,21 +25,29 @@ import {
   FieldTitle,
 } from "@/components/ui/field";
 import { Separator } from "@/components/ui/separator";
-import { useCodexPets } from "@/hooks/useCodexPets";
+import { useAvatarBundle } from "@/hooks/useAvatarBundle";
 import { useCustomAvatars } from "@/hooks/useCustomAvatars";
-import { useCustomDots } from "@/hooks/useCustomDots";
 import { useSettings } from "@/hooks/useSettings";
-import { codexPetForAvatarId } from "@/lib/codexPets";
 import { cn } from "@/lib/utils";
-import { Palette, RotateCcw } from "lucide-react";
+import { Palette, RotateCcw, Sparkles } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AddAvatarFileCard } from "./AddAvatarCard";
 import { AvatarPickerCard } from "./AvatarPickerCard";
+import { BotAvatarsSection } from "./BotAvatarsSection";
+import { BotStyleFields } from "./BotStyleFields";
 import { CodexPetsSection } from "./CodexPetsSection";
 import { DotsAvatarsSection } from "./DotsAvatarsSection";
-import { PickerSectionHeader } from "./PickerSectionHeader";
+import { PickerSection } from "./PickerSection";
 
 const COMMUNITY_URL = "https://avatars.bible-strong.app/";
+
+// Section de l'Accordion ouverte à l'ouverture du picker : celle de l'avatar en cours.
+const SECTION_FOR_KIND: Record<AvatarBundle["kind"], string> = {
+  procedural: "avatars",
+  bot: "bots",
+  dots: "dots",
+  sprite: "codex",
+};
 
 interface ColorSwatchProps {
   id: string;
@@ -177,30 +183,25 @@ export function AvatarPicker() {
       ),
     [customAvatars],
   );
-  const codexPets = useCodexPets();
-  const selectedCodexPet = codexPetForAvatarId(settings.avatarId, codexPets);
-  const [customDots] = useCustomDots();
-  const selectedCustomDots = customDots[settings.avatarId];
-  const selectedBundle: AvatarBundle =
-    avatarRegistry[settings.avatarId] ??
-    customBundles.find((bundle) => bundle.id === settings.avatarId) ??
-    (selectedCodexPet && buildSpriteBundle(selectedCodexPet)) ??
-    dotsRegistry[settings.avatarId] ??
-    (selectedCustomDots &&
-      buildCustomDotsBundle(settings.avatarId, selectedCustomDots.name)) ??
-    avatarRegistry[DEFAULT_AVATAR_ID];
+  // Même résolution que le pet flottant (repli sur l'avatar par défaut inclus), sans override :
+  // les couleurs d'origine servent de valeurs par défaut aux swatches ci-dessous.
+  const selectedBundle = useAvatarBundle(settings.avatarId, undefined);
   const override = settings.avatarColorOverrides[selectedBundle.id];
   // Un pet Codex n'a ni body ni eyes : la section Couleurs est masquée (cf. plus bas).
   const bodyColor =
     override?.body ??
     (selectedBundle.kind === "procedural"
       ? selectedBundle.definition.colors.body
-      : "");
+      : selectedBundle.kind === "bot"
+        ? selectedBundle.color
+        : "");
   const eyesColor =
     override?.eyes ??
     (selectedBundle.kind === "procedural"
       ? selectedBundle.definition.colors.eyes
-      : "");
+      : selectedBundle.kind === "bot"
+        ? selectedBundle.eyeColor
+        : "");
   const hasAnyOverride = Object.keys(settings.avatarColorOverrides).length > 0;
 
   function setColor(key: "body" | "eyes", value: string) {
@@ -284,15 +285,21 @@ export function AvatarPicker() {
 
   return (
     <div className="flex flex-1 flex-col gap-3 overflow-hidden">
-      {/* Une seule zone défilante : la grille des avatars du repo/customs, puis la section des
-          pets Codex (lus depuis le disque, cf. CodexPetsSection). */}
-      <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto pr-1">
-        <section className="flex flex-col gap-2" aria-label="Avatars">
-          <PickerSectionHeader
-            title="Avatars"
-            linkLabel="Créer ou télécharger"
-            linkUrl={COMMUNITY_URL}
-          />
+      {/* Une seule zone défilante, une section repliable par famille d'avatars (même Accordion
+          que Réglages). `defaultValue` : lu au montage seulement, l'utilisateur garde la main. */}
+      <Accordion
+        multiple
+        defaultValue={[SECTION_FOR_KIND[selectedBundle.kind]]}
+        className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto pr-1"
+      >
+        <PickerSection
+          value="avatars"
+          icon={Sparkles}
+          title="Avatars"
+          count={Object.keys(avatarRegistry).length + customBundles.length}
+          linkLabel="Créer ou télécharger"
+          linkUrl={COMMUNITY_URL}
+        >
           <div className="grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] content-start gap-2">
             {Object.values(avatarRegistry).map((bundle) => (
               <AvatarPickerCard
@@ -327,20 +334,26 @@ export function AvatarPicker() {
               onFileSelected={(file) => void handleFileSelected(file)}
             />
           </div>
-        </section>
+        </PickerSection>
+
+        <BotAvatarsSection />
 
         <DotsAvatarsSection />
 
         <CodexPetsSection />
-      </div>
+      </Accordion>
 
       {importError && <p className="text-xs text-destructive">{importError}</p>}
 
       <Separator />
 
       {/* Pas de couleurs à éditer pour un pet Codex (spritesheet figée, ni body ni eyes). */}
-      {selectedBundle.kind === "procedural" && (
+      {(selectedBundle.kind === "procedural" ||
+        selectedBundle.kind === "bot") && (
         <FieldGroup>
+          {/* Réglages du bot en premier : changés plus souvent que les couleurs. */}
+          {selectedBundle.kind === "bot" && <BotStyleFields />}
+
           {/* `orientation="responsive"` (cf. field.tsx) : même comportement que le Switch
             "Effets visuels" (label+description à gauche, contrôle à droite) mais qui
             repasse sous le label dès que le conteneur `field-group` (posé par FieldGroup
@@ -397,6 +410,7 @@ export function AvatarPicker() {
               onResetAllClick={() => setResetAllDialogOpen(true)}
             />
           </Field>
+
         </FieldGroup>
       )}
 

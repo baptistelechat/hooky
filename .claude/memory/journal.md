@@ -991,3 +991,12 @@ Lint et build verts, react-doctor sans problème sur les changements (score du r
 - [BDR-109](decisions/BDR-109.md) — planches importées en IndexedDB, index en localStorage
 - [BDR-110](decisions/BDR-110.md) — la carte « + » colle, le fichier est secondaire
 - [LRN-127](learnings/LRN-127.md) — calquer un import sur le geste réel de l'outil source
+
+## 2026-11-25
+
+Intégration d'Open Bot Avatar (Dominik Scholz, licence MIT vérifiée) comme 4ᵉ type d'avatar : les 7 bots du package npm + 16 bots de la galerie copiés dans `src/components/bots/`, rendus par `mountAvatar` puis pilotés par `update()`. Le regard suit le curseur global partout sauf en veille : la fenêtre du pet étant trop petite pour les events pointer, la position globale est lue par polling et injectée dans le moteur via `setPointer`. Réglages yeux (neutre/joyeux), matière (plat/fourrure/verre) et suivi du curseur, couleurs par avatar. Baptiste a ensuite demandé l'import des bots du générateur comme pour Dots Lab (collage, Ctrl+V, fichier .json validé par `validateAvatar`), puis un picker en accordéon par famille et les réglages du bot dans le footer, au-dessus des couleurs, en contrôles segmentés. Les bots importés sortaient tous orange : le JSON du générateur n'a pas de couleur, ils prennent désormais une couleur de la palette de la galerie déduite de leur id. Le CLI shadcn a de nouveau importé `cn` depuis le paquet `cn` (4ᵉ fois). react-doctor a signalé la chaîne `??` de résolution de l'avatar sélectionné, remplacée par `useAvatarBundle`. Les registres mémoire ont été migrés au format à index généré (`memory-index.mjs --migrate`, 276 fichiers, commit séparé).
+
+**Entrées clés :**
+
+- [BDR-261125_1629-1](decisions/BDR-261125_1629-1.md) — Open Bot Avatar : 4ᵉ type d'avatar `bot:`, regard libre
+- [BDR-261125_1629-2](decisions/BDR-261125_1629-2.md) — Picker d'avatars en accordéon, réglages bot en footer

@@ -9,8 +9,17 @@ import {
   SPRITE_BADGE_ICON_COLOR,
   type CodexPet,
 } from "../lib/codexPets";
+import type { CustomBots } from "../lib/customBots";
 import { customDotsSheetUrl, type CustomDots } from "../lib/customDots";
 import { DOTS_AVATAR_PREFIX, dotsAvatarId } from "../lib/dotsAvatars";
+import { BOT_AVATAR_PREFIX, botAvatarId } from "../lib/botAvatars";
+import {
+  DEFAULT_COLOR as BOT_DEFAULT_COLOR,
+  DEFAULT_EYE_COLOR as BOT_DEFAULT_EYE_COLOR,
+  examples as botExamples,
+  validateAvatar,
+  type AvatarDefinition as BotDefinition,
+} from "open-bot-avatar";
 // Import statique gardé uniquement pour le TYPE (schéma bible-strong partagé par tous
 // les avatars, cf. plus bas) -- le chargement runtime des définitions passe par
 // `import.meta.glob` (voir requireAvatarModules).
@@ -279,10 +288,24 @@ export interface DotsAvatarBundle {
   badgeIconColor: string;
 }
 
+/** Avatar Open Bot Avatar (cf. BotAvatar) : un contour SVG + des yeux, rendu en volume par le
+ * moteur `open-bot-avatar`. Couleurs éditables (`avatarColorOverrides`, comme un procédural),
+ * humeur et matière réglées globalement dans les settings. */
+export interface BotAvatarBundle {
+  kind: "bot";
+  id: string;
+  name: string;
+  definition: BotDefinition;
+  color: string;
+  eyeColor: string;
+  badgeIconColor: string;
+}
+
 export type AvatarBundle =
   | ProceduralAvatarBundle
   | SpriteAvatarBundle
-  | DotsAvatarBundle;
+  | DotsAvatarBundle
+  | BotAvatarBundle;
 
 export function buildSpriteBundle(pet: CodexPet): SpriteAvatarBundle {
   return {
@@ -374,6 +397,64 @@ function loadDotsBundles(): DotsAvatarBundle[] {
 
 export const dotsRegistry: Record<string, DotsAvatarBundle> =
   Object.fromEntries(loadDotsBundles().map((bundle) => [bundle.id, bundle]));
+// Avatars Open Bot Avatar : les 7 de départ du package, puis la galerie du repo d'origine
+// déposée dans ./bots/*.json (cf. ./bots/README.md) -- même principe que ./avatars/*.json.
+const BOT_GALLERY_COLORS = import.meta.glob("./bots/colors.json", {
+  eager: true,
+  import: "default",
+})["./bots/colors.json"] as Record<string, string>;
+
+// Le JSON du générateur Open Bot n'a pas de couleur (géométrie seule, par conception) : un bot
+// importé prend une couleur de la palette de la galerie, déduite de son id -- stable d'une
+// ouverture à l'autre, sans rien stocker. Éditable ensuite comme les autres (avatarColorOverrides).
+const BOT_PALETTE = [...new Set(Object.values(BOT_GALLERY_COLORS))];
+
+export function botPaletteColor(id: string): string {
+  let hash = 0;
+  for (const char of id) hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
+  return BOT_PALETTE[hash % BOT_PALETTE.length] ?? BOT_DEFAULT_COLOR;
+}
+
+function loadBotBundles(): BotAvatarBundle[] {
+  const modules = import.meta.glob(["./bots/*.json", "!./bots/colors.json"], {
+    eager: true,
+    import: "default",
+  }) as Record<string, unknown>;
+  const gallery = Object.values(modules).flatMap((raw) => {
+    const result = validateAvatar(raw);
+    return result.ok ? [result.value] : [];
+  });
+  return [...botExamples, ...gallery].map((definition) =>
+    buildBotBundle(
+      botAvatarId(definition.id),
+      definition,
+      BOT_GALLERY_COLORS[definition.id],
+    ),
+  );
+}
+
+/** Bot du registre ou importé par l'utilisateur (cf. lib/customBots.ts). */
+export function buildBotBundle(
+  id: string,
+  definition: BotDefinition,
+  color: string = BOT_DEFAULT_COLOR,
+  eyeColor: string = BOT_DEFAULT_EYE_COLOR,
+): BotAvatarBundle {
+  return {
+    kind: "bot",
+    id,
+    name: definition.name,
+    definition,
+    color,
+    eyeColor,
+    badgeIconColor: ensureReadableOnWhite(color),
+  };
+}
+
+export const botRegistry: Record<string, BotAvatarBundle> = Object.fromEntries(
+  loadBotBundles().map((bundle) => [bundle.id, bundle]),
+);
+
 // "cubee" explicite -- `avatarIds[0]` dépendait de l'ordre de résolution du glob (Vite
 // résout ./avatars/*.json par ordre alphabétique de chemin, donc "citrus" passait avant
 // "cubee"), un ordre incident plutôt qu'un choix. Cubee est la mascotte du repo.
@@ -387,7 +468,7 @@ export const DEFAULT_AVATAR_ID = "cubee";
  * désirée à l'usage. */
 export function avatarBundleKey(bundle: AvatarBundle): string {
   if (bundle.kind === "sprite") return `${bundle.id}:${bundle.spriteUrl}`;
-  if (bundle.kind === "dots") return bundle.id;
+  if (bundle.kind === "dots" || bundle.kind === "bot") return bundle.id;
   return `${bundle.id}:${bundle.definition.colors.body}:${bundle.definition.colors.eyes}`;
 }
 
@@ -408,6 +489,7 @@ export function getAvatarBundle(
   customRegistry?: Record<string, RawAvatarDefinition>,
   codexPets: Record<string, CodexPet> = {},
   customDots: CustomDots = {},
+  customBots: CustomBots = {},
 ): AvatarBundle {
   const codexPet = codexPetForAvatarId(id, codexPets);
   if (codexPet) return buildSpriteBundle(codexPet);
@@ -415,6 +497,21 @@ export function getAvatarBundle(
   if (id.startsWith(DOTS_AVATAR_PREFIX)) {
     if (dotsRegistry[id]) return dotsRegistry[id];
     if (customDots[id]) return buildCustomDotsBundle(id, customDots[id].name);
+  }
+
+  if (id.startsWith(BOT_AVATAR_PREFIX)) {
+    const bot =
+      botRegistry[id] ??
+      (customBots[id] &&
+        buildBotBundle(id, customBots[id], botPaletteColor(id)));
+    if (bot) {
+      return buildBotBundle(
+        id,
+        bot.definition,
+        colorOverride?.body ?? bot.color,
+        colorOverride?.eyes ?? bot.eyeColor,
+      );
+    }
   }
 
   const customDefinition = customRegistry?.[id];

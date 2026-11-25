@@ -13,6 +13,20 @@ const SLEEP_RADIUS = 340;
 // ce temps, pour une vraie transition plutôt qu'un retour sec au sommeil.
 const SLEEP_DELAY_MS = 1200;
 
+/** Curseur GLOBAL en px logiques, relatif au viewport de cette fenêtre (donc souvent hors de
+ * ses bornes) : la fenêtre du pet est trop petite pour compter sur les events pointer. */
+export async function cursorInViewport(): Promise<{ x: number; y: number }> {
+  const [cursor, origin] = await Promise.all([
+    cursorPosition(),
+    getCurrentWindow().outerPosition(),
+  ]);
+  const scale = window.devicePixelRatio;
+  return {
+    x: (cursor.x - origin.x) / scale,
+    y: (cursor.y - origin.y) / scale,
+  };
+}
+
 /** Pose de regard (0..15) vers le curseur tant que `active` et que le curseur est dans le
  * rayon de réveil, `null` sinon. Le curseur est lu par polling de la position GLOBALE (le
  * rayon dépasse la fenêtre, et `setIgnoreCursorEvents` n'est pas fiable sur Windows, cf.
@@ -37,18 +51,12 @@ export function useCursorGaze(
       if (el && !busy) {
         busy = true;
         try {
-          const [cursor, origin] = await Promise.all([
-            cursorPosition(),
-            getCurrentWindow().outerPosition(),
-          ]);
+          const cursor = await cursorInViewport();
           if (cancelled) return;
           const rect = el.getBoundingClientRect();
-          const scale = window.devicePixelRatio;
-          // Écran, en px physiques -> px logiques : distance au centre du pet.
-          const dx =
-            (cursor.x - origin.x) / scale - (rect.left + rect.width / 2);
-          const dy =
-            (cursor.y - origin.y) / scale - (rect.top + rect.height / 2);
+          // Distance au centre du pet, en px logiques.
+          const dx = cursor.x - (rect.left + rect.width / 2);
+          const dy = cursor.y - (rect.top + rect.height / 2);
           const inside =
             Math.hypot(dx, dy) < (awake ? SLEEP_RADIUS : WAKE_RADIUS);
           if (inside) {

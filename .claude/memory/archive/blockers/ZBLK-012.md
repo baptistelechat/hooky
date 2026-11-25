@@ -2,14 +2,18 @@
 id: ZBLK-012
 type: blocker
 date: 2026-08-25
+summary: "Icônes de badge géantes dans la grille Settings (libellés tronqués)"
 tags: [badge, icon, tailwind, sizing, settings-grid]
+status: résolu
 ---
 
 # ZBLK-012 — Icônes de badge géantes dans la grille Settings (libellés tronqués)
 
-| Friction                                                                                                                                                                                                                                 | Cause réelle                                                                                                                                                                                                                                                       | Solution                                                                                     | Statut |
-| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------- | ------ |
-| Après le remplacement par les icônes animées (`BDR-023`), la grille de validation (`AnimationCard.tsx`) affichait des icônes disproportionnées dans les badges "hook: animation", tronquant les libellés ("rking" au lieu de "working"). | `<Icon className="size-3 shrink-0" />` : les icônes animées rendent leur SVG dans un `<div>` wrapper, la classe Tailwind `size-3` ne stylisait que ce wrapper, le `<svg>` interne gardant son propre `width`/`height` (28 par défaut, jamais passé explicitement). | Passage explicite de `size={12}` en plus de `className="shrink-0"` dans `AnimationCard.tsx`. | résolu |
+**Friction** : Après le remplacement par les icônes animées (`BDR-023`), la grille de validation (`AnimationCard.tsx`) affichait des icônes disproportionnées dans les badges "hook: animation", tronquant les libellés ("rking" au lieu de "working").
+
+**Cause réelle** : `<Icon className="size-3 shrink-0" />` : les icônes animées rendent leur SVG dans un `<div>` wrapper, la classe Tailwind `size-3` ne stylisait que ce wrapper, le `<svg>` interne gardant son propre `width`/`height` (28 par défaut, jamais passé explicitement).
+
+**Solution** : Passage explicite de `size={12}` en plus de `className="shrink-0"` dans `AnimationCard.tsx`.
 
 ## Références
 

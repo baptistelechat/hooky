@@ -3,8 +3,8 @@ import { Button } from "@/components/ui/button";
 import { useCodexPets, refreshCodexPets } from "@/hooks/useCodexPets";
 import { useSettings } from "@/hooks/useSettings";
 import { AvatarPickerCard } from "./AvatarPickerCard";
-import { PickerSectionHeader } from "./PickerSectionHeader";
-import { RefreshCw } from "lucide-react";
+import { PickerSection } from "./PickerSection";
+import { PawPrint, RefreshCw } from "lucide-react";
 import { useMemo } from "react";
 
 const PETDEX_URL = "https://petdex.dev/";
@@ -21,12 +21,14 @@ export function CodexPetsSection() {
   );
 
   return (
-    <section className="flex flex-col gap-2" aria-label="Pets Codex">
-      <PickerSectionHeader
-        title="Pets Codex"
-        linkLabel="Télécharger sur Petdex"
-        linkUrl={PETDEX_URL}
-      >
+    <PickerSection
+      value="codex"
+      icon={PawPrint}
+      title="Pets Codex"
+      count={bundles.length}
+      linkLabel="Télécharger sur Petdex"
+      linkUrl={PETDEX_URL}
+      actions={
         <Button
           type="button"
           variant="ghost"
@@ -36,8 +38,8 @@ export function CodexPetsSection() {
         >
           <RefreshCw className="size-3" />
         </Button>
-      </PickerSectionHeader>
-
+      }
+    >
       {bundles.length === 0 ? (
         <p className="text-xs text-muted-foreground">
           Aucun pet trouvé dans <code>~/.codex/pets</code>. Installe-en un avec{" "}
@@ -58,6 +60,6 @@ export function CodexPetsSection() {
           ))}
         </div>
       )}
-    </section>
+    </PickerSection>
   );
 }

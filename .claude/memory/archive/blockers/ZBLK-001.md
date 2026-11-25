@@ -2,14 +2,18 @@
 id: ZBLK-001
 type: blocker
 date: 2026-08-24
+summary: "Fusion hooks dans settings.json bloquée — attribut ReadOnly"
 tags: [windows, readonly, settings-json, claude-code, misdiagnosis]
+status: résolu
 ---
 
 # ZBLK-001 — Fusion hooks dans settings.json bloquée — attribut ReadOnly
 
-| Friction                                                                                               | Cause réelle                                                                                                                                                                                                    | Solution                                                                                                                                                                                                                         | Statut |
-| ------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
-| Écriture impossible dans `~/.claude/settings.json` pour fusionner `hooks/claude-settings-snippet.json` | Diagnostic initial erroné : supposé verrou de process. Cause réelle : attribut **ReadOnly** Windows du fichier — protection volontaire et permanente de Baptiste sur ce fichier de config partagé entre projets | Désactivation temporaire de l'attribut ReadOnly le temps de l'écriture, fusion clé par clé (8 hooks existants préservés intacts, 8 nouveaux hooks HTTP ajoutés en blocks séparés), **attribut ReadOnly restauré après écriture** | résolu |
+**Friction** : Écriture impossible dans `~/.claude/settings.json` pour fusionner `hooks/claude-settings-snippet.json`
+
+**Cause réelle** : Diagnostic initial erroné : supposé verrou de process. Cause réelle : attribut **ReadOnly** Windows du fichier — protection volontaire et permanente de Baptiste sur ce fichier de config partagé entre projets
+
+**Solution** : Désactivation temporaire de l'attribut ReadOnly le temps de l'écriture, fusion clé par clé (8 hooks existants préservés intacts, 8 nouveaux hooks HTTP ajoutés en blocks séparés), **attribut ReadOnly restauré après écriture**
 
 Vérification post-fusion : JSON syntaxiquement correct, aucun hook existant modifié (`notify/main.ps1`, `session-start-context.ps1`, `bash-failure-diagnose.ps1`, `claude_status.py`, `pnpm-add-reminder.ps1`, `prettier-format.ps1`, `npx-to-pnpm-dlx.ps1`, `rtk hook claude` tous présents).
 

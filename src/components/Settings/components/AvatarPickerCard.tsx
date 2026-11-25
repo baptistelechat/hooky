@@ -23,6 +23,7 @@ import {
   hasGaze,
   spriteCycleMs,
 } from "@/lib/codexPets";
+import { BOT_ANIMATION_ORDER, botCycleMs } from "@/lib/botAvatars";
 import { DOTS_ANIMATION_ORDER, dotsCycleMs } from "@/lib/dotsAvatars";
 import { AVATAR_PREVIEW_SIZE } from "@/lib/layout";
 import { Eye, RotateCcw, Trash2 } from "lucide-react";
@@ -50,6 +51,7 @@ function animationCycleDuration(
 ): number {
   if (bundle.kind === "sprite") return spriteCycleMs(animation);
   if (bundle.kind === "dots") return dotsCycleMs(animation);
+  if (bundle.kind === "bot") return botCycleMs();
   return bundle.definition.animations[animation].steps.reduce(
     (total, step) => total + step.holdMs + step.transitionMs,
     0,
@@ -83,7 +85,9 @@ export function AvatarPickerCard({
       ? SPRITE_ANIMATION_ORDER
       : bundle.kind === "dots"
         ? DOTS_ANIMATION_ORDER
-        : (bundle.definition.animationOrder as AnimationName[]);
+        : bundle.kind === "bot"
+          ? BOT_ANIMATION_ORDER
+          : (bundle.definition.animationOrder as AnimationName[]);
   const [animation, setAnimation] = useState<AnimationName>(() =>
     pickRandomAnimation(animationOrder),
   );

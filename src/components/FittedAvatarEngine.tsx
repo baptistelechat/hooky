@@ -5,6 +5,7 @@ import type {
   ProceduralAvatarBundle,
 } from "./avatarDefinition";
 import type { CodexRowName } from "../lib/codexPets";
+import { BotAvatar } from "./BotAvatar";
 import { DotsAvatar } from "./DotsAvatar";
 import { SpriteAvatar } from "./SpriteAvatar";
 
@@ -20,6 +21,8 @@ interface FittedAvatarEngineProps<B extends AvatarBundle = AvatarBundle> {
   gazeIndex?: number;
   /** Idem : ne concerne qu'un pet Codex, appelé si sa spritesheet ne se charge pas. */
   onSpriteError?: () => void;
+  /** Ne concerne qu'un avatar Open Bot Avatar : suivi du curseur global (cf. BotAvatar). */
+  followCursor?: boolean;
   size: number;
   className?: string;
   style?: React.CSSProperties;
@@ -90,6 +93,19 @@ export function FittedAvatarEngine({
   if (bundle.kind === "sprite") {
     return (
       <SpriteAvatar bundle={bundle} {...props} onLoadError={onSpriteError} />
+    );
+  }
+  if (bundle.kind === "bot") {
+    const { animation, size, className, style, followCursor } = props;
+    return (
+      <BotAvatar
+        bundle={bundle}
+        animation={animation}
+        size={size}
+        followCursor={followCursor}
+        className={className}
+        style={style}
+      />
     );
   }
   if (bundle.kind === "dots") {

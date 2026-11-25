@@ -7,6 +7,24 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Open Bot Avatar characters: 23 bots from [Open Bot Avatar](https://dominikscholz.github.io/open-bot-avatar/)
+  (by Dominik Scholz, MIT) are available in a new "Open Bot Avatar" section of the Avatar tab,
+  each reacting to what Claude Code is doing (idle, waiting, thinking, working, blocked, done,
+  asleep). Their eyes and body follow your mouse anywhere on the screen (except while asleep).
+  When a bot is selected, choose its eyes (Neutre / Joyeux), its finish (Plat, Fourrure, Verre),
+  turn cursor following on or off, and edit its body and eye colors
+- Import your own bot: generate one on the Open Bot Avatar site, copy the JSON, then click the
+  "Coller un bot" card (or press Ctrl+V) in the Avatar tab, or add a `.json` file with "Importer
+  un fichier". Each imported bot gets its own color from the gallery palette (editable like the
+  others), and can be removed from its card
+
+### Changed
+
+- The Avatar tab is now split into collapsible sections (Avatars, Open Bot Avatar, Dots Lab, Pets
+  Codex) showing how many avatars each one holds. The section of the current avatar opens first
+
 ## [0.4.0] - 2026-10-11
 
 ### Added
